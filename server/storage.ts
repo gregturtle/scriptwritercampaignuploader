@@ -3,8 +3,15 @@ import {
   File, InsertFile,
   Campaign, InsertCampaign,
   Creative, InsertCreative,
-  ActivityLog, InsertActivityLog
+  ActivityLog, InsertActivityLog,
+  authTokens,
+  files,
+  campaigns,
+  creatives,
+  activityLogs
 } from "@shared/schema";
+import { db } from './db';
+import { eq, desc } from 'drizzle-orm';
 
 // modify the interface with any CRUD methods
 // you might need
@@ -32,163 +39,147 @@ export interface IStorage {
   getActivityLogs(limit?: number): Promise<ActivityLog[]>;
 }
 
-export class MemStorage implements IStorage {
-  private authTokens: Map<number, AuthToken>;
-  private files: Map<number, File>;
-  private campaigns: Map<string, Campaign>;
-  private creatives: Map<number, Creative>;
-  private activityLogs: Map<number, ActivityLog>;
-  
-  private authTokenCounter: number;
-  private fileCounter: number;
-  private creativeCounter: number;
-  private logCounter: number;
-
-  constructor() {
-    this.authTokens = new Map();
-    this.files = new Map();
-    this.campaigns = new Map();
-    this.creatives = new Map();
-    this.activityLogs = new Map();
-    
-    this.authTokenCounter = 1;
-    this.fileCounter = 1;
-    this.creativeCounter = 1;
-    this.logCounter = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   // Auth tokens
   async saveAuthToken(token: InsertAuthToken): Promise<AuthToken> {
-    const id = this.authTokenCounter++;
-    const now = new Date().toISOString();
+    const [authToken] = await db
+      .insert(authTokens)
+      .values(token)
+      .returning();
     
-    const authToken: AuthToken = {
-      id,
-      ...token,
-      createdAt: now,
-    };
-    
-    this.authTokens.set(id, authToken);
     return authToken;
   }
 
   async getLatestAuthToken(): Promise<AuthToken | undefined> {
-    const tokens = Array.from(this.authTokens.values());
-    return tokens.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0];
+    const [token] = await db
+      .select()
+      .from(authTokens)
+      .orderBy(desc(authTokens.createdAt))
+      .limit(1);
+    
+    return token;
   }
 
   async clearAuthTokens(): Promise<void> {
-    this.authTokens.clear();
+    await db.delete(authTokens);
   }
   
   // Files
   async createFile(file: InsertFile): Promise<File> {
-    const id = this.fileCounter++;
-    const now = new Date().toISOString();
+    const [newFile] = await db
+      .insert(files)
+      .values(file)
+      .returning();
     
-    const newFile: File = {
-      id,
-      ...file,
-      createdAt: now,
-    };
-    
-    this.files.set(id, newFile);
     return newFile;
   }
 
   async getFileById(id: number): Promise<File | undefined> {
-    return this.files.get(id);
+    const [file] = await db
+      .select()
+      .from(files)
+      .where(eq(files.id, id))
+      .limit(1);
+    
+    return file;
   }
 
   async updateFile(id: number, updates: Partial<InsertFile>): Promise<File> {
-    const file = this.files.get(id);
+    const [updatedFile] = await db
+      .update(files)
+      .set(updates)
+      .where(eq(files.id, id))
+      .returning();
     
-    if (!file) {
+    if (!updatedFile) {
       throw new Error(`File with ID ${id} not found`);
     }
     
-    const updatedFile: File = {
-      ...file,
-      ...updates,
-    };
-    
-    this.files.set(id, updatedFile);
     return updatedFile;
   }
   
   // Campaigns
   async upsertCampaign(campaign: InsertCampaign): Promise<Campaign> {
-    const now = new Date().toISOString();
-    
-    const existingCampaign = this.campaigns.get(campaign.id);
+    // Check if campaign exists
+    const [existingCampaign] = await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, campaign.id))
+      .limit(1);
     
     if (existingCampaign) {
-      const updatedCampaign: Campaign = {
-        ...existingCampaign,
-        ...campaign,
-        updatedAt: now,
-      };
+      // Update
+      const [updatedCampaign] = await db
+        .update(campaigns)
+        .set({
+          ...campaign,
+          updatedAt: new Date()
+        })
+        .where(eq(campaigns.id, campaign.id))
+        .returning();
       
-      this.campaigns.set(campaign.id, updatedCampaign);
       return updatedCampaign;
     } else {
-      const newCampaign: Campaign = {
-        ...campaign,
-        createdAt: now,
-        updatedAt: now,
-      };
+      // Insert
+      const [newCampaign] = await db
+        .insert(campaigns)
+        .values(campaign)
+        .returning();
       
-      this.campaigns.set(campaign.id, newCampaign);
       return newCampaign;
     }
   }
 
   async getCampaignById(id: string): Promise<Campaign | undefined> {
-    return this.campaigns.get(id);
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, id))
+      .limit(1);
+    
+    return campaign;
   }
   
   // Creatives
   async createCreative(creative: InsertCreative): Promise<Creative> {
-    const id = this.creativeCounter++;
-    const now = new Date().toISOString();
+    const [newCreative] = await db
+      .insert(creatives)
+      .values(creative)
+      .returning();
     
-    const newCreative: Creative = {
-      id,
-      ...creative,
-      createdAt: now,
-    };
-    
-    this.creatives.set(id, newCreative);
     return newCreative;
   }
 
   async getCreativesByFileId(fileId: number): Promise<Creative[]> {
-    return Array.from(this.creatives.values())
-      .filter(creative => creative.fileId === fileId);
+    return db
+      .select()
+      .from(creatives)
+      .where(eq(creatives.fileId, fileId));
   }
   
   // Activity logs
   async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
-    const id = this.logCounter++;
-    
-    const newLog: ActivityLog = {
-      id,
+    // Make sure timestamp is set if not provided
+    const logWithTimestamp = {
       ...log,
+      timestamp: log.timestamp || new Date()
     };
     
-    this.activityLogs.set(id, newLog);
+    const [newLog] = await db
+      .insert(activityLogs)
+      .values(logWithTimestamp)
+      .returning();
+    
     return newLog;
   }
 
   async getActivityLogs(limit: number = 50): Promise<ActivityLog[]> {
-    return Array.from(this.activityLogs.values())
-      .sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )
-      .slice(0, limit);
+    return db
+      .select()
+      .from(activityLogs)
+      .orderBy(desc(activityLogs.timestamp))
+      .limit(limit);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
