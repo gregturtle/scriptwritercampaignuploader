@@ -8,6 +8,7 @@ const FB_GRAPH_API = `https://graph.facebook.com/${FB_API_VERSION}`;
 const META_APP_ID = process.env.META_APP_ID || "";
 const META_APP_SECRET = process.env.META_APP_SECRET || "";
 const META_REDIRECT_URI = process.env.META_REDIRECT_URI || "http://localhost:5000/api/auth/callback";
+const META_AD_ACCOUNT_ID = process.env.META_AD_ACCOUNT_ID || "";
 
 // Required permissions for Meta Marketing API
 const PERMISSIONS = [
@@ -87,15 +88,22 @@ class MetaApiService {
    * Get all campaigns for the user
    */
   async getCampaigns(accessToken: string): Promise<any[]> {
-    // First get ad accounts
-    const adAccounts = await this.getAdAccounts(accessToken);
-
-    if (adAccounts.length === 0) {
-      throw new Error("No ad accounts found for this user");
+    // Use the ad account ID from environment variable if available
+    let adAccountId = META_AD_ACCOUNT_ID;
+    
+    // Fallback to fetching accounts if no environment variable is set
+    if (!adAccountId) {
+      const adAccounts = await this.getAdAccounts(accessToken);
+      if (adAccounts.length === 0) {
+        throw new Error("No ad accounts found for this user");
+      }
+      adAccountId = adAccounts[0];
     }
-
-    // For simplicity, use the first ad account
-    const adAccountId = adAccounts[0];
+    
+    // Make sure adAccountId format is correct (should start with 'act_')
+    if (!adAccountId.startsWith('act_')) {
+      adAccountId = `act_${adAccountId}`;
+    }
 
     // Get campaigns for the ad account
     const fields = "id,name,status,objective,daily_budget,lifetime_budget,start_time,end_time";
@@ -166,15 +174,22 @@ class MetaApiService {
     videoAssetId: string,
     name: string
   ): Promise<any> {
-    // First get ad accounts
-    const adAccounts = await this.getAdAccounts(accessToken);
-
-    if (adAccounts.length === 0) {
-      throw new Error("No ad accounts found for this user");
+    // Use the ad account ID from environment variable if available
+    let adAccountId = META_AD_ACCOUNT_ID;
+    
+    // Fallback to fetching accounts if no environment variable is set
+    if (!adAccountId) {
+      const adAccounts = await this.getAdAccounts(accessToken);
+      if (adAccounts.length === 0) {
+        throw new Error("No ad accounts found for this user");
+      }
+      adAccountId = adAccounts[0];
     }
-
-    // For simplicity, use the first ad account
-    const adAccountId = adAccounts[0];
+    
+    // Make sure adAccountId format is correct (should start with 'act_')
+    if (!adAccountId.startsWith('act_')) {
+      adAccountId = `act_${adAccountId}`;
+    }
     
     // Get the ad set ID from the campaign
     const campaignResponse = await fetch(

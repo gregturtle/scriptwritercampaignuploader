@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
 
 const app = express();
 app.use(express.json());
@@ -36,7 +37,36 @@ app.use((req, res, next) => {
   next();
 });
 
+// Helper function to automatically authenticate with the META_ACCESS_TOKEN environment variable
+async function autoAuthenticate() {
+  if (process.env.META_ACCESS_TOKEN) {
+    try {
+      log('Auto-authenticating with META_ACCESS_TOKEN environment variable');
+      
+      // Clear any existing tokens
+      await storage.clearAuthTokens();
+      
+      // Create a new token with a long expiration (1 year)
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+      
+      await storage.saveAuthToken({
+        accessToken: process.env.META_ACCESS_TOKEN,
+        // No refresh token needed since we're using a long-lived token
+        expiresAt: oneYearFromNow
+      });
+      
+      log('Auto-authentication successful');
+    } catch (error) {
+      log(`Auto-authentication failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
 (async () => {
+  // Auto-authenticate before setting up routes
+  await autoAuthenticate();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
