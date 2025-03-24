@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { metaApiService, getRedirectUri } from "./services/metaApi";
 import { fileService } from "./services/fileService";
+import { googleDriveService } from "./services/googleDriveApi";
 
 // Setup file upload middleware
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -142,6 +143,76 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       res.status(500).json({ message: "Failed to logout" });
     }
   });
+  
+  // Google Drive auth routes
+  app.get("/api/auth/google/login-url", (req, res) => {
+    try {
+      const loginUrl = googleDriveService.getAuthUrl();
+      res.json({ url: loginUrl });
+    } catch (error) {
+      console.error("Error generating Google login URL:", error);
+      res.status(500).json({ message: "Failed to generate Google login URL" });
+    }
+  });
+  
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code } = req.query;
+      
+      if (typeof code !== "string") {
+        return res.status(400).json({ message: "Invalid authorization code" });
+      }
+      
+      const tokens = await googleDriveService.exchangeCodeForTokens(code);
+      
+      // Save token to database with a special 'googleDrive' prefix to differentiate
+      await dbStorage.saveAuthToken({
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || null,
+        expiresAt: new Date(tokens.expiry_date).toISOString(),
+        provider: 'googleDrive' // Add this field to your schema if not already present
+      });
+      
+      // Log success
+      await dbStorage.createActivityLog({
+        type: "success",
+        message: "Connected to Google Drive API",
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Close the popup window
+      res.send(`
+        <html>
+          <body>
+            <script>
+              window.close();
+            </script>
+            <p>Google Drive authentication successful. You can close this window.</p>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Google auth callback error:", error);
+      
+      // Log error
+      await dbStorage.createActivityLog({
+        type: "error",
+        message: `Google authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.status(500).send(`
+        <html>
+          <body>
+            <script>
+              window.close();
+            </script>
+            <p>Google authentication failed. Please try again.</p>
+          </body>
+        </html>
+      `);
+    }
+  });
 
   // Campaign routes
   app.get("/api/campaigns", async (req, res) => {
@@ -181,6 +252,106 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Google Drive routes
+  app.get("/api/google-drive/files", async (req, res) => {
+    try {
+      // Get Google Drive token from database
+      const tokens = await dbStorage.getAuthTokensByProvider('googleDrive');
+      
+      if (!tokens || tokens.length === 0) {
+        return res.status(401).json({ message: "Not authenticated with Google Drive" });
+      }
+      
+      // Use the latest token
+      const token = tokens[0];
+      
+      // Check if token is expired
+      if (new Date(token.expiresAt) <= new Date()) {
+        return res.status(401).json({ message: "Google Drive token expired, please login again" });
+      }
+      
+      // List .mov files from Google Drive
+      const files = await googleDriveService.listMovFiles(token.accessToken);
+      
+      res.json(files);
+    } catch (error) {
+      console.error("Error fetching Google Drive files:", error);
+      
+      // Log error
+      await dbStorage.createActivityLog({
+        type: "error",
+        message: `Failed to fetch Google Drive files: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.status(500).json({ message: "Failed to fetch Google Drive files" });
+    }
+  });
+  
+  app.post("/api/google-drive/download", async (req, res) => {
+    try {
+      const { fileId } = req.body;
+      
+      if (!fileId) {
+        return res.status(400).json({ message: "File ID is required" });
+      }
+      
+      // Get Google Drive token from database
+      const tokens = await dbStorage.getAuthTokensByProvider('googleDrive');
+      
+      if (!tokens || tokens.length === 0) {
+        return res.status(401).json({ message: "Not authenticated with Google Drive" });
+      }
+      
+      // Use the latest token
+      const token = tokens[0];
+      
+      // Check if token is expired
+      if (new Date(token.expiresAt) <= new Date()) {
+        return res.status(401).json({ message: "Google Drive token expired, please login again" });
+      }
+      
+      // Download file from Google Drive
+      const downloadedFile = await googleDriveService.downloadFile(token.accessToken, fileId, uploadDir);
+      
+      // Save file info to database
+      const savedFile = await dbStorage.createFile({
+        name: downloadedFile.name,
+        path: downloadedFile.localPath,
+        size: downloadedFile.size,
+        type: downloadedFile.type,
+        status: "ready",
+        metaAssetId: null,
+        source: "googleDrive",
+      });
+      
+      // Log success
+      await dbStorage.createActivityLog({
+        type: "success",
+        message: `File "${downloadedFile.name}" downloaded from Google Drive successfully`,
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.json({
+        fileId: savedFile.id.toString(),
+        name: savedFile.name,
+        size: savedFile.size,
+        path: savedFile.localPath,
+      });
+    } catch (error) {
+      console.error("Error downloading from Google Drive:", error);
+      
+      // Log error
+      await dbStorage.createActivityLog({
+        type: "error",
+        message: `Google Drive download failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.status(500).json({ message: "Failed to download file from Google Drive" });
+    }
+  });
+  
   // File upload routes
   app.post("/api/files/upload", upload.single("file"), async (req, res) => {
     try {

@@ -12,6 +12,7 @@ export interface IStorage {
   // Auth tokens
   saveAuthToken(token: InsertAuthToken): Promise<AuthToken>;
   getLatestAuthToken(): Promise<AuthToken | undefined>;
+  getAuthTokensByProvider(provider: string): Promise<AuthToken[]>;
   clearAuthTokens(): Promise<void>;
   
   // Files
@@ -77,6 +78,15 @@ export class MemStorage implements IStorage {
     return tokens.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )[0];
+  }
+  
+  async getAuthTokensByProvider(provider: string): Promise<AuthToken[]> {
+    const tokens = Array.from(this.authTokens.values());
+    return tokens
+      .filter(token => token.provider === provider)
+      .sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
   }
 
   async clearAuthTokens(): Promise<void> {
