@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMetaAuth } from "@/hooks/useMetaAuth";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useCampaigns } from "@/hooks/useCampaigns";
-import { FileUpload, Campaign, ActivityLog } from "@shared/schema";
+import { FileUpload, Campaign, FrontendActivityLog } from "@shared/schema";
 
 export default function Home() {
   const { toast } = useToast();
@@ -25,7 +25,7 @@ export default function Home() {
     launchCreatives 
   } = useCampaigns();
 
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [activityLogs, setActivityLogs] = useState<FrontendActivityLog[]>([]);
 
   // Calculate status summary
   const statusSummary = {
@@ -72,7 +72,7 @@ export default function Home() {
         selectedCampaigns
       );
       
-      const newLog: ActivityLog = {
+      const newLog: FrontendActivityLog = {
         id: Date.now().toString(),
         type: 'success',
         message: `Launched ${result.successCount} creatives to ${selectedCampaigns.length} campaigns`,
@@ -88,7 +88,7 @@ export default function Home() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to launch creatives';
       
-      const newLog: ActivityLog = {
+      const newLog: FrontendActivityLog = {
         id: Date.now().toString(),
         type: 'error',
         message: errorMessage,

@@ -91,11 +91,11 @@ export function useFileUpload() {
   });
 
   // Handle file upload
-  const uploadFiles = async (files: File[], logCallback?: (log: ActivityLog) => void) => {
+  const uploadFiles = async (files: File[], logCallback?: (log: FrontendActivityLog) => void) => {
     for (const file of files) {
       try {
         if (!file.name.endsWith('.mov')) {
-          const errorLog: ActivityLog = {
+          const errorLog: FrontendActivityLog = {
             id: Date.now().toString(),
             type: 'error',
             message: `File "${file.name}" failed validation - wrong format, only .mov files are supported`,
@@ -124,7 +124,7 @@ export function useFileUpload() {
           }];
         });
         
-        const successLog: ActivityLog = {
+        const successLog: FrontendActivityLog = {
           id: Date.now().toString(),
           type: 'success',
           message: `File "${file.name}" uploaded successfully`,
@@ -143,7 +143,7 @@ export function useFileUpload() {
           )
         );
         
-        const errorLog: ActivityLog = {
+        const errorLog: FrontendActivityLog = {
           id: Date.now().toString(),
           type: 'error',
           message: `Failed to upload "${file.name}": ${errorMessage}`,

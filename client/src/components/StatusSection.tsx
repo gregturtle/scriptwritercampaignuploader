@@ -1,7 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import { Info, AlertTriangle, CheckCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ActivityLog } from "@shared/schema";
+import { FrontendActivityLog } from "@shared/schema";
 
 interface StatusSectionProps {
   statusSummary: {
@@ -9,7 +9,7 @@ interface StatusSectionProps {
     campaignsSelected: string;
     launched: string;
   };
-  activityLogs: ActivityLog[];
+  activityLogs: FrontendActivityLog[];
 }
 
 export default function StatusSection({ statusSummary, activityLogs }: StatusSectionProps) {
