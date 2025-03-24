@@ -122,16 +122,22 @@ class MetaApiService {
     const data = await response.json() as any;
     
     // Format campaigns
-    return data.data.map((campaign: any) => ({
-      id: campaign.id,
-      name: campaign.name,
-      status: campaign.status,
-      budget: parseInt(campaign.daily_budget || campaign.lifetime_budget || "0") / 100, // Convert cents to dollars
-      startTime: campaign.start_time,
-      endTime: campaign.end_time,
-      objective: campaign.objective,
-      metaData: campaign,
-    }));
+    return data.data.map((campaign: any) => {
+      // Parse dates if they exist, or set to null
+      const startTime = campaign.start_time ? new Date(campaign.start_time) : null;
+      const endTime = campaign.end_time ? new Date(campaign.end_time) : null;
+      
+      return {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        budget: parseInt(campaign.daily_budget || campaign.lifetime_budget || "0") / 100, // Convert cents to dollars
+        startTime: startTime,
+        endTime: endTime,
+        objective: campaign.objective,
+        metaData: campaign,
+      };
+    });
   }
   
   /**
