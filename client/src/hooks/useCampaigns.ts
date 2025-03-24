@@ -1,0 +1,100 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Campaign, FileUpload } from "@shared/schema";
+
+export function useCampaigns() {
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [filteredCampaigns, setFilteredCampaigns] = useState<Campaign[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch campaigns
+  const { data: campaigns = [], isLoading, refetch } = useQuery<Campaign[]>({
+    queryKey: ['/api/campaigns'],
+    enabled: false, // Don't fetch on mount, only when auth is confirmed
+  });
+
+  // Launch creatives mutation
+  const launchMutation = useMutation({
+    mutationFn: async ({ 
+      files, 
+      campaignIds 
+    }: { 
+      files: FileUpload[]; 
+      campaignIds: string[] 
+    }) => {
+      const response = await apiRequest('POST', '/api/creatives/launch', {
+        files,
+        campaignIds
+      });
+      return response.json();
+    }
+  });
+
+  // Update filtered campaigns when original campaigns or search query changes
+  useEffect(() => {
+    if (!campaigns) return;
+    
+    if (!searchQuery) {
+      setFilteredCampaigns(campaigns);
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredCampaigns(
+        campaigns.filter(campaign => 
+          campaign.name.toLowerCase().includes(query) ||
+          campaign.id.toLowerCase().includes(query)
+        )
+      );
+    }
+  }, [campaigns, searchQuery]);
+
+  // Toggle campaign selection
+  const toggleCampaign = (campaignId: string) => {
+    setSelectedCampaigns(prev => {
+      if (prev.includes(campaignId)) {
+        return prev.filter(id => id !== campaignId);
+      } else {
+        return [...prev, campaignId];
+      }
+    });
+  };
+
+  // Select/deselect all campaigns
+  const selectAllCampaigns = (selected: boolean) => {
+    if (selected) {
+      setSelectedCampaigns(filteredCampaigns.map(c => c.id));
+    } else {
+      setSelectedCampaigns([]);
+    }
+  };
+
+  // Search campaigns
+  const searchCampaigns = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  // Launch creatives to selected campaigns
+  const launchCreatives = async (files: FileUpload[], campaigns: string[]) => {
+    try {
+      const result = await launchMutation.mutateAsync({
+        files,
+        campaignIds: campaigns
+      });
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  return {
+    campaigns: filteredCampaigns,
+    isLoading,
+    refetchCampaigns: refetch,
+    selectedCampaigns,
+    toggleCampaign,
+    selectAllCampaigns,
+    searchCampaigns,
+    launchCreatives,
+    isLaunching: launchMutation.isPending
+  };
+}
