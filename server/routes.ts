@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage as dbStorage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -53,7 +53,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Auth routes
   app.get("/api/auth/status", async (req, res) => {
     try {
-      const token = await storage.getLatestAuthToken();
+      const token = await dbStorage.getLatestAuthToken();
       const isAuthenticated = !!token && new Date(token.expiresAt) > new Date();
       
       res.json({ authenticated: isAuthenticated });
