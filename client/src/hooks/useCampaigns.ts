@@ -11,7 +11,12 @@ export function useCampaigns() {
   // Fetch campaigns
   const { data: campaigns = [], isLoading, refetch } = useQuery<Campaign[]>({
     queryKey: ['/api/campaigns'],
-    enabled: false, // Don't fetch on mount, only when auth is confirmed
+    // Enable fetching by default since we're auto-authenticating
+    enabled: true,
+    // Add error handling
+    onError: (error) => {
+      console.error("Failed to fetch campaigns:", error);
+    }
   });
 
   // Launch creatives mutation

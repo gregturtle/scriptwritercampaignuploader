@@ -1,6 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+
+interface AuthResponse {
+  authenticated: boolean;
+}
 
 export function useMetaAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -9,9 +13,19 @@ export function useMetaAuth() {
   const { data: authStatus } = useQuery({
     queryKey: ['/api/auth/status'],
     retry: false,
-    onError: () => setIsAuthenticated(false),
-    onSuccess: (data) => {
-      setIsAuthenticated(!!data?.authenticated);
+    onSuccess: (data: any) => {
+      const authState = !!data?.authenticated;
+      setIsAuthenticated(authState);
+      
+      // If authenticated, trigger campaign fetching
+      if (authState) {
+        queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+      }
+    },
+    onSettled: (_data, error) => {
+      if (error) {
+        setIsAuthenticated(false);
+      }
     }
   });
 
