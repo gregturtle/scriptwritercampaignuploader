@@ -6,15 +6,8 @@ export const getAuthStatus = async () => {
   return response.json();
 };
 
-// Meta Auth API
 export const getLoginUrl = async () => {
-  const response = await apiRequest('GET', '/api/auth/meta/login-url', undefined);
-  return response.json();
-};
-
-// Google Drive Auth API
-export const getGoogleDriveAuthUrl = async () => {
-  const response = await apiRequest('GET', '/api/auth/google/login-url', undefined);
+  const response = await apiRequest('GET', '/api/auth/login-url', undefined);
   return response.json();
 };
 
@@ -45,17 +38,6 @@ export const uploadFile = async (file: File, onProgress?: (progress: number) => 
     throw new Error(errorText || response.statusText);
   }
 
-  return response.json();
-};
-
-// Google Drive API
-export const getGoogleDriveFiles = async () => {
-  const response = await apiRequest('GET', '/api/google-drive/files', undefined);
-  return response.json();
-};
-
-export const importGoogleDriveFile = async (fileId: string) => {
-  const response = await apiRequest('POST', '/api/google-drive/download', { fileId });
   return response.json();
 };
 

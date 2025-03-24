@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer, type Server } from "http";
-import { storage as dbStorage } from "./storage";
+import { storage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -13,9 +13,8 @@ import {
   insertCampaignSchema,
   insertCreativeSchema
 } from "@shared/schema";
-import { metaApiService, getRedirectUri } from "./services/metaApi";
+import { metaApiService } from "./services/metaApi";
 import { fileService } from "./services/fileService";
-import { googleDriveService } from "./services/googleDriveApi";
 
 // Setup file upload middleware
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -24,7 +23,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const multerStorage = multer.diskStorage({
+const storage = multer.diskStorage({
   destination: function (_req, _file, cb) {
     cb(null, uploadDir);
   },
@@ -36,7 +35,7 @@ const multerStorage = multer.diskStorage({
 });
 
 const upload = multer({
-  storage: multerStorage,
+  storage: storage,
   fileFilter: (_req, file, cb) => {
     // Only accept .mov files
     if (file.originalname.endsWith(".mov")) {
@@ -54,7 +53,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Auth routes
   app.get("/api/auth/status", async (req, res) => {
     try {
-      const token = await dbStorage.getLatestAuthToken();
+      const token = await storage.getLatestAuthToken();
       const isAuthenticated = !!token && new Date(token.expiresAt) > new Date();
       
       res.json({ authenticated: isAuthenticated });
@@ -85,14 +84,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       const token = await metaApiService.exchangeCodeForToken(code);
       
       // Save token to database
-      await dbStorage.saveAuthToken({
+      await storage.saveAuthToken({
         accessToken: token.access_token,
         refreshToken: token.refresh_token || null,
         expiresAt: new Date(Date.now() + token.expires_in * 1000).toISOString(),
       });
       
       // Log success
-      await dbStorage.createActivityLog({
+      await storage.createActivityLog({
         type: "success",
         message: "Connected to Meta Ads API",
         timestamp: new Date().toISOString(),
@@ -113,7 +112,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.error("Auth callback error:", error);
       
       // Log error
-      await dbStorage.createActivityLog({
+      await storage.createActivityLog({
         type: "error",
         message: `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -135,7 +134,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.post("/api/auth/logout", async (req, res) => {
     try {
       // Clear token from database
-      await dbStorage.clearAuthTokens();
+      await storage.clearAuthTokens();
       
       res.json({ success: true });
     } catch (error) {
@@ -143,82 +142,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       res.status(500).json({ message: "Failed to logout" });
     }
   });
-  
-  // Google Drive auth routes
-  app.get("/api/auth/google/login-url", (req, res) => {
-    try {
-      const loginUrl = googleDriveService.getAuthUrl();
-      res.json({ url: loginUrl });
-    } catch (error) {
-      console.error("Error generating Google login URL:", error);
-      res.status(500).json({ message: "Failed to generate Google login URL" });
-    }
-  });
-  
-  app.get("/api/auth/google/callback", async (req, res) => {
-    try {
-      const { code } = req.query;
-      
-      if (typeof code !== "string") {
-        return res.status(400).json({ message: "Invalid authorization code" });
-      }
-      
-      const tokens = await googleDriveService.exchangeCodeForTokens(code);
-      
-      // Save token to database with a special 'googleDrive' prefix to differentiate
-      await dbStorage.saveAuthToken({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || null,
-        expiresAt: new Date(tokens.expiry_date).toISOString(),
-        provider: 'googleDrive' // Add this field to your schema if not already present
-      });
-      
-      // Log success
-      await dbStorage.createActivityLog({
-        type: "success",
-        message: "Connected to Google Drive API",
-        timestamp: new Date().toISOString(),
-      });
-      
-      // Close the popup window
-      res.send(`
-        <html>
-          <body>
-            <script>
-              window.close();
-            </script>
-            <p>Google Drive authentication successful. You can close this window.</p>
-          </body>
-        </html>
-      `);
-    } catch (error) {
-      console.error("Google auth callback error:", error);
-      
-      // Log error
-      await dbStorage.createActivityLog({
-        type: "error",
-        message: `Google authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString(),
-      });
-      
-      res.status(500).send(`
-        <html>
-          <body>
-            <script>
-              window.close();
-            </script>
-            <p>Google authentication failed. Please try again.</p>
-          </body>
-        </html>
-      `);
-    }
-  });
 
   // Campaign routes
   app.get("/api/campaigns", async (req, res) => {
     try {
       // Get token from database
-      const token = await dbStorage.getLatestAuthToken();
+      const token = await storage.getLatestAuthToken();
       
       if (!token) {
         return res.status(401).json({ message: "Not authenticated" });
@@ -234,7 +163,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       // Save campaigns to database (for caching)
       for (const campaign of campaigns) {
-        await dbStorage.upsertCampaign(campaign);
+        await storage.upsertCampaign(campaign);
       }
       
       res.json(campaigns);
@@ -242,7 +171,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.error("Error fetching campaigns:", error);
       
       // Log error
-      await dbStorage.createActivityLog({
+      await storage.createActivityLog({
         type: "error",
         message: `Failed to fetch campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -252,106 +181,6 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // Google Drive routes
-  app.get("/api/google-drive/files", async (req, res) => {
-    try {
-      // Get Google Drive token from database
-      const tokens = await dbStorage.getAuthTokensByProvider('googleDrive');
-      
-      if (!tokens || tokens.length === 0) {
-        return res.status(401).json({ message: "Not authenticated with Google Drive" });
-      }
-      
-      // Use the latest token
-      const token = tokens[0];
-      
-      // Check if token is expired
-      if (new Date(token.expiresAt) <= new Date()) {
-        return res.status(401).json({ message: "Google Drive token expired, please login again" });
-      }
-      
-      // List .mov files from Google Drive
-      const files = await googleDriveService.listMovFiles(token.accessToken);
-      
-      res.json(files);
-    } catch (error) {
-      console.error("Error fetching Google Drive files:", error);
-      
-      // Log error
-      await dbStorage.createActivityLog({
-        type: "error",
-        message: `Failed to fetch Google Drive files: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString(),
-      });
-      
-      res.status(500).json({ message: "Failed to fetch Google Drive files" });
-    }
-  });
-  
-  app.post("/api/google-drive/download", async (req, res) => {
-    try {
-      const { fileId } = req.body;
-      
-      if (!fileId) {
-        return res.status(400).json({ message: "File ID is required" });
-      }
-      
-      // Get Google Drive token from database
-      const tokens = await dbStorage.getAuthTokensByProvider('googleDrive');
-      
-      if (!tokens || tokens.length === 0) {
-        return res.status(401).json({ message: "Not authenticated with Google Drive" });
-      }
-      
-      // Use the latest token
-      const token = tokens[0];
-      
-      // Check if token is expired
-      if (new Date(token.expiresAt) <= new Date()) {
-        return res.status(401).json({ message: "Google Drive token expired, please login again" });
-      }
-      
-      // Download file from Google Drive
-      const downloadedFile = await googleDriveService.downloadFile(token.accessToken, fileId, uploadDir);
-      
-      // Save file info to database
-      const savedFile = await dbStorage.createFile({
-        name: downloadedFile.name,
-        path: downloadedFile.localPath,
-        size: downloadedFile.size,
-        type: downloadedFile.type,
-        status: "ready",
-        metaAssetId: null,
-        source: "googleDrive",
-      });
-      
-      // Log success
-      await dbStorage.createActivityLog({
-        type: "success",
-        message: `File "${downloadedFile.name}" downloaded from Google Drive successfully`,
-        timestamp: new Date().toISOString(),
-      });
-      
-      res.json({
-        fileId: savedFile.id.toString(),
-        name: savedFile.name,
-        size: savedFile.size,
-        path: savedFile.localPath,
-      });
-    } catch (error) {
-      console.error("Error downloading from Google Drive:", error);
-      
-      // Log error
-      await dbStorage.createActivityLog({
-        type: "error",
-        message: `Google Drive download failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString(),
-      });
-      
-      res.status(500).json({ message: "Failed to download file from Google Drive" });
-    }
-  });
-  
   // File upload routes
   app.post("/api/files/upload", upload.single("file"), async (req, res) => {
     try {
@@ -367,7 +196,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       // Save file info to database
-      const savedFile = await dbStorage.createFile({
+      const savedFile = await storage.createFile({
         name: file.originalname,
         path: file.path,
         size: file.size,
@@ -377,7 +206,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       });
       
       // Log success
-      await dbStorage.createActivityLog({
+      await storage.createActivityLog({
         type: "success",
         message: `File "${file.originalname}" uploaded successfully`,
         timestamp: new Date().toISOString(),
@@ -393,7 +222,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.error("File upload error:", error);
       
       // Log error
-      await dbStorage.createActivityLog({
+      await storage.createActivityLog({
         type: "error",
         message: `File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -419,7 +248,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       const { files, campaignIds } = schema.parse(req.body);
       
       // Get token from database
-      const token = await dbStorage.getLatestAuthToken();
+      const token = await storage.getLatestAuthToken();
       
       if (!token) {
         return res.status(401).json({ message: "Not authenticated" });
@@ -435,7 +264,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         files.flatMap(file => 
           campaignIds.map(async (campaignId) => {
             // Get file from database
-            const dbFile = await dbStorage.getFileById(parseInt(file.id));
+            const dbFile = await storage.getFileById(parseInt(file.id));
             
             if (!dbFile) {
               throw new Error(`File with ID ${file.id} not found`);
@@ -445,7 +274,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             const uploadResult = await fileService.uploadFileToMeta(token.accessToken, dbFile.path);
             
             // Update file with Meta asset ID
-            await dbStorage.updateFile(dbFile.id, {
+            await storage.updateFile(dbFile.id, {
               metaAssetId: uploadResult.id,
             });
             
@@ -458,7 +287,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             );
             
             // Save creative to database
-            const creative = await dbStorage.createCreative({
+            const creative = await storage.createCreative({
               fileId: dbFile.id,
               campaignId,
               metaCreativeId: creativeResult.id,
@@ -466,12 +295,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             });
             
             // Update file status
-            await dbStorage.updateFile(dbFile.id, {
+            await storage.updateFile(dbFile.id, {
               status: "completed",
             });
             
             // Log success
-            await dbStorage.createActivityLog({
+            await storage.createActivityLog({
               type: "success",
               message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
               timestamp: new Date().toISOString(),
@@ -511,7 +340,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       // Log error
-      await dbStorage.createActivityLog({
+      await storage.createActivityLog({
         type: "error",
         message: `Failed to launch creatives: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -524,7 +353,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Activity log routes
   app.get("/api/logs", async (_req, res) => {
     try {
-      const logs = await dbStorage.getActivityLogs();
+      const logs = await storage.getActivityLogs();
       res.json(logs);
     } catch (error) {
       console.error("Error fetching logs:", error);

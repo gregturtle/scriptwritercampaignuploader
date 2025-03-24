@@ -8,7 +8,6 @@ export const authTokens = pgTable("auth_tokens", {
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token"),
   expiresAt: timestamp("expires_at").notNull(),
-  provider: text("provider").default("meta").notNull(), // 'meta' or 'googleDrive'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -26,7 +25,6 @@ export const files = pgTable("files", {
   type: text("type").notNull(),
   status: text("status").notNull().default("uploading"),
   metaAssetId: text("meta_asset_id"),
-  source: text("source").default("upload").notNull(), // 'upload' or 'googleDrive'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
