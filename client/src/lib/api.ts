@@ -50,12 +50,12 @@ export const uploadFile = async (file: File, onProgress?: (progress: number) => 
 
 // Google Drive API
 export const getGoogleDriveFiles = async () => {
-  const response = await apiRequest('GET', '/api/files/google-drive', undefined);
+  const response = await apiRequest('GET', '/api/google-drive/files', undefined);
   return response.json();
 };
 
 export const importGoogleDriveFile = async (fileId: string) => {
-  const response = await apiRequest('POST', '/api/files/google-drive/import', { fileId });
+  const response = await apiRequest('POST', '/api/google-drive/download', { fileId });
   return response.json();
 };
 

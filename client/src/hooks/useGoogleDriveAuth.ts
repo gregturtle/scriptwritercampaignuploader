@@ -23,7 +23,7 @@ export function useGoogleDriveAuth() {
   });
 
   // Display error toast when query fails
-  React.useEffect(() => {
+  useEffect(() => {
     if (filesQuery.isError) {
       toast({
         title: 'Error fetching Google Drive files',
@@ -81,7 +81,7 @@ export function useGoogleDriveAuth() {
     isAuthenticating,
     isLoading: filesQuery.isLoading,
     isError: filesQuery.isError,
-    files: filesQuery.data?.files || [],
+    files: filesQuery.data || [],
     isImporting: importFileMutation.isPending,
   };
 }
