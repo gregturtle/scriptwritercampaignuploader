@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request } from "express";
 import { createServer, type Server } from "http";
 import { storage as appStorage } from "./storage";
 import multer from "multer";
@@ -87,14 +87,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       await appStorage.saveAuthToken({
         accessToken: token.access_token,
         refreshToken: token.refresh_token || null,
-        expiresAt: new Date(Date.now() + token.expires_in * 1000).toISOString(),
+        expiresAt: new Date(Date.now() + token.expires_in * 1000),
       });
       
       // Log success
       await appStorage.createActivityLog({
         type: "success",
         message: "Connected to Meta Ads API",
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
       });
       
       // Close the popup window
@@ -115,7 +115,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       await appStorage.createActivityLog({
         type: "error",
         message: `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
       });
       
       res.status(500).send(`
@@ -248,7 +248,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       const { files, campaignIds } = schema.parse(req.body);
       
       // Get token from database
-      const token = await storage.getLatestAuthToken();
+      const token = await appStorage.getLatestAuthToken();
       
       if (!token) {
         return res.status(401).json({ message: "Not authenticated" });
@@ -264,7 +264,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         files.flatMap(file => 
           campaignIds.map(async (campaignId) => {
             // Get file from database
-            const dbFile = await storage.getFileById(parseInt(file.id));
+            const dbFile = await appStorage.getFileById(parseInt(file.id));
             
             if (!dbFile) {
               throw new Error(`File with ID ${file.id} not found`);
@@ -274,7 +274,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             const uploadResult = await fileService.uploadFileToMeta(token.accessToken, dbFile.path);
             
             // Update file with Meta asset ID
-            await storage.updateFile(dbFile.id, {
+            await appStorage.updateFile(dbFile.id, {
               metaAssetId: uploadResult.id,
             });
             
@@ -287,7 +287,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             );
             
             // Save creative to database
-            const creative = await storage.createCreative({
+            const creative = await appStorage.createCreative({
               fileId: dbFile.id,
               campaignId,
               metaCreativeId: creativeResult.id,
@@ -295,15 +295,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             });
             
             // Update file status
-            await storage.updateFile(dbFile.id, {
+            await appStorage.updateFile(dbFile.id, {
               status: "completed",
             });
             
             // Log success
-            await storage.createActivityLog({
+            await appStorage.createActivityLog({
               type: "success",
               message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
-              timestamp: new Date().toISOString(),
+              timestamp: new Date(),
             });
             
             return creative;
@@ -340,10 +340,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       // Log error
-      await storage.createActivityLog({
+      await appStorage.createActivityLog({
         type: "error",
         message: `Failed to launch creatives: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
       });
       
       res.status(500).json({ message: "Failed to launch creatives" });
@@ -353,7 +353,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Activity log routes
   app.get("/api/logs", async (_req, res) => {
     try {
-      const logs = await storage.getActivityLogs();
+      const logs = await appStorage.getActivityLogs();
       res.json(logs);
     } catch (error) {
       console.error("Error fetching logs:", error);
