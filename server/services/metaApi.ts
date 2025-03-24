@@ -25,7 +25,7 @@ const getBaseUrl = () => {
 };
 
 // Dynamically build the redirect URI from the base URL
-const getRedirectUri = () => {
+export const getRedirectUri = () => {
   // Use provided URI if available
   if (process.env.META_REDIRECT_URI) {
     return process.env.META_REDIRECT_URI;

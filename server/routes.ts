@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage as dbStorage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -13,7 +13,7 @@ import {
   insertCampaignSchema,
   insertCreativeSchema
 } from "@shared/schema";
-import { metaApiService } from "./services/metaApi";
+import { metaApiService, getRedirectUri } from "./services/metaApi";
 import { fileService } from "./services/fileService";
 
 // Setup file upload middleware
@@ -23,7 +23,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
+const multerStorage = multer.diskStorage({
   destination: function (_req, _file, cb) {
     cb(null, uploadDir);
   },
@@ -35,7 +35,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-  storage: storage,
+  storage: multerStorage,
   fileFilter: (_req, file, cb) => {
     // Only accept .mov files
     if (file.originalname.endsWith(".mov")) {
@@ -53,7 +53,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Auth routes
   app.get("/api/auth/status", async (req, res) => {
     try {
-      const token = await storage.getLatestAuthToken();
+      const token = await dbStorage.getLatestAuthToken();
       const isAuthenticated = !!token && new Date(token.expiresAt) > new Date();
       
       res.json({ authenticated: isAuthenticated });
@@ -84,14 +84,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       const token = await metaApiService.exchangeCodeForToken(code);
       
       // Save token to database
-      await storage.saveAuthToken({
+      await dbStorage.saveAuthToken({
         accessToken: token.access_token,
         refreshToken: token.refresh_token || null,
         expiresAt: new Date(Date.now() + token.expires_in * 1000).toISOString(),
       });
       
       // Log success
-      await storage.createActivityLog({
+      await dbStorage.createActivityLog({
         type: "success",
         message: "Connected to Meta Ads API",
         timestamp: new Date().toISOString(),
@@ -112,7 +112,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.error("Auth callback error:", error);
       
       // Log error
-      await storage.createActivityLog({
+      await dbStorage.createActivityLog({
         type: "error",
         message: `Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -134,7 +134,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.post("/api/auth/logout", async (req, res) => {
     try {
       // Clear token from database
-      await storage.clearAuthTokens();
+      await dbStorage.clearAuthTokens();
       
       res.json({ success: true });
     } catch (error) {
@@ -147,7 +147,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.get("/api/campaigns", async (req, res) => {
     try {
       // Get token from database
-      const token = await storage.getLatestAuthToken();
+      const token = await dbStorage.getLatestAuthToken();
       
       if (!token) {
         return res.status(401).json({ message: "Not authenticated" });
@@ -163,7 +163,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       // Save campaigns to database (for caching)
       for (const campaign of campaigns) {
-        await storage.upsertCampaign(campaign);
+        await dbStorage.upsertCampaign(campaign);
       }
       
       res.json(campaigns);
@@ -171,7 +171,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.error("Error fetching campaigns:", error);
       
       // Log error
-      await storage.createActivityLog({
+      await dbStorage.createActivityLog({
         type: "error",
         message: `Failed to fetch campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -196,7 +196,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       // Save file info to database
-      const savedFile = await storage.createFile({
+      const savedFile = await dbStorage.createFile({
         name: file.originalname,
         path: file.path,
         size: file.size,
@@ -206,7 +206,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       });
       
       // Log success
-      await storage.createActivityLog({
+      await dbStorage.createActivityLog({
         type: "success",
         message: `File "${file.originalname}" uploaded successfully`,
         timestamp: new Date().toISOString(),
@@ -222,7 +222,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.error("File upload error:", error);
       
       // Log error
-      await storage.createActivityLog({
+      await dbStorage.createActivityLog({
         type: "error",
         message: `File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -248,7 +248,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       const { files, campaignIds } = schema.parse(req.body);
       
       // Get token from database
-      const token = await storage.getLatestAuthToken();
+      const token = await dbStorage.getLatestAuthToken();
       
       if (!token) {
         return res.status(401).json({ message: "Not authenticated" });
@@ -264,7 +264,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         files.flatMap(file => 
           campaignIds.map(async (campaignId) => {
             // Get file from database
-            const dbFile = await storage.getFileById(parseInt(file.id));
+            const dbFile = await dbStorage.getFileById(parseInt(file.id));
             
             if (!dbFile) {
               throw new Error(`File with ID ${file.id} not found`);
@@ -274,7 +274,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             const uploadResult = await fileService.uploadFileToMeta(token.accessToken, dbFile.path);
             
             // Update file with Meta asset ID
-            await storage.updateFile(dbFile.id, {
+            await dbStorage.updateFile(dbFile.id, {
               metaAssetId: uploadResult.id,
             });
             
@@ -287,7 +287,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             );
             
             // Save creative to database
-            const creative = await storage.createCreative({
+            const creative = await dbStorage.createCreative({
               fileId: dbFile.id,
               campaignId,
               metaCreativeId: creativeResult.id,
@@ -295,12 +295,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             });
             
             // Update file status
-            await storage.updateFile(dbFile.id, {
+            await dbStorage.updateFile(dbFile.id, {
               status: "completed",
             });
             
             // Log success
-            await storage.createActivityLog({
+            await dbStorage.createActivityLog({
               type: "success",
               message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
               timestamp: new Date().toISOString(),
@@ -340,7 +340,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       // Log error
-      await storage.createActivityLog({
+      await dbStorage.createActivityLog({
         type: "error",
         message: `Failed to launch creatives: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -353,7 +353,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Activity log routes
   app.get("/api/logs", async (_req, res) => {
     try {
-      const logs = await storage.getActivityLogs();
+      const logs = await dbStorage.getActivityLogs();
       res.json(logs);
     } catch (error) {
       console.error("Error fetching logs:", error);
