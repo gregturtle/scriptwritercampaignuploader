@@ -180,24 +180,31 @@ class MetaApiService {
     videoAssetId: string,
     name: string
   ): Promise<any> {
+    console.log(`Creating ad creative for video asset ${videoAssetId} in campaign ${campaignId}`);
+    
     // Use the ad account ID from environment variable if available
     let adAccountId = META_AD_ACCOUNT_ID;
+    console.log(`Using ad account ID from env: ${adAccountId}`);
     
     // Fallback to fetching accounts if no environment variable is set
     if (!adAccountId) {
+      console.log("No ad account ID in environment, fetching from API...");
       const adAccounts = await this.getAdAccounts(accessToken);
       if (adAccounts.length === 0) {
         throw new Error("No ad accounts found for this user");
       }
       adAccountId = adAccounts[0];
+      console.log(`Fetched ad account ID: ${adAccountId}`);
     }
     
     // Make sure adAccountId format is correct (should start with 'act_')
     if (!adAccountId.startsWith('act_')) {
       adAccountId = `act_${adAccountId}`;
+      console.log(`Formatted ad account ID: ${adAccountId}`);
     }
     
     // Get the ad set ID from the campaign
+    console.log(`Fetching ad sets for campaign ${campaignId}...`);
     const campaignResponse = await fetch(
       `${FB_GRAPH_API}/${campaignId}/adsets?fields=id&access_token=${accessToken}`,
       {
@@ -205,12 +212,16 @@ class MetaApiService {
       }
     );
 
+    console.log(`Ad sets response status: ${campaignResponse.status} ${campaignResponse.statusText}`);
+    
     if (!campaignResponse.ok) {
       const errorText = await campaignResponse.text();
+      console.error(`Error fetching ad sets: ${errorText}`);
       throw new Error(`Failed to get ad sets: ${errorText}`);
     }
 
     const adSetsData = await campaignResponse.json() as any;
+    console.log(`Found ${adSetsData.data.length} ad sets for campaign ${campaignId}`);
     
     if (adSetsData.data.length === 0) {
       throw new Error(`No ad sets found for campaign ${campaignId}`);
@@ -218,8 +229,35 @@ class MetaApiService {
     
     // Use the first ad set
     const adSetId = adSetsData.data[0].id;
+    console.log(`Using ad set ID: ${adSetId}`);
     
     // Create the ad creative
+    console.log(`Creating ad in account ${adAccountId} with ad set ${adSetId} and video ${videoAssetId}`);
+    
+    const adData = {
+      name: `Ad for ${name}`,
+      adset_id: adSetId,
+      creative: {
+        object_story_spec: {
+          video_data: {
+            video_id: videoAssetId,
+            title: name,
+            message: "Check out our new product!",
+            call_to_action: {
+              type: "LEARN_MORE",
+              value: {
+                link: "https://example.com",
+              },
+            },
+          },
+          page_id: "PAGE_ID", // This needs to be a valid page ID
+        },
+      },
+      status: "ACTIVE",
+    };
+    
+    console.log(`Sending ad creation request with data:`, JSON.stringify(adData));
+    
     const response = await fetch(
       `${FB_GRAPH_API}/${adAccountId}/ads?access_token=${accessToken}`,
       {
@@ -227,36 +265,21 @@ class MetaApiService {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: `Ad for ${name}`,
-          adset_id: adSetId,
-          creative: {
-            object_story_spec: {
-              video_data: {
-                video_id: videoAssetId,
-                title: name,
-                message: "Check out our new product!",
-                call_to_action: {
-                  type: "LEARN_MORE",
-                  value: {
-                    link: "https://example.com",
-                  },
-                },
-              },
-              page_id: "PAGE_ID", // In reality, you'd need to get the page ID
-            },
-          },
-          status: "ACTIVE",
-        }),
+        body: JSON.stringify(adData),
       }
     );
 
+    console.log(`Ad creation response status: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`Error creating ad: ${errorText}`);
       throw new Error(`Failed to create ad: ${errorText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log(`Ad creation successful:`, JSON.stringify(result));
+    return result;
   }
 }
 

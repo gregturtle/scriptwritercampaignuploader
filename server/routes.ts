@@ -245,6 +245,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Creative launch routes
   app.post("/api/creatives/launch", async (req, res) => {
     try {
+      console.log("Starting creative launch process...");
+      
       // Validate request body
       const schema = z.object({
         files: z.array(z.object({
@@ -257,66 +259,92 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       const { files, campaignIds } = schema.parse(req.body);
       
+      console.log(`Received request to launch ${files.length} files to ${campaignIds.length} campaigns`);
+      console.log("Files:", JSON.stringify(files));
+      console.log("Campaign IDs:", campaignIds);
+      
       // Get token from database
       const token = await appStorage.getLatestAuthToken();
       
       if (!token) {
+        console.log("No authentication token found");
         return res.status(401).json({ message: "Not authenticated" });
       }
       
       // Check if token is expired
       if (new Date(token.expiresAt) <= new Date()) {
+        console.log("Token expired");
         return res.status(401).json({ message: "Token expired, please login again" });
       }
+      
+      console.log("Authentication token valid, proceeding with creative launch");
       
       // Launch creatives
       const results = await Promise.allSettled(
         files.flatMap(file => 
           campaignIds.map(async (campaignId) => {
+            console.log(`Processing file ID ${file.id} for campaign ${campaignId}`);
+            
             // Get file from database
             const dbFile = await appStorage.getFileById(parseInt(file.id));
             
             if (!dbFile) {
+              console.error(`File with ID ${file.id} not found in database`);
               throw new Error(`File with ID ${file.id} not found`);
             }
             
-            // Upload file to Meta
-            const uploadResult = await fileService.uploadFileToMeta(token.accessToken, dbFile.path);
+            console.log(`Retrieved file from database: ${JSON.stringify(dbFile)}`);
             
-            // Update file with Meta asset ID
-            await appStorage.updateFile(dbFile.id, {
-              metaAssetId: uploadResult.id,
-            });
-            
-            // Create ad creative in Meta
-            const creativeResult = await metaApiService.createAdCreative(
-              token.accessToken,
-              campaignId,
-              uploadResult.id,
-              dbFile.name
-            );
-            
-            // Save creative to database
-            const creative = await appStorage.createCreative({
-              fileId: dbFile.id,
-              campaignId,
-              metaCreativeId: creativeResult.id,
-              status: "completed",
-            });
-            
-            // Update file status
-            await appStorage.updateFile(dbFile.id, {
-              status: "completed",
-            });
-            
-            // Log success
-            await appStorage.createActivityLog({
-              type: "success",
-              message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
-              timestamp: new Date(),
-            });
-            
-            return creative;
+            try {
+              // Upload file to Meta
+              console.log(`Uploading file "${dbFile.name}" (${dbFile.path}) to Meta`);
+              const uploadResult = await fileService.uploadFileToMeta(token.accessToken, dbFile.path);
+              console.log(`Upload to Meta successful, received asset ID: ${uploadResult.id}`);
+              
+              // Update file with Meta asset ID
+              await appStorage.updateFile(dbFile.id, {
+                metaAssetId: uploadResult.id,
+              });
+              console.log(`Updated file ${dbFile.id} with Meta asset ID ${uploadResult.id}`);
+              
+              // Create ad creative in Meta
+              console.log(`Creating ad creative for campaign ${campaignId}`);
+              const creativeResult = await metaApiService.createAdCreative(
+                token.accessToken,
+                campaignId,
+                uploadResult.id,
+                dbFile.name
+              );
+              console.log(`Creative created in Meta with ID: ${creativeResult.id}`);
+              
+              // Save creative to database
+              const creative = await appStorage.createCreative({
+                fileId: dbFile.id,
+                campaignId,
+                metaCreativeId: creativeResult.id,
+                status: "completed",
+              });
+              console.log(`Saved creative to database with ID: ${creative.id}`);
+              
+              // Update file status
+              await appStorage.updateFile(dbFile.id, {
+                status: "completed",
+              });
+              console.log(`Updated file status to "completed"`);
+              
+              // Log success
+              await appStorage.createActivityLog({
+                type: "success",
+                message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
+                timestamp: new Date(),
+              });
+              console.log(`Created success activity log entry`);
+              
+              return creative;
+            } catch (error) {
+              console.error(`Error processing file ${dbFile.id} for campaign ${campaignId}:`, error);
+              throw error; // Re-throw to be caught by Promise.allSettled
+            }
           })
         )
       );
@@ -324,6 +352,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Count successes and errors
       const successCount = results.filter(r => r.status === "fulfilled").length;
       const errorCount = results.filter(r => r.status === "rejected").length;
+      
+      console.log(`Processed all files: ${successCount} successes, ${errorCount} errors`);
       
       // Extract created creative IDs and errors
       const creativeIds = results
@@ -334,11 +364,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         .filter((r): r is PromiseRejectedResult => r.status === "rejected")
         .map(r => r.reason);
       
+      const errorMessages = errors.map(e => e instanceof Error ? e.message : String(e));
+      console.log(`Error messages:`, errorMessages);
+      
       res.json({
         successCount,
         errorCount,
         creativeIds,
-        errors: errors.map(e => e instanceof Error ? e.message : String(e)),
+        errors: errorMessages,
       });
     } catch (error) {
       console.error("Creative launch error:", error);
@@ -346,15 +379,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Handle validation errors
       if (error instanceof ZodError) {
         const validationError = fromZodError(error);
+        console.log(`Validation error: ${validationError.message}`);
         return res.status(400).json({ message: validationError.message });
       }
       
       // Log error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       await appStorage.createActivityLog({
         type: "error",
-        message: `Failed to launch creatives: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Failed to launch creatives: ${errorMessage}`,
         timestamp: new Date(),
       });
+      console.log(`Created error activity log entry: ${errorMessage}`);
       
       res.status(500).json({ message: "Failed to launch creatives" });
     }
