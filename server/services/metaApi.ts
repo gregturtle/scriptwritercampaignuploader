@@ -6,8 +6,34 @@ const FB_GRAPH_API = `https://graph.facebook.com/${FB_API_VERSION}`;
 
 // Get these from environment variables
 const META_APP_ID = process.env.META_APP_ID || "";
-const META_APP_SECRET = process.env.META_APP_SECRET || "";
-const META_REDIRECT_URI = process.env.META_REDIRECT_URI || "http://localhost:5000/api/auth/callback";
+const META_API_KEY = process.env.META_API_KEY || "";
+
+// Helper function to determine the base URL of the application
+const getBaseUrl = () => {
+  // Check if running on Replit
+  if (process.env.REPL_ID && process.env.REPL_SLUG) {
+    // If REPL_OWNER is defined, use that for the domain
+    if (process.env.REPL_OWNER) {
+      return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+    }
+    // Otherwise use default Replit domain
+    return `https://${process.env.REPL_SLUG}.replit.app`;
+  }
+  
+  // Fallback to localhost for development
+  return "http://localhost:5000";
+};
+
+// Dynamically build the redirect URI from the base URL
+const getRedirectUri = () => {
+  // Use provided URI if available
+  if (process.env.META_REDIRECT_URI) {
+    return process.env.META_REDIRECT_URI;
+  }
+  
+  // Otherwise build it from base URL
+  return `${getBaseUrl()}/api/auth/callback`;
+};
 
 // Required permissions for Meta Marketing API
 const PERMISSIONS = [
@@ -23,9 +49,12 @@ class MetaApiService {
    * Generate the login URL for Meta OAuth
    */
   getLoginUrl(): string {
+    const redirectUri = getRedirectUri();
+    console.log(`Using redirect URI: ${redirectUri}`);
+    
     const params = new URLSearchParams({
       client_id: META_APP_ID,
-      redirect_uri: META_REDIRECT_URI,
+      redirect_uri: redirectUri,
       scope: PERMISSIONS.join(","),
       response_type: "code",
       state: Math.random().toString(36).substring(2),
@@ -42,10 +71,12 @@ class MetaApiService {
     refresh_token?: string;
     expires_in: number;
   }> {
+    const redirectUri = getRedirectUri();
+    
     const params = new URLSearchParams({
       client_id: META_APP_ID,
-      client_secret: META_APP_SECRET,
-      redirect_uri: META_REDIRECT_URI,
+      client_secret: META_API_KEY, // Using API key instead of app secret
+      redirect_uri: redirectUri,
       code,
     });
 
