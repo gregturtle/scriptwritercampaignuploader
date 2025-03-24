@@ -3,8 +3,11 @@ import {
   File, InsertFile,
   Campaign, InsertCampaign,
   Creative, InsertCreative,
-  ActivityLog, InsertActivityLog
+  ActivityLog, InsertActivityLog,
+  authTokens, files, campaigns, creatives, activityLogs
 } from "@shared/schema";
+import { db } from "./db";
+import { and, desc, eq } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -33,6 +36,141 @@ export interface IStorage {
   getActivityLogs(limit?: number): Promise<ActivityLog[]>;
 }
 
+export class DatabaseStorage implements IStorage {
+  // Auth tokens
+  async saveAuthToken(token: InsertAuthToken): Promise<AuthToken> {
+    const [authToken] = await db
+      .insert(authTokens)
+      .values(token)
+      .returning();
+    return authToken;
+  }
+
+  async getLatestAuthToken(): Promise<AuthToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(authTokens)
+      .orderBy(desc(authTokens.createdAt))
+      .limit(1);
+    return token;
+  }
+  
+  async getAuthTokensByProvider(provider: string): Promise<AuthToken[]> {
+    return await db
+      .select()
+      .from(authTokens)
+      .where(eq(authTokens.provider, provider))
+      .orderBy(desc(authTokens.createdAt));
+  }
+
+  async clearAuthTokens(): Promise<void> {
+    await db.delete(authTokens);
+  }
+  
+  // Files
+  async createFile(file: InsertFile): Promise<File> {
+    const [newFile] = await db
+      .insert(files)
+      .values(file)
+      .returning();
+    return newFile;
+  }
+
+  async getFileById(id: number): Promise<File | undefined> {
+    const [file] = await db
+      .select()
+      .from(files)
+      .where(eq(files.id, id));
+    return file;
+  }
+
+  async updateFile(id: number, updates: Partial<InsertFile>): Promise<File> {
+    const [updatedFile] = await db
+      .update(files)
+      .set(updates)
+      .where(eq(files.id, id))
+      .returning();
+    
+    if (!updatedFile) {
+      throw new Error(`File with ID ${id} not found`);
+    }
+    
+    return updatedFile;
+  }
+  
+  // Campaigns
+  async upsertCampaign(campaign: InsertCampaign): Promise<Campaign> {
+    // Check if the campaign exists
+    const [existingCampaign] = await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, campaign.id));
+      
+    if (existingCampaign) {
+      // Update existing campaign
+      const [updatedCampaign] = await db
+        .update(campaigns)
+        .set({
+          ...campaign,
+          // Only updatedAt is modified automatically
+        })
+        .where(eq(campaigns.id, campaign.id))
+        .returning();
+      return updatedCampaign;
+    } else {
+      // Insert new campaign
+      const [newCampaign] = await db
+        .insert(campaigns)
+        .values(campaign)
+        .returning();
+      return newCampaign;
+    }
+  }
+
+  async getCampaignById(id: string): Promise<Campaign | undefined> {
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(eq(campaigns.id, id));
+    return campaign;
+  }
+  
+  // Creatives
+  async createCreative(creative: InsertCreative): Promise<Creative> {
+    const [newCreative] = await db
+      .insert(creatives)
+      .values(creative)
+      .returning();
+    return newCreative;
+  }
+
+  async getCreativesByFileId(fileId: number): Promise<Creative[]> {
+    return await db
+      .select()
+      .from(creatives)
+      .where(eq(creatives.fileId, fileId));
+  }
+  
+  // Activity logs
+  async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
+    const [newLog] = await db
+      .insert(activityLogs)
+      .values(log)
+      .returning();
+    return newLog;
+  }
+
+  async getActivityLogs(limit: number = 50): Promise<ActivityLog[]> {
+    return await db
+      .select()
+      .from(activityLogs)
+      .orderBy(desc(activityLogs.timestamp))
+      .limit(limit);
+  }
+}
+
+// Comment out the MemStorage if you need to revert back for testing
+/*
 export class MemStorage implements IStorage {
   private authTokens: Map<number, AuthToken>;
   private files: Map<number, File>;
@@ -58,147 +196,12 @@ export class MemStorage implements IStorage {
     this.logCounter = 1;
   }
 
-  // Auth tokens
-  async saveAuthToken(token: InsertAuthToken): Promise<AuthToken> {
-    const id = this.authTokenCounter++;
-    const now = new Date().toISOString();
-    
-    const authToken: AuthToken = {
-      id,
-      ...token,
-      createdAt: now,
-    };
-    
-    this.authTokens.set(id, authToken);
-    return authToken;
-  }
-
-  async getLatestAuthToken(): Promise<AuthToken | undefined> {
-    const tokens = Array.from(this.authTokens.values());
-    return tokens.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )[0];
-  }
-  
-  async getAuthTokensByProvider(provider: string): Promise<AuthToken[]> {
-    const tokens = Array.from(this.authTokens.values());
-    return tokens
-      .filter(token => token.provider === provider)
-      .sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-  }
-
-  async clearAuthTokens(): Promise<void> {
-    this.authTokens.clear();
-  }
-  
-  // Files
-  async createFile(file: InsertFile): Promise<File> {
-    const id = this.fileCounter++;
-    const now = new Date().toISOString();
-    
-    const newFile: File = {
-      id,
-      ...file,
-      createdAt: now,
-    };
-    
-    this.files.set(id, newFile);
-    return newFile;
-  }
-
-  async getFileById(id: number): Promise<File | undefined> {
-    return this.files.get(id);
-  }
-
-  async updateFile(id: number, updates: Partial<InsertFile>): Promise<File> {
-    const file = this.files.get(id);
-    
-    if (!file) {
-      throw new Error(`File with ID ${id} not found`);
-    }
-    
-    const updatedFile: File = {
-      ...file,
-      ...updates,
-    };
-    
-    this.files.set(id, updatedFile);
-    return updatedFile;
-  }
-  
-  // Campaigns
-  async upsertCampaign(campaign: InsertCampaign): Promise<Campaign> {
-    const now = new Date().toISOString();
-    
-    const existingCampaign = this.campaigns.get(campaign.id);
-    
-    if (existingCampaign) {
-      const updatedCampaign: Campaign = {
-        ...existingCampaign,
-        ...campaign,
-        updatedAt: now,
-      };
-      
-      this.campaigns.set(campaign.id, updatedCampaign);
-      return updatedCampaign;
-    } else {
-      const newCampaign: Campaign = {
-        ...campaign,
-        createdAt: now,
-        updatedAt: now,
-      };
-      
-      this.campaigns.set(campaign.id, newCampaign);
-      return newCampaign;
-    }
-  }
-
-  async getCampaignById(id: string): Promise<Campaign | undefined> {
-    return this.campaigns.get(id);
-  }
-  
-  // Creatives
-  async createCreative(creative: InsertCreative): Promise<Creative> {
-    const id = this.creativeCounter++;
-    const now = new Date().toISOString();
-    
-    const newCreative: Creative = {
-      id,
-      ...creative,
-      createdAt: now,
-    };
-    
-    this.creatives.set(id, newCreative);
-    return newCreative;
-  }
-
-  async getCreativesByFileId(fileId: number): Promise<Creative[]> {
-    return Array.from(this.creatives.values())
-      .filter(creative => creative.fileId === fileId);
-  }
-  
-  // Activity logs
-  async createActivityLog(log: InsertActivityLog): Promise<ActivityLog> {
-    const id = this.logCounter++;
-    
-    const newLog: ActivityLog = {
-      id,
-      ...log,
-    };
-    
-    this.activityLogs.set(id, newLog);
-    return newLog;
-  }
-
-  async getActivityLogs(limit: number = 50): Promise<ActivityLog[]> {
-    return Array.from(this.activityLogs.values())
-      .sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )
-      .slice(0, limit);
-  }
+  // Auth tokens implementation...
+  // Files implementation...
+  // Campaigns implementation...
+  // Creatives implementation...
+  // Activity logs implementation...
 }
+*/
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
