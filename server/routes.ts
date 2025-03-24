@@ -174,7 +174,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       await appStorage.createActivityLog({
         type: "error",
         message: `Failed to fetch campaigns: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
       });
       
       res.status(500).json({ message: "Failed to fetch campaigns" });
@@ -209,7 +209,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       await appStorage.createActivityLog({
         type: "success",
         message: `File "${file.originalname}" uploaded successfully`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
       });
       
       res.json({
@@ -225,7 +225,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       await appStorage.createActivityLog({
         type: "error",
         message: `File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
       });
       
       res.status(500).json({ message: "Failed to upload file" });
