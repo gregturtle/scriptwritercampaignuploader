@@ -106,6 +106,14 @@ export type FileUpload = {
   createdAt: string;
 };
 
+// Frontend version of ActivityLog
+export type FrontendActivityLog = {
+  id: string;
+  type: string;
+  message: string;
+  timestamp: string;
+};
+
 export type LaunchResult = {
   successCount: number;
   errorCount: number;

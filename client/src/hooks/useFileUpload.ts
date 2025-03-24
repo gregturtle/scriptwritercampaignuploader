@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { FileUpload, ActivityLog } from "@shared/schema";
+import { FileUpload, FrontendActivityLog } from "@shared/schema";
 
 export function useFileUpload() {
   const [uploadedFiles, setUploadedFiles] = useState<FileUpload[]>([]);
@@ -10,7 +10,7 @@ export function useFileUpload() {
   // Upload file mutation
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const fileId = Date.now().toString();
+      const tempFileId = Date.now().toString(); // Temporary ID for tracking before server assigns real ID
       const formData = new FormData();
       formData.append("file", file);
 
@@ -23,27 +23,36 @@ export function useFileUpload() {
           const progress = Math.round((event.loaded / event.total) * 100);
           setUploadProgress(prev => ({
             ...prev,
-            [fileId]: progress
+            [tempFileId]: progress
           }));
         }
       };
 
       // Promise to track completion
-      const uploadPromise = new Promise<{fileId: string, path: string}>((resolve, reject) => {
+      const uploadPromise = new Promise<{fileId: string, name: string, size: number, path: string}>((resolve, reject) => {
         xhr.onload = function() {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const response = JSON.parse(xhr.responseText);
-              resolve({ fileId: response.fileId, path: response.path });
+              console.log("Upload response:", response);
+              resolve({ 
+                fileId: response.fileId, 
+                name: response.name,
+                size: response.size,
+                path: response.path 
+              });
             } catch (e) {
+              console.error("Error parsing response:", e);
               reject(new Error("Invalid response format"));
             }
           } else {
+            console.error("Upload failed with status:", xhr.status, xhr.responseText);
             reject(new Error(`Upload failed with status: ${xhr.status}`));
           }
         };
         
         xhr.onerror = function() {
+          console.error("Network error during upload");
           reject(new Error("Network error occurred during upload"));
         };
       });
@@ -52,7 +61,7 @@ export function useFileUpload() {
       
       // Add file to state immediately with uploading status
       const newFile: FileUpload = {
-        id: fileId,
+        id: tempFileId,
         name: file.name,
         size: file.size,
         type: file.type,
@@ -65,12 +74,18 @@ export function useFileUpload() {
       
       // Wait for upload to complete
       const result = await uploadPromise;
+      console.log("Upload complete, server assigned ID:", result.fileId);
       
+      // Return the finalized file data with server ID
       return {
-        ...newFile,
-        id: result.fileId || fileId,
+        id: result.fileId,
+        name: file.name,
+        size: parseInt(result.size.toString()), // Ensure it's a number
+        type: file.type,
         status: 'ready' as const,
-        path: result.path
+        path: result.path,
+        createdAt: new Date().toISOString(),
+        tempId: tempFileId // Keep the temp ID for proper state updates
       };
     }
   });
@@ -93,10 +108,21 @@ export function useFileUpload() {
 
         const result = await uploadMutation.mutateAsync(file);
         
-        // Update file status
-        setUploadedFiles(prev => 
-          prev.map(f => f.id === result.id ? { ...f, status: 'ready', path: result.path } : f)
-        );
+        // Need to properly update the file in state - the temporary ID is replaced with the server-assigned ID
+        setUploadedFiles(prev => {
+          // First remove the temp one
+          const filtered = prev.filter(f => f.id !== result.tempId);
+          // Add the new one with proper server ID
+          return [...filtered, {
+            id: result.id,
+            name: result.name,
+            size: parseInt(result.size.toString()), // Ensure it's a number
+            type: file.type,
+            status: 'ready',
+            path: result.path,
+            createdAt: new Date().toISOString()
+          }];
+        });
         
         const successLog: ActivityLog = {
           id: Date.now().toString(),
