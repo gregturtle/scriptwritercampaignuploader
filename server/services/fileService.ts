@@ -16,41 +16,61 @@ class FileService {
    */
   async uploadFileToMeta(accessToken: string, filePath: string): Promise<{ id: string }> {
     try {
+      console.log(`Starting Meta file upload for: ${filePath}`);
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File does not exist at path: ${filePath}`);
+      }
+      
+      const fileStats = fs.statSync(filePath);
+      console.log(`File size: ${fileStats.size} bytes, Last modified: ${fileStats.mtime}`);
+      
       // Use the ad account ID from environment variable if available
       let adAccountId = META_AD_ACCOUNT_ID;
+      console.log(`Using ad account ID: ${adAccountId}`);
       
       // Fallback to fetching accounts if no environment variable is set
       if (!adAccountId) {
+        console.log("No ad account ID in environment, fetching from API...");
         const adAccounts = await this.getAdAccounts(accessToken);
         if (adAccounts.length === 0) {
           throw new Error("No ad accounts found for this user");
         }
         adAccountId = adAccounts[0];
+        console.log(`Fetched ad account ID: ${adAccountId}`);
       }
       
       // Make sure adAccountId format is correct (should start with 'act_')
       if (!adAccountId.startsWith('act_')) {
         adAccountId = `act_${adAccountId}`;
+        console.log(`Formatted ad account ID: ${adAccountId}`);
       }
       
       // Read the file
+      console.log("Creating read stream for file...");
       const fileStream = fs.createReadStream(filePath);
       const formData = new FormData();
       
       formData.append("access_token", accessToken);
       formData.append("file", fileStream);
       
+      console.log(`Sending request to: ${FB_GRAPH_API}/${adAccountId}/advideos`);
       const response = await fetch(`${FB_GRAPH_API}/${adAccountId}/advideos`, {
         method: "POST",
         body: formData as any,
       });
 
+      console.log(`Response status: ${response.status} ${response.statusText}`);
+      
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`Upload error response: ${errorText}`);
         throw new Error(`Failed to upload file to Meta: ${errorText}`);
       }
 
       const data = await response.json() as any;
+      console.log(`Upload successful. Received ID: ${data.id}`);
       return { id: data.id };
     } catch (error) {
       console.error("Error uploading file to Meta:", error);
