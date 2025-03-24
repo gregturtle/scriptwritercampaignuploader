@@ -146,20 +146,30 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Campaign routes
   app.get("/api/campaigns", async (req, res) => {
     try {
+      console.log("Fetching campaigns...");
+      
       // Get token from database
       const token = await appStorage.getLatestAuthToken();
       
       if (!token) {
+        console.log("No authentication token found");
         return res.status(401).json({ message: "Not authenticated" });
       }
       
+      console.log("Using token expiring at:", new Date(token.expiresAt).toISOString());
+      
       // Check if token is expired
       if (new Date(token.expiresAt) <= new Date()) {
+        console.log("Token expired");
         return res.status(401).json({ message: "Token expired, please login again" });
       }
       
+      console.log("Fetching campaigns from Meta API...");
+      
       // Get campaigns from Meta API
       const campaigns = await metaApiService.getCampaigns(token.accessToken);
+      
+      console.log(`Fetched ${campaigns.length} campaigns successfully`);
       
       // Save campaigns to database (for caching)
       for (const campaign of campaigns) {

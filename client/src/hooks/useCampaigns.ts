@@ -13,10 +13,8 @@ export function useCampaigns() {
     queryKey: ['/api/campaigns'],
     // Enable fetching by default since we're auto-authenticating
     enabled: true,
-    // Add error handling
-    onError: (error) => {
-      console.error("Failed to fetch campaigns:", error);
-    }
+    staleTime: 60 * 1000, // Cache for 1 minute
+    refetchOnWindowFocus: false
   });
 
   // Launch creatives mutation

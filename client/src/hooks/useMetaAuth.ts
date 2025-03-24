@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
@@ -10,24 +10,22 @@ export function useMetaAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Check auth status
-  const { data: authStatus } = useQuery({
-    queryKey: ['/api/auth/status'],
-    retry: false,
-    onSuccess: (data: any) => {
-      const authState = !!data?.authenticated;
+  const { data: authStatus, isError, error } = useQuery<AuthResponse>({
+    queryKey: ['/api/auth/status']
+  });
+  
+  // Effect to update auth state when data changes
+  useEffect(() => {
+    if (authStatus) {
+      const authState = !!authStatus.authenticated;
       setIsAuthenticated(authState);
       
       // If authenticated, trigger campaign fetching
       if (authState) {
         queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
       }
-    },
-    onSettled: (_data, error) => {
-      if (error) {
-        setIsAuthenticated(false);
-      }
     }
-  });
+  }, [authStatus]);
 
   // Login mutation
   const loginMutation = useMutation({
