@@ -5,6 +5,7 @@ import UploadList from "@/components/UploadList";
 import CampaignSection from "@/components/CampaignSection";
 import StatusSection from "@/components/StatusSection";
 import HelpSection from "@/components/HelpSection";
+import MetaSetupAlert from "@/components/MetaSetupAlert";
 import { useToast } from "@/hooks/use-toast";
 import { useMetaAuth } from "@/hooks/useMetaAuth";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -111,6 +112,8 @@ export default function Home() {
       
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {isAuthenticated && <MetaSetupAlert />}
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column (2/3 on desktop) */}
             <div className="lg:col-span-2 space-y-6">

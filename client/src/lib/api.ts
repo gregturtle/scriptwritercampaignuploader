@@ -49,3 +49,9 @@ export const launchCreatives = async (files: string[], campaignIds: string[]) =>
   });
   return response.json();
 };
+
+// Meta API Status
+export const getMetaStatus = async () => {
+  const response = await apiRequest('GET', '/api/meta/status', undefined);
+  return response.json();
+};
