@@ -190,6 +190,47 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch campaigns" });
     }
   });
+  
+  // Test route for fetching pages
+  app.get("/api/pages", async (req, res) => {
+    try {
+      console.log("Fetching pages...");
+      
+      // Get token from database
+      const token = await appStorage.getLatestAuthToken();
+      
+      if (!token) {
+        console.log("No authentication token found");
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Check if token is expired
+      if (new Date(token.expiresAt) <= new Date()) {
+        console.log("Token expired");
+        return res.status(401).json({ message: "Token expired, please login again" });
+      }
+      
+      console.log("Fetching pages from Meta API...");
+      
+      // Get pages from Meta API
+      const pages = await metaApiService.getPages(token.accessToken);
+      
+      console.log(`Fetched ${pages.length} pages successfully`);
+      
+      res.json(pages);
+    } catch (error) {
+      console.error("Error fetching pages:", error);
+      
+      // Log error
+      await appStorage.createActivityLog({
+        type: "error",
+        message: `Failed to fetch pages: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date(),
+      });
+      
+      res.status(500).json({ message: "Failed to fetch pages" });
+    }
+  });
 
   // File upload routes
   app.post("/api/files/upload", upload.single("file"), async (req, res) => {
