@@ -16,6 +16,22 @@ import {
 import { metaApiService } from "./services/metaApi";
 import { fileService } from "./services/fileService";
 
+// Helper function to get access token
+async function getAccessToken(): Promise<string> {
+  const token = await appStorage.getLatestAuthToken();
+  
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
+  
+  // Check if token is expired
+  if (new Date(token.expiresAt) <= new Date()) {
+    throw new Error("Token expired, please login again");
+  }
+  
+  return token.accessToken;
+}
+
 // Setup file upload middleware
 const uploadDir = path.join(process.cwd(), "uploads");
 // Create uploads directory if it doesn't exist
@@ -148,26 +164,11 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       console.log("Fetching campaigns...");
       
-      // Get token from database
-      const token = await appStorage.getLatestAuthToken();
-      
-      if (!token) {
-        console.log("No authentication token found");
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      
-      console.log("Using token expiring at:", new Date(token.expiresAt).toISOString());
-      
-      // Check if token is expired
-      if (new Date(token.expiresAt) <= new Date()) {
-        console.log("Token expired");
-        return res.status(401).json({ message: "Token expired, please login again" });
-      }
-      
+      const token = await getAccessToken();
       console.log("Fetching campaigns from Meta API...");
       
       // Get campaigns from Meta API
-      const campaigns = await metaApiService.getCampaigns(token.accessToken);
+      const campaigns = await metaApiService.getCampaigns(token);
       
       console.log(`Fetched ${campaigns.length} campaigns successfully`);
       
@@ -196,24 +197,11 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       console.log("Fetching pages...");
       
-      // Get token from database
-      const token = await appStorage.getLatestAuthToken();
-      
-      if (!token) {
-        console.log("No authentication token found");
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      
-      // Check if token is expired
-      if (new Date(token.expiresAt) <= new Date()) {
-        console.log("Token expired");
-        return res.status(401).json({ message: "Token expired, please login again" });
-      }
-      
+      const token = await getAccessToken();
       console.log("Fetching pages from Meta API...");
       
       // Get pages from Meta API
-      const pages = await metaApiService.getPages(token.accessToken);
+      const pages = await metaApiService.getPages(token);
       
       console.log(`Fetched ${pages.length} pages successfully`);
       
@@ -304,20 +292,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.log("Files:", JSON.stringify(files));
       console.log("Campaign IDs:", campaignIds);
       
-      // Get token from database
-      const token = await appStorage.getLatestAuthToken();
-      
-      if (!token) {
-        console.log("No authentication token found");
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      
-      // Check if token is expired
-      if (new Date(token.expiresAt) <= new Date()) {
-        console.log("Token expired");
-        return res.status(401).json({ message: "Token expired, please login again" });
-      }
-      
+      const accessToken = await getAccessToken();
       console.log("Authentication token valid, proceeding with creative launch");
       
       // Launch creatives
@@ -339,7 +314,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             try {
               // Upload file to Meta
               console.log(`Uploading file "${dbFile.name}" (${dbFile.path}) to Meta`);
-              const uploadResult = await fileService.uploadFileToMeta(token.accessToken, dbFile.path);
+              const uploadResult = await fileService.uploadFileToMeta(accessToken, dbFile.path);
               console.log(`Upload to Meta successful, received asset ID: ${uploadResult.id}`);
               
               // Update file with Meta asset ID
@@ -351,7 +326,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
               // Create ad creative in Meta
               console.log(`Creating ad creative for campaign ${campaignId}`);
               const creativeResult = await metaApiService.createAdCreative(
-                token.accessToken,
+                accessToken,
                 campaignId,
                 uploadResult.id,
                 dbFile.name
@@ -445,6 +420,77 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching logs:", error);
       res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+  
+  // Check Meta API setup (including page connections)
+  app.get("/api/meta/status", async (_req, res) => {
+    try {
+      try {
+        const token = await getAccessToken();
+        
+        // Check if ad account exists
+        let adAccountId = process.env.META_AD_ACCOUNT_ID;
+        const hasAdAccount = !!adAccountId;
+        
+        // Check if pages exist
+        const pages = await metaApiService.getPages(token);
+        const hasPages = pages.length > 0;
+        const isRealPage = pages.length > 0 && pages[0].id !== "103561822531319"; // Check if not the mock test page
+        
+        // Check if campaigns exist
+        const campaigns = await metaApiService.getCampaigns(token);
+        const hasCampaigns = campaigns.length > 0;
+        
+        // Determine status
+        let status = "ready";
+        let message = "Meta API is properly configured";
+        
+        if (!hasAdAccount) {
+          status = "missing_ad_account";
+          message = "No ad account connected";
+        } else if (!isRealPage) {
+          status = "missing_page";
+          message = "No Facebook Page connected to your ad account. Using a test page which may not work in production.";
+        } else if (!hasCampaigns) {
+          status = "missing_campaigns";
+          message = "No campaigns found in your ad account";
+        }
+        
+        res.json({
+          authenticated: true,
+          adAccount: hasAdAccount,
+          pages: hasPages,
+          realPage: isRealPage,
+          campaigns: hasCampaigns,
+          status,
+          message
+        });
+      } catch (error) {
+        // If error is about authentication, return structured response
+        if (error instanceof Error && 
+            (error.message.includes("Not authenticated") || 
+             error.message.includes("Token expired"))) {
+          return res.json({
+            authenticated: false,
+            adAccount: false,
+            pages: false,
+            campaigns: false,
+            status: "not_authenticated",
+            message: error.message
+          });
+        }
+        
+        // Otherwise, re-throw for general error handling
+        throw error;
+      }
+    } catch (error) {
+      console.error("Error checking Meta status:", error);
+      res.status(500).json({ 
+        authenticated: false,
+        status: "error",
+        message: "Failed to check Meta API status" 
+      });
     }
   });
 
