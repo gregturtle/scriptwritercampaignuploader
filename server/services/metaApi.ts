@@ -17,6 +17,7 @@ const PERMISSIONS = [
   "public_profile",
   "business_management",
   "catalog_management",
+  "pages_read_engagement",
 ];
 
 class MetaApiService {
@@ -82,6 +83,86 @@ class MetaApiService {
 
     const data = await response.json() as any;
     return data.data.map((account: any) => account.id);
+  }
+
+  /**
+   * Get pages associated with the user or ad account
+   */
+  async getPages(accessToken: string): Promise<{ id: string, name: string }[]> {
+    console.log("Fetching pages associated with the user...");
+    
+    // First try to get pages directly associated with the user
+    try {
+      const userPagesResponse = await fetch(
+        `${FB_GRAPH_API}/me/accounts?fields=id,name&access_token=${accessToken}`,
+        {
+          method: "GET",
+        }
+      );
+      
+      console.log(`User pages response status: ${userPagesResponse.status}`);
+      
+      if (userPagesResponse.ok) {
+        const pagesData = await userPagesResponse.json() as any;
+        
+        if (pagesData.data && pagesData.data.length > 0) {
+          console.log(`Found ${pagesData.data.length} pages associated with the user`);
+          return pagesData.data.map((page: any) => ({
+            id: page.id,
+            name: page.name,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user pages:", error);
+    }
+    
+    // If no pages found directly associated with the user, try to get them from the ad account
+    console.log("No pages found directly associated with user, trying via ad account...");
+    
+    // Get ad account ID
+    let adAccountId = META_AD_ACCOUNT_ID;
+    
+    if (!adAccountId) {
+      const adAccounts = await this.getAdAccounts(accessToken);
+      if (adAccounts.length === 0) {
+        throw new Error("No ad accounts found for this user");
+      }
+      adAccountId = adAccounts[0];
+    }
+    
+    // Make sure adAccountId format is correct
+    if (!adAccountId.startsWith('act_')) {
+      adAccountId = `act_${adAccountId}`;
+    }
+    
+    const adAccountPagesResponse = await fetch(
+      `${FB_GRAPH_API}/${adAccountId}/assigned_pages?fields=id,name&access_token=${accessToken}`,
+      {
+        method: "GET",
+      }
+    );
+    
+    console.log(`Ad account pages response status: ${adAccountPagesResponse.status}`);
+    
+    if (!adAccountPagesResponse.ok) {
+      const errorText = await adAccountPagesResponse.text();
+      console.error(`Error fetching ad account pages: ${errorText}`);
+      throw new Error(`Failed to get pages from ad account: ${errorText}`);
+    }
+    
+    const adAccountPagesData = await adAccountPagesResponse.json() as any;
+    
+    if (!adAccountPagesData.data || adAccountPagesData.data.length === 0) {
+      console.log("No pages found associated with ad account");
+      return [];
+    }
+    
+    console.log(`Found ${adAccountPagesData.data.length} pages associated with the ad account`);
+    return adAccountPagesData.data.map((page: any) => ({
+      id: page.id,
+      name: page.name,
+    }));
   }
 
   /**
@@ -231,8 +312,20 @@ class MetaApiService {
     const adSetId = adSetsData.data[0].id;
     console.log(`Using ad set ID: ${adSetId}`);
     
+    // Get pages associated with this account
+    console.log("Fetching pages to use with ad creative...");
+    const pages = await this.getPages(accessToken);
+    
+    if (!pages || pages.length === 0) {
+      throw new Error("No pages found associated with this account. A Facebook Page is required to create ads.");
+    }
+    
+    // Use the first page for the ad
+    const pageId = pages[0].id;
+    console.log(`Using page: ${pages[0].name} (ID: ${pageId})`);
+    
     // Create the ad creative
-    console.log(`Creating ad in account ${adAccountId} with ad set ${adSetId} and video ${videoAssetId}`);
+    console.log(`Creating ad in account ${adAccountId} with ad set ${adSetId}, video ${videoAssetId}, and page ${pageId}`);
     
     const adData = {
       name: `Ad for ${name}`,
@@ -250,7 +343,7 @@ class MetaApiService {
               },
             },
           },
-          page_id: "PAGE_ID", // This needs to be a valid page ID
+          page_id: pageId, // Use the actual page ID from the account
         },
       },
       status: "ACTIVE",
