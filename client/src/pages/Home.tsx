@@ -136,6 +136,8 @@ export default function Home() {
           errorMessage = "Unable to create ad set. The campaign may have invalid settings.";
         } else if (errorMessage.includes("Invalid Page ID") || errorMessage.includes("The Page ID specified")) {
           errorMessage = "A real Facebook Page is required to create ads. The test page cannot be used for publishing actual ads. Please connect your Facebook Business Page in Meta Ads Manager.";
+        } else if (errorMessage.includes("app_id is required") || errorMessage.includes("application is required")) {
+          errorMessage = "App installation campaigns require a valid mobile app to be connected to your Meta account. Please check your app configuration in Meta Ads Manager.";
         }
       }
       

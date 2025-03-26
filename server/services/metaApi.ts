@@ -380,6 +380,25 @@ class MetaApiService {
       console.log(`Formatted ad account ID: ${adAccountId}`);
     }
     
+    // Get campaign details to determine if it's an app install campaign
+    console.log(`Fetching campaign details for ${campaignId}...`);
+    const campaignDetailsResponse = await fetch(
+      `${FB_GRAPH_API}/${campaignId}?fields=objective&access_token=${accessToken}`,
+      { method: "GET" }
+    );
+    
+    if (!campaignDetailsResponse.ok) {
+      const errorText = await campaignDetailsResponse.text();
+      console.error(`Error fetching campaign details: ${errorText}`);
+      throw new Error(`Failed to fetch campaign details: ${errorText}`);
+    }
+    
+    const campaignDetails = await campaignDetailsResponse.json() as any;
+    const campaignObjective = campaignDetails.objective;
+    console.log(`Campaign objective: ${campaignObjective}`);
+    const isAppInstallCampaign = campaignObjective === 'APP_INSTALLS' || 
+                                 campaignObjective === 'OUTCOME_APP_PROMOTION';
+    
     // Get the ad set ID from the campaign
     console.log(`Fetching ad sets for campaign ${campaignId}...`);
     const campaignResponse = await fetch(
@@ -429,13 +448,39 @@ class MetaApiService {
     const pageId = pages[0].id;
     console.log(`Using page: ${pages[0].name} (ID: ${pageId})`);
     
-    // Create the ad creative
-    console.log(`Creating ad in account ${adAccountId} with ad set ${adSetId}, video ${videoAssetId}, and page ${pageId}`);
-    
-    const adData = {
+    // Create ad data based on campaign type
+    let adData: any = {
       name: `Ad for ${name}`,
       adset_id: adSetId,
-      creative: {
+      status: "ACTIVE",
+    };
+    
+    if (isAppInstallCampaign) {
+      console.log("Creating App Install ad creative");
+      
+      // For app install ads, we need different configuration
+      adData.creative = {
+        object_story_spec: {
+          video_data: {
+            video_id: videoAssetId,
+            title: name,
+            message: "Download our app now!",
+            call_to_action: {
+              type: "INSTALL_MOBILE_APP",
+              value: {
+                // The application ID should be the Meta App ID
+                application: process.env.META_APP_ID,
+                link_title: name,
+              },
+            },
+          },
+          page_id: pageId,
+        },
+      };
+    } else {
+      // Default ad creative for other campaign types
+      console.log("Creating standard ad creative");
+      adData.creative = {
         object_story_spec: {
           video_data: {
             video_id: videoAssetId,
@@ -448,11 +493,10 @@ class MetaApiService {
               },
             },
           },
-          page_id: pageId, // Use the actual page ID from the account
+          page_id: pageId,
         },
-      },
-      status: "ACTIVE",
-    };
+      };
+    }
     
     console.log(`Sending ad creation request with data:`, JSON.stringify(adData));
     
