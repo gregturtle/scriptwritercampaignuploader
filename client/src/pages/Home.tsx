@@ -134,6 +134,8 @@ export default function Home() {
           errorMessage = "Creating ad set automatically. Please try again in a few seconds.";
         } else if (errorMessage.includes("Failed to create ad set")) {
           errorMessage = "Unable to create ad set. The campaign may have invalid settings.";
+        } else if (errorMessage.includes("Invalid Page ID") || errorMessage.includes("The Page ID specified")) {
+          errorMessage = "A real Facebook Page is required to create ads. The test page cannot be used for publishing actual ads. Please connect your Facebook Business Page in Meta Ads Manager.";
         }
       }
       

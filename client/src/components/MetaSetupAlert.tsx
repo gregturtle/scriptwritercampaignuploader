@@ -61,8 +61,20 @@ export default function MetaSetupAlert() {
           {setupMessage}
           {setupIssue === 'missing_page' && (
             <div className="mt-2">
-              <strong>Note:</strong> The application will use a test page for development, 
-              but for production use, you should connect a real Facebook Page to your ad account.
+              <strong>Important:</strong> The application is using a Meta API Test Page, which 
+              allows browsing and setup but <span className="font-bold underline">cannot be used to publish actual ads</span>. 
+              To fully use this application, please connect a real Facebook Page to your ad account
+              in Meta Business Manager.
+              <div className="mt-2 text-sm">
+                To connect a Facebook Page:
+                <ol className="list-decimal pl-5 mt-1">
+                  <li>Go to Meta Business Manager</li>
+                  <li>Navigate to Business Settings</li>
+                  <li>Select Pages from the Accounts section</li>
+                  <li>Add your Facebook Page to your business</li>
+                  <li>Associate it with your Ad Account</li>
+                </ol>
+              </div>
             </div>
           )}
         </AlertDescription>
