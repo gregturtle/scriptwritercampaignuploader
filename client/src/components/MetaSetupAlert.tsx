@@ -61,14 +61,40 @@ export default function MetaSetupAlert() {
           {setupMessage}
           {setupIssue === 'missing_page' && (
             <div className="mt-2">
-              <strong>Important:</strong> The application is using a Meta API Test Page, which 
-              allows browsing and setup but <span className="font-bold underline">cannot be used to publish actual ads</span>. 
-              To fully use this application, please connect a real Facebook Page to your ad account
-              in Meta Business Manager.
-              <div className="mt-2 text-sm">
-                To connect a Facebook Page:
-                <ol className="list-decimal pl-5 mt-1">
-                  <li>Go to Meta Business Manager</li>
+              <div className="p-2 border border-amber-200 bg-amber-50 rounded-md mb-2">
+                <strong className="text-amber-800">⚠️ Important:</strong> 
+                <span className="text-amber-800"> The application is using a Meta API Test Page, which 
+                allows browsing and setup but </span>
+                <span className="font-bold underline text-amber-900">cannot be used to publish actual ads</span>. 
+              </div>
+              
+              <p className="mb-2">To fully use this application, please connect a real Facebook Page to your ad account
+              in Meta Business Manager.</p>
+              
+              <div className="mt-3 mb-2 font-medium">Setup Requirements:</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                <div className="border border-amber-100 rounded-md p-3 bg-amber-50/50">
+                  <h4 className="font-medium mb-1 text-amber-900">For Standard Campaigns:</h4>
+                  <ul className="list-disc pl-5 text-sm space-y-1">
+                    <li>A Facebook Page connected to your Ad Account</li>
+                    <li>Ad account with active payment method</li>
+                    <li>Valid access token with ads_management permission</li>
+                  </ul>
+                </div>
+                <div className="border border-blue-100 rounded-md p-3 bg-blue-50/50">
+                  <h4 className="font-medium mb-1 text-blue-900">For App Install Campaigns:</h4>
+                  <ul className="list-disc pl-5 text-sm space-y-1">
+                    <li>All Standard Campaign requirements</li>
+                    <li>App registered in Meta's App Dashboard</li>
+                    <li>App Store and/or Google Play Store links configured</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-3 text-sm border-t pt-3 border-amber-100">
+                <strong>How to connect a Facebook Page:</strong>
+                <ol className="list-decimal pl-5 mt-1 space-y-1">
+                  <li>Go to <a href="https://business.facebook.com" target="_blank" rel="noopener" className="text-blue-600 hover:underline">Meta Business Manager</a></li>
                   <li>Navigate to Business Settings</li>
                   <li>Select Pages from the Accounts section</li>
                   <li>Add your Facebook Page to your business</li>
