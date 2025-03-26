@@ -264,6 +264,91 @@ class MetaApiService {
   }
   
   /**
+   * Create an ad set if none exists for the campaign
+   */
+  async createAdSet(
+    accessToken: string,
+    campaignId: string,
+    adAccountId: string
+  ): Promise<string> {
+    console.log(`Creating a new ad set for campaign ${campaignId}`);
+    
+    // Get information about the campaign to match the ad set settings
+    const campaignResponse = await fetch(
+      `${FB_GRAPH_API}/${campaignId}?fields=objective&access_token=${accessToken}`,
+      {
+        method: "GET",
+      }
+    );
+    
+    if (!campaignResponse.ok) {
+      const errorText = await campaignResponse.text();
+      console.error(`Error fetching campaign: ${errorText}`);
+      throw new Error(`Failed to get campaign details: ${errorText}`);
+    }
+    
+    const campaignData = await campaignResponse.json() as any;
+    const campaignObjective = campaignData.objective || "AWARENESS";
+    
+    // Create an ad set with sensible defaults
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    
+    const adSetData = {
+      name: `Ad Set for ${campaignId} (Auto-created)`,
+      campaign_id: campaignId,
+      daily_budget: 500, // $5.00 daily budget
+      bid_amount: 100, // $1.00 bid
+      billing_event: "IMPRESSIONS",
+      optimization_goal: "REACH", // Default for most objectives
+      status: "ACTIVE",
+      targeting: {
+        geo_locations: {
+          countries: ["US"]
+        },
+        age_min: 18,
+        age_max: 65,
+      },
+      start_time: tomorrow.toISOString(),
+      end_time: nextMonth.toISOString()
+    };
+    
+    console.log(`Creating ad set with data:`, JSON.stringify(adSetData));
+    
+    const response = await fetch(
+      `${FB_GRAPH_API}/${adAccountId}/adsets?access_token=${accessToken}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(adSetData),
+      }
+    );
+    
+    console.log(`Ad set creation response status: ${response.status} ${response.statusText}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Error creating ad set: ${errorText}`);
+      throw new Error(`Failed to create ad set: ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log(`Ad set creation successful: ${JSON.stringify(result)}`);
+    
+    // Type check the result
+    if (typeof result === 'object' && result !== null && 'id' in result) {
+      return result.id as string;
+    } else {
+      throw new Error('Invalid response from Meta API: missing id field');
+    }
+  }
+
+  /**
    * Create an ad creative in Meta
    */
   async createAdCreative(
@@ -315,13 +400,22 @@ class MetaApiService {
     const adSetsData = await campaignResponse.json() as any;
     console.log(`Found ${adSetsData.data.length} ad sets for campaign ${campaignId}`);
     
+    // If no ad sets are found, create one
+    let adSetId;
     if (adSetsData.data.length === 0) {
-      throw new Error(`No ad sets found for campaign ${campaignId}`);
+      console.log(`No ad sets found for campaign ${campaignId}, creating one automatically`);
+      try {
+        adSetId = await this.createAdSet(accessToken, campaignId, adAccountId);
+        console.log(`Created new ad set with ID: ${adSetId}`);
+      } catch (error) {
+        console.error(`Failed to create ad set: ${error}`);
+        throw new Error(`No ad sets found and failed to create one: ${error}`);
+      }
+    } else {
+      // Use the first ad set
+      adSetId = adSetsData.data[0].id;
+      console.log(`Using existing ad set ID: ${adSetId}`);
     }
-    
-    // Use the first ad set
-    const adSetId = adSetsData.data[0].id;
-    console.log(`Using ad set ID: ${adSetId}`);
     
     // Get pages associated with this account
     console.log("Fetching pages to use with ad creative...");

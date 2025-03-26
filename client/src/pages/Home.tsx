@@ -73,21 +73,69 @@ export default function Home() {
         selectedCampaigns
       );
       
-      const newLog: FrontendActivityLog = {
-        id: Date.now().toString(),
-        type: 'success',
-        message: `Launched ${result.successCount} creatives to ${selectedCampaigns.length} campaigns`,
-        timestamp: new Date().toISOString()
-      };
-      
-      setActivityLogs(prev => [newLog, ...prev]);
-      
-      toast({
-        title: "Success",
-        description: newLog.message,
-      });
+      // Handle partial success
+      if (result.successCount > 0 && result.errorCount > 0) {
+        const newLog: FrontendActivityLog = {
+          id: Date.now().toString(),
+          type: 'success',
+          message: `Partially launched creatives: ${result.successCount} successful, ${result.errorCount} failed`,
+          timestamp: new Date().toISOString()
+        };
+        
+        setActivityLogs(prev => [newLog, ...prev]);
+        
+        toast({
+          title: "Partial Success",
+          description: newLog.message,
+        });
+        
+        // Add error logs for each error
+        if (result.errors && result.errors.length > 0) {
+          for (const errorMsg of result.errors) {
+            const errorLog: FrontendActivityLog = {
+              id: Date.now().toString() + Math.random(),
+              type: 'error',
+              message: errorMsg,
+              timestamp: new Date().toISOString()
+            };
+            setActivityLogs(prev => [errorLog, ...prev]);
+          }
+        }
+      } 
+      // Full success
+      else if (result.successCount > 0) {
+        const newLog: FrontendActivityLog = {
+          id: Date.now().toString(),
+          type: 'success',
+          message: `Launched ${result.successCount} creatives to ${selectedCampaigns.length} campaigns`,
+          timestamp: new Date().toISOString()
+        };
+        
+        setActivityLogs(prev => [newLog, ...prev]);
+        
+        toast({
+          title: "Success",
+          description: newLog.message,
+        });
+      } 
+      // No successes at all
+      else {
+        throw new Error("No creatives were successfully launched");
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to launch creatives';
+      // Create a user-friendly error message
+      let errorMessage = 'Failed to launch creatives';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check for specific error patterns
+        if (errorMessage.includes("No ad sets found")) {
+          errorMessage = "Creating ad set automatically. Please try again in a few seconds.";
+        } else if (errorMessage.includes("Failed to create ad set")) {
+          errorMessage = "Unable to create ad set. The campaign may have invalid settings.";
+        }
+      }
       
       const newLog: FrontendActivityLog = {
         id: Date.now().toString(),

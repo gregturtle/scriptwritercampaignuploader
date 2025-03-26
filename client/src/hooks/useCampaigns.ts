@@ -83,8 +83,33 @@ export function useCampaigns() {
         files,
         campaignIds: campaigns
       });
+      
+      // Check if we had errors
+      if (result.errorCount > 0 && result.errors && result.errors.length > 0) {
+        // Format a more user-friendly error message
+        const errorMessages = result.errors.map((error: string) => {
+          // Handle specific error messages
+          if (error.includes("No ad sets found")) {
+            return "Creating ad set automatically. Please try again.";
+          }
+          return error;
+        });
+        
+        // Throw a formatted error with all messages
+        const errorMessage = errorMessages.join('. ');
+        throw new Error(errorMessage);
+      }
+      
       return result;
     } catch (error) {
+      console.error('Error launching creatives:', error);
+      
+      // If this is a network or parsing error
+      if (!(error instanceof Error)) {
+        throw new Error('Unknown error occurred while launching creatives');
+      }
+      
+      // Pass along the error
       throw error;
     }
   };
