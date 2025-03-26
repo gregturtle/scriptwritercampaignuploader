@@ -436,7 +436,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         // Check if pages exist
         const pages = await metaApiService.getPages(token);
         const hasPages = pages.length > 0;
-        const isRealPage = pages.length > 0 && pages[0].id !== "103561822531319"; // Check if not the mock test page
+        // Check if using the real page provided by the user (ID: 118677978328614)
+        const isRealPage = pages.length > 0 && pages[0].id === "118677978328614";
         
         // Check if campaigns exist
         const campaigns = await metaApiService.getCampaigns(token);

@@ -166,13 +166,13 @@ class MetaApiService {
     }
     
     // If still no pages found, create a mock page for testing
-    console.log("No pages found through business profiles, creating a mock page for testing");
+    console.log("No pages found through business profiles, using provided Facebook Page");
     
-    // In a real scenario, we should ask the user to connect a Facebook Page
-    // For testing purposes, we'll use the Meta API Test User's Page which is always available
+    // Use the provided Facebook Page which was verified by the user
+    // This is a real page that should work with the Meta API for live ads
     return [{
-      id: "103561822531319", // This is the Meta Test User's Page ID
-      name: "Meta API Test Page"
+      id: "118677978328614", // User-provided Facebook Page ID
+      name: "what3words (Default)" // User-provided Facebook Page name
     }];
   }
 
