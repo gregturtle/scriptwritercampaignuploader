@@ -1,8 +1,38 @@
-import { Search } from "lucide-react";
+import { Search, Smartphone, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Campaign } from "@shared/schema";
+import { Badge } from "@/components/ui/badge";
+
+// Helper function to determine if a campaign is for app installs
+function isAppInstallCampaign(objective?: string | null): boolean {
+  return objective === 'APP_INSTALLS' || objective === 'OUTCOME_APP_PROMOTION';
+}
+
+// Helper function to get campaign type text
+function getCampaignTypeText(objective?: string | null): string {
+  return isAppInstallCampaign(objective) ? 'App Install' : 'Standard';
+}
+
+// Helper function to render campaign type badge
+function getCampaignTypeBadge(objective?: string | null) {
+  if (isAppInstallCampaign(objective)) {
+    return (
+      <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200 font-normal flex items-center gap-1">
+        <Smartphone className="h-3 w-3" />
+        <span>App Install</span>
+      </Badge>
+    );
+  }
+  
+  return (
+    <Badge variant="outline" className="ml-2 bg-slate-50 text-slate-700 border-slate-200 font-normal flex items-center gap-1">
+      <ExternalLink className="h-3 w-3" />
+      <span>Standard</span>
+    </Badge>
+  );
+}
 
 interface CampaignSectionProps {
   campaigns: Campaign[];
@@ -66,6 +96,9 @@ export default function CampaignSection({
                 Campaign Name
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-300 uppercase tracking-wider">
+                Type
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-300 uppercase tracking-wider">
                 Status
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-neutral-300 uppercase tracking-wider">
@@ -76,13 +109,13 @@ export default function CampaignSection({
           <tbody className="bg-white divide-y divide-neutral-200">
             {isLoading ? (
               <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-sm text-neutral-300">
+                <td colSpan={5} className="px-6 py-4 text-center text-sm text-neutral-300">
                   Loading campaigns...
                 </td>
               </tr>
             ) : campaigns.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-sm text-neutral-300">
+                <td colSpan={5} className="px-6 py-4 text-center text-sm text-neutral-300">
                   No campaigns found. Connect to Meta to load campaigns.
                 </td>
               </tr>
@@ -99,7 +132,20 @@ export default function CampaignSection({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-neutral-900">{campaign.name}</div>
-                    <div className="text-xs text-neutral-300">ID: {campaign.id}</div>
+                    <div className="text-xs text-neutral-500">ID: {campaign.id}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {isAppInstallCampaign(campaign.objective) ? (
+                      <div className="flex items-center">
+                        <Smartphone className="h-4 w-4 text-blue-600 mr-1.5" />
+                        <span className="text-sm text-blue-700">App Install</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center">
+                        <ExternalLink className="h-4 w-4 text-slate-600 mr-1.5" />
+                        <span className="text-sm text-slate-700">Standard</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-medium rounded-full ${
