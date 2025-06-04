@@ -101,33 +101,34 @@ class PerformanceReportService {
       if (!spreadsheetId) {
         // Create new spreadsheet
         console.log('Creating new Google Sheets document');
+        const titleDateRange = dateRange ? `${dateRange.since} to ${dateRange.until}` : 'All Historical Data';
         const sheetResult = await googleSheetsService.createPerformanceSheet(
-          `Meta Campaign Performance - ${options.dateRange.since} to ${options.dateRange.until}`
+          `Meta Campaign Performance - ${titleDateRange}`
         );
-        spreadsheetId = sheetResult.spreadsheetId;
-        spreadsheetUrl = sheetResult.url;
+        spreadsheetId = sheetResult.spreadsheetId!;
+        spreadsheetUrl = sheetResult.url!;
         createdNew = true;
         console.log(`Created new spreadsheet: ${spreadsheetId}`);
       } else {
         // Get existing spreadsheet info
         console.log(`Using existing spreadsheet: ${spreadsheetId}`);
         const sheetInfo = await googleSheetsService.getSpreadsheetInfo(spreadsheetId);
-        spreadsheetUrl = sheetInfo.url;
+        spreadsheetUrl = sheetInfo.url!;
       }
 
       // Export data to Google Sheets
       if (createdNew) {
         console.log('Appending data to new spreadsheet');
-        await googleSheetsService.appendPerformanceData(spreadsheetId, performanceData);
+        await googleSheetsService.appendPerformanceData(spreadsheetId!, performanceData);
       } else {
         console.log('Updating existing spreadsheet with new data');
-        await googleSheetsService.updatePerformanceData(spreadsheetId, performanceData);
+        await googleSheetsService.updatePerformanceData(spreadsheetId!, performanceData);
       }
 
       console.log(`Successfully exported ${performanceData.length} records to Google Sheets`);
 
       return {
-        spreadsheetId,
+        spreadsheetId: spreadsheetId!,
         spreadsheetUrl,
         dataExported: performanceData.length,
         dateRange: dateRange!,

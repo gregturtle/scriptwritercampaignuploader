@@ -429,7 +429,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       const accessToken = await getAccessToken();
       
-      console.log(`Generating performance report for ${dateRange.since} to ${dateRange.until}`);
+      console.log(`Generating performance report${dateRange ? ` for ${dateRange.since} to ${dateRange.until}` : ' for all available data'}`);
       
       const result = await performanceReportService.generateReport(accessToken, {
         dateRange,
