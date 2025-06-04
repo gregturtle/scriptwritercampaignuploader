@@ -131,22 +131,64 @@ class PerformanceReportService {
         
         console.log(`Exporting ${campaigns.length} campaigns (filtered from ${allCampaigns.length} total)`);
         
-        // Create simple data export with selected campaign information
-        const campaignData = campaigns.map(campaign => [
-          new Date().toISOString().split('T')[0], // Export date
-          campaign.id,
-          campaign.name,
-          campaign.status,
-          campaign.objective || 'N/A',
-          campaign.daily_budget || 'N/A',
-          campaign.lifetime_budget || 'N/A',
-          campaign.start_time || 'N/A',
-          campaign.end_time || 'N/A'
-        ]);
+        // Get spend and install data for selected campaigns
+        console.log('Getting spend and install data from Meta insights');
+        const campaignIds = campaigns.map(c => c.id);
+        let insights: any[] = [];
+        
+        try {
+          insights = await metaApiService.getCampaignInsights(
+            accessToken, 
+            campaignIds, 
+            dateRange!
+          );
+          console.log(`Retrieved ${insights.length} insight records`);
+        } catch (error) {
+          console.log('Insights API failed, proceeding with basic campaign data only');
+        }
+
+        // Create spend and install data export
+        const campaignData = campaigns.map(campaign => {
+          // Find matching insights for this campaign
+          const campaignInsights = insights.filter(insight => insight.campaign_id === campaign.id);
+          
+          // Calculate totals
+          let totalSpend = 0;
+          let totalInstalls = 0;
+          
+          campaignInsights.forEach(insight => {
+            totalSpend += parseFloat(insight.spend || '0');
+            
+            // Look for install actions
+            if (insight.actions && Array.isArray(insight.actions)) {
+              const installAction = insight.actions.find((action: any) => 
+                action.action_type === 'app_install' || 
+                action.action_type === 'mobile_app_install'
+              );
+              if (installAction) {
+                totalInstalls += parseInt(installAction.value || '0');
+              }
+            }
+          });
+          
+          return [
+            new Date().toISOString().split('T')[0], // Export date
+            campaign.id,
+            campaign.name,
+            campaign.status,
+            campaign.objective || 'N/A',
+            totalSpend.toFixed(2), // Campaign spend
+            totalInstalls, // App installs
+            campaign.daily_budget || 'N/A',
+            campaign.lifetime_budget || 'N/A',
+            campaign.start_time || 'N/A',
+            campaign.end_time || 'N/A'
+          ];
+        });
         
         // Add header row
         const dataWithHeaders = [
-          ['Export Date', 'Campaign ID', 'Campaign Name', 'Status', 'Objective', 'Daily Budget', 'Lifetime Budget', 'Start Time', 'End Time'],
+          ['Export Date', 'Campaign ID', 'Campaign Name', 'Status', 'Objective', 'Campaign Spend', 'App Installs', 'Daily Budget', 'Lifetime Budget', 'Start Time', 'End Time'],
           ...campaignData
         ];
         
