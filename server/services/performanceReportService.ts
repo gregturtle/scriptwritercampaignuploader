@@ -122,9 +122,16 @@ class PerformanceReportService {
         
         // Get basic campaign data first and export everything
         console.log('Getting basic campaign data from Meta');
-        const campaigns = await metaApiService.getCampaigns(accessToken);
+        const allCampaigns = await metaApiService.getCampaigns(accessToken);
         
-        // Create simple data export with all campaign information
+        // Filter campaigns if specific ones were selected
+        const campaigns = options.campaignIds && options.campaignIds.length > 0 
+          ? allCampaigns.filter(campaign => options.campaignIds!.includes(campaign.id))
+          : allCampaigns;
+        
+        console.log(`Exporting ${campaigns.length} campaigns (filtered from ${allCampaigns.length} total)`);
+        
+        // Create simple data export with selected campaign information
         const campaignData = campaigns.map(campaign => [
           new Date().toISOString().split('T')[0], // Export date
           campaign.id,
