@@ -21,6 +21,25 @@ class GoogleSheetsService {
     this.initializeAuth();
   }
 
+  /**
+   * Extract spreadsheet ID from URL or return as-is if already an ID
+   */
+  private extractSpreadsheetId(input: string): string {
+    // If it's already a spreadsheet ID (just alphanumeric), return as-is
+    if (/^[a-zA-Z0-9-_]+$/.test(input) && !input.includes('/')) {
+      return input;
+    }
+    
+    // Extract ID from Google Sheets URL
+    const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (urlMatch) {
+      return urlMatch[1];
+    }
+    
+    // If no match found, assume it's already an ID
+    return input;
+  }
+
   private initializeAuth() {
     try {
       const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -138,6 +157,7 @@ class GoogleSheetsService {
    */
   async appendPerformanceData(spreadsheetId: string, data: CampaignPerformanceData[]) {
     try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
       const values = data.map(campaign => [
         campaign.date,
         campaign.campaignId,
@@ -152,7 +172,7 @@ class GoogleSheetsService {
       ]);
 
       const request = {
-        spreadsheetId,
+        spreadsheetId: cleanSpreadsheetId,
         range: 'Campaign Performance!A:J',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
@@ -178,9 +198,11 @@ class GoogleSheetsService {
    */
   async updatePerformanceData(spreadsheetId: string, data: CampaignPerformanceData[]) {
     try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      
       // Clear existing data (keep headers)
       await this.sheets.spreadsheets.values.clear({
-        spreadsheetId,
+        spreadsheetId: cleanSpreadsheetId,
         range: 'Campaign Performance!A2:J',
       });
 
@@ -199,7 +221,7 @@ class GoogleSheetsService {
       ]);
 
       const request = {
-        spreadsheetId,
+        spreadsheetId: cleanSpreadsheetId,
         range: 'Campaign Performance!A2:J',
         valueInputOption: 'RAW',
         resource: {
@@ -224,8 +246,9 @@ class GoogleSheetsService {
    */
   async getSpreadsheetInfo(spreadsheetId: string) {
     try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
       const response = await this.sheets.spreadsheets.get({
-        spreadsheetId,
+        spreadsheetId: cleanSpreadsheetId,
       });
 
       return {
