@@ -244,7 +244,7 @@ class MetaApiService {
       const insights = [];
       
       for (const campaignId of campaignIds) {
-        const url = `https://graph.facebook.com/v18.0/${campaignId}/insights`;
+        const url = `${FB_GRAPH_API}/${campaignId}/insights`;
         const params = new URLSearchParams({
           access_token: accessToken,
           fields: [
