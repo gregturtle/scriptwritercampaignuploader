@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { metaApiService } from "./services/metaApi";
 import { fileService } from "./services/fileService";
+import { performanceReportService } from "./services/performanceReportService";
 
 // Helper function to get access token
 async function getAccessToken(): Promise<string> {
@@ -409,6 +410,102 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.log(`Created error activity log entry: ${errorMessage}`);
       
       res.status(500).json({ message: "Failed to launch creatives" });
+    }
+  });
+
+  // Performance report routes
+  app.post("/api/reports/generate", async (req, res) => {
+    try {
+      const schema = z.object({
+        dateRange: z.object({
+          since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        }),
+        campaignIds: z.array(z.string()).optional(),
+        spreadsheetId: z.string().optional(),
+      });
+
+      const { dateRange, campaignIds, spreadsheetId } = schema.parse(req.body);
+      
+      const accessToken = await getAccessToken();
+      
+      console.log(`Generating performance report for ${dateRange.since} to ${dateRange.until}`);
+      
+      const result = await performanceReportService.generateReport(accessToken, {
+        dateRange,
+        campaignIds,
+        spreadsheetId,
+      });
+
+      // Log success
+      await appStorage.createActivityLog({
+        type: "success",
+        message: `Performance report generated: ${result.dataExported} records exported to Google Sheets`,
+        timestamp: new Date(),
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error generating performance report:", error);
+      
+      // Handle validation errors
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      // Log error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      await appStorage.createActivityLog({
+        type: "error",
+        message: `Failed to generate performance report: ${errorMessage}`,
+        timestamp: new Date(),
+      });
+      
+      res.status(500).json({ message: "Failed to generate performance report" });
+    }
+  });
+
+  app.get("/api/reports/date-presets", (_req, res) => {
+    try {
+      const presets = performanceReportService.getDateRangePresets();
+      res.json(presets);
+    } catch (error) {
+      console.error("Error getting date presets:", error);
+      res.status(500).json({ message: "Failed to get date presets" });
+    }
+  });
+
+  app.get("/api/insights", async (req, res) => {
+    try {
+      const schema = z.object({
+        since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        campaignIds: z.string().optional(),
+      });
+
+      const { since, until, campaignIds } = schema.parse(req.query);
+      
+      const accessToken = await getAccessToken();
+      
+      let insights;
+      if (campaignIds) {
+        const campaignIdArray = campaignIds.split(',');
+        insights = await metaApiService.getCampaignInsights(accessToken, campaignIdArray, { since, until });
+      } else {
+        insights = await metaApiService.getAdAccountInsights(accessToken, { since, until });
+      }
+
+      res.json(insights);
+    } catch (error) {
+      console.error("Error fetching insights:", error);
+      
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.message });
+      }
+      
+      res.status(500).json({ message: "Failed to fetch campaign insights" });
     }
   });
 

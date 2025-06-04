@@ -233,6 +233,124 @@ class MetaApiService {
   }
   
   /**
+   * Get campaign performance data (insights)
+   */
+  async getCampaignInsights(
+    accessToken: string,
+    campaignIds: string[],
+    dateRange: { since: string; until: string }
+  ): Promise<any[]> {
+    try {
+      const insights = [];
+      
+      for (const campaignId of campaignIds) {
+        const url = `https://graph.facebook.com/v18.0/${campaignId}/insights`;
+        const params = new URLSearchParams({
+          access_token: accessToken,
+          fields: [
+            'campaign_id',
+            'campaign_name',
+            'spend',
+            'impressions',
+            'clicks',
+            'actions',
+            'ctr',
+            'cpc',
+            'cpm',
+            'date_start',
+            'date_stop'
+          ].join(','),
+          time_range: JSON.stringify({
+            since: dateRange.since,
+            until: dateRange.until
+          }),
+          level: 'campaign'
+        });
+
+        const response = await fetch(`${url}?${params}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Failed to fetch insights for campaign ${campaignId}:`, response.status, errorText);
+          continue; // Skip this campaign and continue with others
+        }
+
+        const data = await response.json();
+        if (data.data && data.data.length > 0) {
+          insights.push(...data.data);
+        }
+      }
+
+      return insights;
+    } catch (error) {
+      console.error('Error fetching campaign insights:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get ad account level insights
+   */
+  async getAdAccountInsights(
+    accessToken: string,
+    dateRange: { since: string; until: string }
+  ): Promise<any[]> {
+    try {
+      const adAccountId = META_AD_ACCOUNT_ID;
+      if (!adAccountId) {
+        throw new Error('META_AD_ACCOUNT_ID not configured');
+      }
+
+      const url = `https://graph.facebook.com/v18.0/act_${adAccountId}/insights`;
+      const params = new URLSearchParams({
+        access_token: accessToken,
+        fields: [
+          'campaign_id',
+          'campaign_name',
+          'spend',
+          'impressions',
+          'clicks',
+          'actions',
+          'ctr',
+          'cpc',
+          'cpm',
+          'date_start',
+          'date_stop'
+        ].join(','),
+        time_range: JSON.stringify({
+          since: dateRange.since,
+          until: dateRange.until
+        }),
+        level: 'campaign',
+        breakdowns: 'campaign_id'
+      });
+
+      const response = await fetch(`${url}?${params}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch ad account insights: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data.data || [];
+    } catch (error) {
+      console.error('Error fetching ad account insights:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Upload an image or video to Meta Ad Account
    */
   async uploadAdCreative(
