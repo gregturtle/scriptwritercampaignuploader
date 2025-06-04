@@ -106,20 +106,17 @@ export default function Reports() {
   };
 
   const handleGenerateReport = () => {
-    if (!dateRange.since || !dateRange.until) {
-      toast({
-        title: "Date Range Required",
-        description: "Please select a date range for the report",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    generateReportMutation.mutate({
-      dateRange,
+    const reportData: any = {
       campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined,
       spreadsheetId: spreadsheetId || undefined,
-    });
+    };
+
+    // Only include date range if both dates are provided
+    if (dateRange.since && dateRange.until) {
+      reportData.dateRange = dateRange;
+    }
+
+    generateReportMutation.mutate(reportData);
   };
 
   return (
@@ -142,7 +139,7 @@ export default function Reports() {
               Date Range
             </CardTitle>
             <CardDescription>
-              Select the time period for your performance report
+              Select a specific time period, or leave empty to get all available historical data
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -217,15 +214,24 @@ export default function Reports() {
               )}
             </div>
 
-            {/* Display selected range */}
-            {dateRange.since && dateRange.until && (
-              <div className="p-3 bg-muted rounded-md">
-                <p className="text-sm font-medium">Selected Range:</p>
-                <p className="text-sm text-muted-foreground">
-                  {dateRange.since} to {dateRange.until}
-                </p>
-              </div>
-            )}
+            {/* Display selected range or auto mode */}
+            <div className="p-3 bg-muted rounded-md">
+              {dateRange.since && dateRange.until ? (
+                <div>
+                  <p className="text-sm font-medium">Selected Range:</p>
+                  <p className="text-sm text-muted-foreground">
+                    {dateRange.since} to {dateRange.until}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm font-medium">Auto Mode:</p>
+                  <p className="text-sm text-muted-foreground">
+                    Will pull all available historical data for selected campaigns
+                  </p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

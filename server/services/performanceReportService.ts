@@ -2,7 +2,7 @@ import { metaApiService } from './metaApi';
 import { googleSheetsService, type CampaignPerformanceData } from './googleSheetsService';
 
 export interface PerformanceReportOptions {
-  dateRange: {
+  dateRange?: {
     since: string; // YYYY-MM-DD format
     until: string; // YYYY-MM-DD format
   };
@@ -29,6 +29,20 @@ class PerformanceReportService {
     try {
       console.log('Starting performance report generation...');
       
+      // If no date range provided, use maximum available range (last 2 years)
+      let dateRange = options.dateRange;
+      if (!dateRange) {
+        const today = new Date();
+        const twoYearsAgo = new Date(today);
+        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+        
+        dateRange = {
+          since: twoYearsAgo.toISOString().split('T')[0],
+          until: today.toISOString().split('T')[0],
+        };
+        console.log(`No date range provided, using maximum range: ${dateRange.since} to ${dateRange.until}`);
+      }
+      
       // Get campaign insights from Meta
       let insights: any[];
       
@@ -37,13 +51,13 @@ class PerformanceReportService {
         insights = await metaApiService.getCampaignInsights(
           accessToken, 
           options.campaignIds, 
-          options.dateRange
+          dateRange!
         );
       } else {
         console.log('Fetching insights for all campaigns in ad account');
         insights = await metaApiService.getAdAccountInsights(
           accessToken, 
-          options.dateRange
+          dateRange!
         );
       }
 
@@ -116,7 +130,7 @@ class PerformanceReportService {
         spreadsheetId,
         spreadsheetUrl,
         dataExported: performanceData.length,
-        dateRange: options.dateRange,
+        dateRange: dateRange!,
         createdNew,
       };
     } catch (error) {

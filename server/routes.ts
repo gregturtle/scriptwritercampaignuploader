@@ -420,7 +420,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         dateRange: z.object({
           since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
           until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        }),
+        }).optional(),
         campaignIds: z.array(z.string()).optional(),
         spreadsheetId: z.string().optional(),
       });
