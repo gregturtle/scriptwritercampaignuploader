@@ -74,7 +74,7 @@ class GoogleSheetsService {
           },
           sheets: [{
             properties: {
-              title: 'Campaign Performance',
+              title: 'CampaignPerformance',
             },
           }],
         },
@@ -116,7 +116,7 @@ class GoogleSheetsService {
 
     const request = {
       spreadsheetId,
-      range: 'Campaign Performance!A1:J1',
+      range: 'CampaignPerformance!A1:J1',
       valueInputOption: 'RAW',
       resource: {
         values: [headers],
@@ -173,7 +173,7 @@ class GoogleSheetsService {
 
       const request = {
         spreadsheetId: cleanSpreadsheetId,
-        range: 'Campaign Performance!A:J',
+        range: 'CampaignPerformance!A:J',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         resource: {
@@ -203,7 +203,7 @@ class GoogleSheetsService {
       // Clear existing data (keep headers)
       await this.sheets.spreadsheets.values.clear({
         spreadsheetId: cleanSpreadsheetId,
-        range: 'Campaign Performance!A2:J',
+        range: 'CampaignPerformance!A2:J',
       });
 
       // Add new data
@@ -222,7 +222,7 @@ class GoogleSheetsService {
 
       const request = {
         spreadsheetId: cleanSpreadsheetId,
-        range: 'Campaign Performance!A2:J',
+        range: 'CampaignPerformance!A2:J',
         valueInputOption: 'RAW',
         resource: {
           values,
@@ -233,7 +233,7 @@ class GoogleSheetsService {
 
       return {
         updatedRows: values.length,
-        updatedRange: `Campaign Performance!A2:J${values.length + 1}`,
+        updatedRange: `CampaignPerformance!A2:J${values.length + 1}`,
       };
     } catch (error) {
       console.error('Error updating Google Sheet:', error);
