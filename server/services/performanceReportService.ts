@@ -93,20 +93,37 @@ class PerformanceReportService {
 
       console.log(`Transformed ${performanceData.length} records for export`);
 
-      // Always create a new Google Sheets document for reports
-      console.log('Creating new Google Sheets document');
-      const titleDateRange = dateRange ? `${dateRange.since} to ${dateRange.until}` : 'All Historical Data';
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-      const sheetResult = await googleSheetsService.createPerformanceSheet(
-        `Meta Campaign Performance - ${titleDateRange} - ${timestamp}`
-      );
-      const spreadsheetId = sheetResult.spreadsheetId!;
-      const spreadsheetUrl = sheetResult.url!;
-      console.log(`Created new spreadsheet: ${spreadsheetId}`);
+      // Handle Google Sheets export
+      let spreadsheetId = options.spreadsheetId;
+      let spreadsheetUrl = '';
+      let createdNew = false;
 
-      // Export data to Google Sheets
-      console.log('Adding performance data to new spreadsheet');
-      await googleSheetsService.appendPerformanceData(spreadsheetId, performanceData);
+      if (!spreadsheetId) {
+        // Create new spreadsheet
+        console.log('Creating new Google Sheets document');
+        const titleDateRange = dateRange ? `${dateRange.since} to ${dateRange.until}` : 'All Historical Data';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+        const sheetResult = await googleSheetsService.createPerformanceSheet(
+          `Meta Campaign Performance - ${titleDateRange} - ${timestamp}`
+        );
+        spreadsheetId = sheetResult.spreadsheetId!;
+        spreadsheetUrl = sheetResult.url!;
+        createdNew = true;
+        console.log(`Created new spreadsheet: ${spreadsheetId}`);
+        
+        // Add data to new spreadsheet
+        console.log('Adding performance data to new spreadsheet');
+        await googleSheetsService.appendPerformanceData(spreadsheetId, performanceData);
+      } else {
+        // Use existing spreadsheet
+        console.log(`Using existing spreadsheet: ${spreadsheetId}`);
+        const sheetInfo = await googleSheetsService.getSpreadsheetInfo(spreadsheetId);
+        spreadsheetUrl = sheetInfo.url!;
+        
+        // Append data to existing spreadsheet (don't clear existing data)
+        console.log('Appending performance data to existing spreadsheet');
+        await googleSheetsService.appendPerformanceData(spreadsheetId, performanceData);
+      }
 
       console.log(`Successfully exported ${performanceData.length} records to Google Sheets`);
 
@@ -115,7 +132,7 @@ class PerformanceReportService {
         spreadsheetUrl,
         dataExported: performanceData.length,
         dateRange: dateRange!,
-        createdNew: true,
+        createdNew,
       };
     } catch (error) {
       console.error('Error generating performance report:', error);

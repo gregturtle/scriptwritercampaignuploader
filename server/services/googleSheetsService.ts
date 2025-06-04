@@ -153,11 +153,33 @@ class GoogleSheetsService {
   }
 
   /**
+   * Get the first available sheet name from a spreadsheet
+   */
+  private async getFirstSheetName(spreadsheetId: string): Promise<string> {
+    try {
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId,
+      });
+      
+      if (response.data.sheets && response.data.sheets.length > 0) {
+        return response.data.sheets[0].properties.title;
+      }
+      
+      return 'Sheet1'; // Default fallback
+    } catch (error) {
+      console.error('Error getting sheet names:', error);
+      return 'Sheet1'; // Default fallback
+    }
+  }
+
+  /**
    * Append performance data to existing sheet
    */
   async appendPerformanceData(spreadsheetId: string, data: CampaignPerformanceData[]) {
     try {
       const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      const sheetName = await this.getFirstSheetName(cleanSpreadsheetId);
+      
       const values = data.map(campaign => [
         campaign.date,
         campaign.campaignId,
@@ -173,7 +195,7 @@ class GoogleSheetsService {
 
       const request = {
         spreadsheetId: cleanSpreadsheetId,
-        range: 'CampaignPerformance!A:J',
+        range: `${sheetName}!A:J`,
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         resource: {
