@@ -120,9 +120,31 @@ class PerformanceReportService {
         const sheetInfo = await googleSheetsService.getSpreadsheetInfo(spreadsheetId);
         spreadsheetUrl = sheetInfo.url!;
         
-        // Append data to existing spreadsheet (don't clear existing data)
-        console.log('Appending performance data to existing spreadsheet');
-        await googleSheetsService.appendPerformanceData(spreadsheetId, performanceData);
+        // Get basic campaign data first and export everything
+        console.log('Getting basic campaign data from Meta');
+        const campaigns = await metaApiService.getCampaigns(accessToken);
+        
+        // Create simple data export with all campaign information
+        const campaignData = campaigns.map(campaign => [
+          new Date().toISOString().split('T')[0], // Export date
+          campaign.id,
+          campaign.name,
+          campaign.status,
+          campaign.objective || 'N/A',
+          campaign.daily_budget || 'N/A',
+          campaign.lifetime_budget || 'N/A',
+          campaign.start_time || 'N/A',
+          campaign.end_time || 'N/A'
+        ]);
+        
+        // Add header row
+        const dataWithHeaders = [
+          ['Export Date', 'Campaign ID', 'Campaign Name', 'Status', 'Objective', 'Daily Budget', 'Lifetime Budget', 'Start Time', 'End Time'],
+          ...campaignData
+        ];
+        
+        console.log('Exporting basic campaign data to existing spreadsheet');
+        await googleSheetsService.appendSimpleData(spreadsheetId, dataWithHeaders);
       }
 
       console.log(`Successfully exported ${performanceData.length} records to Google Sheets`);

@@ -173,6 +173,38 @@ class GoogleSheetsService {
   }
 
   /**
+   * Append any data to existing sheet - simplified version
+   */
+  async appendSimpleData(spreadsheetId: string, data: any[]) {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      const sheetName = await this.getFirstSheetName(cleanSpreadsheetId);
+      
+      console.log(`Appending ${data.length} rows to sheet "${sheetName}"`);
+
+      const request = {
+        spreadsheetId: cleanSpreadsheetId,
+        range: `${sheetName}!A:Z`, // Wide range to accommodate any data
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        resource: {
+          values: data,
+        },
+      };
+
+      const response = await this.sheets.spreadsheets.values.append(request);
+
+      return {
+        updatedRows: data.length,
+        updatedRange: response.data.updates?.updatedRange || 'Unknown',
+      };
+    } catch (error) {
+      console.error('Error appending data to Google Sheet:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Append performance data to existing sheet
    */
   async appendPerformanceData(spreadsheetId: string, data: CampaignPerformanceData[]) {
