@@ -29,7 +29,7 @@ interface ReportResult {
 
 export default function Reports() {
   const { toast } = useToast();
-  const { data: campaigns = [], isLoading: campaignsLoading } = useCampaigns();
+  const { campaigns = [], isLoading: campaignsLoading } = useCampaigns();
   
   const [dateRange, setDateRange] = useState({
     since: "",
@@ -51,10 +51,20 @@ export default function Reports() {
       campaignIds?: string[];
       spreadsheetId?: string;
     }) => {
-      return apiRequest<ReportResult>("/api/reports/generate", {
+      const response = await fetch("/api/reports/generate", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(data),
       });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
+      }
+      
+      return response.json();
     },
     onSuccess: (result) => {
       toast({
@@ -87,9 +97,9 @@ export default function Reports() {
     );
   };
 
-  const handleSelectAllCampaigns = (checked: boolean) => {
-    if (checked) {
-      setSelectedCampaigns(campaigns.map(c => c.id));
+  const handleSelectAllCampaigns = (checked: boolean | "indeterminate") => {
+    if (checked === true) {
+      setSelectedCampaigns(campaigns.map((c: any) => c.id));
     } else {
       setSelectedCampaigns([]);
     }
@@ -178,7 +188,7 @@ export default function Reports() {
                 <Checkbox
                   id="custom-range"
                   checked={useCustomDateRange}
-                  onCheckedChange={setUseCustomDateRange}
+                  onCheckedChange={(checked) => setUseCustomDateRange(checked === true)}
                 />
                 <Label htmlFor="custom-range">Custom date range</Label>
               </div>
