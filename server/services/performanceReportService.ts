@@ -131,32 +131,34 @@ class PerformanceReportService {
         
         console.log(`Exporting ${campaigns.length} campaigns (filtered from ${allCampaigns.length} total)`);
         
-        // Get spend and install data for selected campaigns
-        console.log('Getting spend and install data from Meta insights');
+        // Get ads (creatives) for selected campaigns
+        console.log('Getting ads/creatives for selected campaigns');
         const campaignIds = campaigns.map(c => c.id);
-        let insights: any[] = [];
+        const ads = await metaApiService.getAdsForCampaigns(accessToken, campaignIds);
+        console.log(`Found ${ads.length} ads across ${campaignIds.length} campaigns`);
         
-        try {
-          insights = await metaApiService.getCampaignInsights(
-            accessToken, 
-            campaignIds, 
-            dateRange!
-          );
-          console.log(`Retrieved ${insights.length} insight records`);
-        } catch (error) {
-          console.log('Insights API failed, proceeding with basic campaign data only');
+        // Get performance data for each ad
+        let adInsights: any[] = [];
+        if (ads.length > 0) {
+          const adIds = ads.map(ad => ad.id);
+          try {
+            adInsights = await metaApiService.getAdInsights(accessToken, adIds, dateRange!);
+            console.log(`Retrieved ${adInsights.length} ad insight records`);
+          } catch (error) {
+            console.log('Ad insights API failed, proceeding with basic ad data only');
+          }
         }
 
-        // Create spend and install data export
-        const campaignData = campaigns.map(campaign => {
-          // Find matching insights for this campaign
-          const campaignInsights = insights.filter(insight => insight.campaign_id === campaign.id);
+        // Create ad-level data export with spend and installs
+        const adData = ads.map(ad => {
+          // Find matching insights for this ad
+          const adInsightData = adInsights.filter(insight => insight.ad_id === ad.id);
           
-          // Calculate totals
+          // Calculate totals for this ad
           let totalSpend = 0;
           let totalInstalls = 0;
           
-          campaignInsights.forEach(insight => {
+          adInsightData.forEach(insight => {
             totalSpend += parseFloat(insight.spend || '0');
             
             // Look for install actions
@@ -171,24 +173,27 @@ class PerformanceReportService {
             }
           });
           
+          // Find the campaign this ad belongs to
+          const campaign = campaigns.find(c => c.id === ad.campaign_id);
+          
           return [
             new Date().toISOString().split('T')[0], // Export date
-            campaign.id,
-            campaign.name,
-            campaign.status,
-            campaign.objective || 'N/A',
-            totalSpend.toFixed(2), // Campaign spend
-            totalInstalls, // App installs
-            campaign.daily_budget || 'N/A',
-            campaign.lifetime_budget || 'N/A',
-            campaign.start_time || 'N/A',
-            campaign.end_time || 'N/A'
+            campaign?.name || 'Unknown Campaign',
+            ad.id,
+            ad.name || 'Unnamed Ad',
+            ad.creative?.title || ad.creative?.name || 'No Title',
+            ad.status,
+            totalSpend.toFixed(2), // Ad spend
+            totalInstalls, // App installs from this ad
+            ad.creative?.body || 'No Description'
           ];
         });
+
+        const campaignData = adData;
         
         // Add header row
         const dataWithHeaders = [
-          ['Export Date', 'Campaign ID', 'Campaign Name', 'Status', 'Objective', 'Campaign Spend', 'App Installs', 'Daily Budget', 'Lifetime Budget', 'Start Time', 'End Time'],
+          ['Export Date', 'Campaign Name', 'Ad ID', 'Ad Name', 'Creative Title', 'Status', 'Ad Spend', 'App Installs', 'Creative Description'],
           ...campaignData
         ];
         

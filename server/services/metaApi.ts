@@ -294,6 +294,103 @@ class MetaApiService {
   }
 
   /**
+   * Get ads (creatives) for specific campaigns
+   */
+  async getAdsForCampaigns(accessToken: string, campaignIds: string[]): Promise<any[]> {
+    try {
+      const ads = [];
+      
+      for (const campaignId of campaignIds) {
+        const response = await fetch(
+          `${FB_GRAPH_API}/${campaignId}/ads?fields=id,name,creative{id,name,title,body,object_story_spec},status&access_token=${accessToken}`,
+          {
+            method: "GET",
+          }
+        );
+
+        if (!response.ok) {
+          console.log(`Failed to fetch ads for campaign ${campaignId}: ${response.status}`);
+          continue;
+        }
+
+        const data = await response.json() as any;
+        if (data.data && Array.isArray(data.data)) {
+          ads.push(...data.data.map((ad: any) => ({
+            ...ad,
+            campaign_id: campaignId
+          })));
+        }
+      }
+      
+      return ads;
+    } catch (error) {
+      console.error('Error fetching ads:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get ad-level insights (performance data for individual ads/creatives)
+   */
+  async getAdInsights(
+    accessToken: string,
+    adIds: string[],
+    dateRange: { since: string; until: string }
+  ): Promise<any[]> {
+    try {
+      const insights = [];
+      
+      for (const adId of adIds) {
+        const url = `${FB_GRAPH_API}/${adId}/insights`;
+        const params = new URLSearchParams({
+          access_token: accessToken,
+          fields: [
+            'ad_id',
+            'ad_name',
+            'campaign_id',
+            'campaign_name',
+            'spend',
+            'impressions',
+            'clicks',
+            'actions',
+            'ctr',
+            'cpc',
+            'cpm',
+            'date_start',
+            'date_stop'
+          ].join(','),
+          time_range: JSON.stringify({
+            since: dateRange.since,
+            until: dateRange.until
+          })
+        });
+
+        const response = await fetch(`${url}?${params}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          console.log(`Failed to fetch insights for ad ${adId}: ${response.status}`);
+          continue;
+        }
+
+        const data = await response.json() as any;
+        if (data.data && Array.isArray(data.data)) {
+          insights.push(...data.data);
+        }
+      }
+      
+      return insights;
+    } catch (error) {
+      console.error('Error fetching ad insights:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get ad account level insights
    */
   async getAdAccountInsights(
