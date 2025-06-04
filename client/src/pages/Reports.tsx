@@ -341,7 +341,7 @@ export default function Reports() {
         <CardContent className="pt-6">
           <Button
             onClick={handleGenerateReport}
-            disabled={generateReportMutation.isPending || (!dateRange.since || !dateRange.until)}
+            disabled={generateReportMutation.isPending}
             className="w-full"
             size="lg"
           >
