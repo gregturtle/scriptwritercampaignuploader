@@ -172,20 +172,28 @@ class PerformanceReportService {
             default:
               // Handle action-based metrics
               if (insight.actions && Array.isArray(insight.actions)) {
+                // Log all available actions for debugging
+                console.log(`All available actions in insight:`, insight.actions.map((a: any) => `${a.action_type}: ${a.value}`));
+                
+                // Log available actions for debugging specific metrics
+                if (metricId === 'achievement_unlocked' || metricId === 'rate') {
+                  console.log(`Searching for ${metricId} in actions:`, insight.actions.map((a: any) => a.action_type));
+                }
+                
                 const actionTypes = {
                   'app_install': ['app_install', 'mobile_app_install'],
-                  'add_to_cart': ['add_to_cart'], // save_location
+                  'add_to_cart': ['add_to_cart', 'save_location'], // try both FB and custom names
                   'purchase': ['purchase'],
-                  'view_content': ['view_content'], // saved_show
+                  'view_content': ['view_content', 'saved_show'], // try both FB and custom names
                   'search': ['search'],
-                  'lead': ['lead'], // account_id
-                  'complete_registration': ['complete_registration'], // sign_up
-                  'initiate_checkout': ['initiate_checkout'], // directions
-                  'add_to_wishlist': ['add_to_wishlist'], // follow_list
-                  'rate': ['rate'], // share
-                  'achievement_unlocked': ['achievement_unlocked'], // search_3wa
-                  'tutorial_completion': ['tutorial_completion'], // ob_completed
-                  'add_payment_info': ['add_payment_info'] // view_grid
+                  'lead': ['lead', 'account_id'], // try both FB and custom names
+                  'complete_registration': ['complete_registration', 'sign_up'], // try both FB and custom names
+                  'initiate_checkout': ['initiate_checkout', 'directions'], // try both FB and custom names
+                  'add_to_wishlist': ['add_to_wishlist', 'follow_list'], // try both FB and custom names
+                  'rate': ['rate', 'share'], // try both FB and custom names
+                  'achievement_unlocked': ['achievement_unlocked', 'search_3wa'], // try both FB and custom names
+                  'tutorial_completion': ['tutorial_completion', 'ob_completed'], // try both FB and custom names
+                  'add_payment_info': ['add_payment_info', 'view_grid'] // try both FB and custom names
                 };
                 
                 const actionType = actionTypes[metricId as keyof typeof actionTypes];
