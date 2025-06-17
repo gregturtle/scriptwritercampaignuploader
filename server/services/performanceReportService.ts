@@ -181,19 +181,19 @@ class PerformanceReportService {
                 }
                 
                 const actionTypes = {
-                  'app_install': ['app_install', 'mobile_app_install'],
-                  'add_to_cart': ['add_to_cart', 'save_location'], // try both FB and custom names
+                  'app_install': ['app_install', 'mobile_app_install', 'omni_app_install'],
+                  'add_to_cart': ['add_to_cart', 'omni_add_to_cart', 'app_custom_event.fb_mobile_add_to_cart'],
                   'purchase': ['purchase'],
-                  'view_content': ['view_content', 'saved_show'], // try both FB and custom names
-                  'search': ['search'],
-                  'lead': ['lead', 'account_id'], // try both FB and custom names
-                  'complete_registration': ['complete_registration', 'sign_up'], // try both FB and custom names
-                  'initiate_checkout': ['initiate_checkout', 'directions'], // try both FB and custom names
-                  'add_to_wishlist': ['add_to_wishlist', 'follow_list'], // try both FB and custom names
-                  'rate': ['rate', 'share'], // try both FB and custom names
-                  'achievement_unlocked': ['achievement_unlocked', 'search_3wa'], // try both FB and custom names
-                  'tutorial_completion': ['tutorial_completion', 'ob_completed'], // try both FB and custom names
-                  'add_payment_info': ['add_payment_info', 'view_grid'] // try both FB and custom names
+                  'view_content': ['view_content'],
+                  'search': ['search', 'omni_search', 'app_custom_event.fb_mobile_search'],
+                  'lead': ['lead', 'omni_level_achieved', 'app_custom_event.fb_mobile_level_achieved'],
+                  'complete_registration': ['complete_registration', 'omni_complete_registration', 'app_custom_event.fb_mobile_complete_registration'],
+                  'initiate_checkout': ['initiate_checkout', 'omni_initiated_checkout', 'app_custom_event.fb_mobile_initiated_checkout'],
+                  'add_to_wishlist': ['add_to_wishlist'],
+                  'rate': ['rate', 'omni_rate', 'app_custom_event.fb_mobile_rate'],
+                  'achievement_unlocked': ['achievement_unlocked', 'omni_achievement_unlocked', 'app_custom_event.fb_mobile_achievement_unlocked'],
+                  'tutorial_completion': ['tutorial_completion', 'omni_tutorial_completion', 'app_custom_event.fb_mobile_tutorial_completion'],
+                  'add_payment_info': ['add_payment_info', 'app_custom_event.fb_mobile_add_payment_info']
                 };
                 
                 const actionType = actionTypes[metricId as keyof typeof actionTypes];
