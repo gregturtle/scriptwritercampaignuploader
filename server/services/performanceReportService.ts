@@ -174,14 +174,18 @@ class PerformanceReportService {
               if (insight.actions && Array.isArray(insight.actions)) {
                 const actionTypes = {
                   'app_install': ['app_install', 'mobile_app_install'],
-                  'add_to_cart': ['add_to_cart'],
+                  'add_to_cart': ['add_to_cart'], // save_location
                   'purchase': ['purchase'],
-                  'view_content': ['view_content'],
+                  'view_content': ['view_content'], // saved_show
                   'search': ['search'],
-                  'lead': ['lead'],
-                  'complete_registration': ['complete_registration'],
-                  'initiate_checkout': ['initiate_checkout'],
-                  'add_to_wishlist': ['add_to_wishlist']
+                  'lead': ['lead'], // account_id
+                  'complete_registration': ['complete_registration'], // sign_up
+                  'initiate_checkout': ['initiate_checkout'], // directions
+                  'add_to_wishlist': ['add_to_wishlist'], // follow_list
+                  'rate': ['rate'], // share
+                  'achievement_unlocked': ['achievement_unlocked'], // search_3wa
+                  'tutorial_completion': ['tutorial_completion'], // ob_completed
+                  'add_payment_info': ['add_payment_info'] // view_grid
                 };
                 
                 const actionType = actionTypes[metricId as keyof typeof actionTypes];
@@ -245,14 +249,18 @@ class PerformanceReportService {
         const metricLabels: { [key: string]: string } = {
           'spend': 'Spend',
           'app_install': 'App Installs',
-          'add_to_cart': 'Add to Cart',
+          'add_to_cart': 'Save Location',
           'purchase': 'Purchases',
-          'view_content': 'View Content',
+          'view_content': 'Saved Show',
           'search': 'Search',
-          'lead': 'Leads',
-          'complete_registration': 'Registrations',
-          'initiate_checkout': 'Checkout Started',
-          'add_to_wishlist': 'Add to Wishlist',
+          'lead': 'Level Achieved',
+          'complete_registration': 'Sign Up',
+          'initiate_checkout': 'Directions',
+          'add_to_wishlist': 'Follow List',
+          'rate': 'Share',
+          'achievement_unlocked': 'Search 3wa',
+          'tutorial_completion': 'Onboarding Completed',
+          'add_payment_info': 'View Grid',
           'impressions': 'Impressions',
           'clicks': 'Clicks',
           'ctr': 'CTR',
