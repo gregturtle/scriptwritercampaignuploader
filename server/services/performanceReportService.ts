@@ -8,6 +8,7 @@ export interface PerformanceReportOptions {
   };
   campaignIds?: string[]; // If not provided, gets all campaigns
   spreadsheetId?: string; // If not provided, creates new sheet
+  metrics?: string[]; // Selected metrics to include in report
 }
 
 export interface PerformanceReportResult {
@@ -149,51 +150,123 @@ class PerformanceReportService {
           }
         }
 
-        // Create ad-level data export with spend and installs
+        // Get selected metrics or default set
+        const selectedMetrics = options.metrics || ['spend', 'app_install'];
+        console.log(`Using metrics: ${selectedMetrics.join(', ')}`);
+
+        // Create metric calculation function
+        const calculateMetricValue = (insight: any, metricId: string): string | number => {
+          switch (metricId) {
+            case 'spend':
+              return parseFloat(insight.spend || '0').toFixed(2);
+            case 'impressions':
+              return parseInt(insight.impressions || '0');
+            case 'clicks':
+              return parseInt(insight.clicks || '0');
+            case 'ctr':
+              return parseFloat(insight.ctr || '0').toFixed(2);
+            case 'cpc':
+              return parseFloat(insight.cpc || '0').toFixed(2);
+            case 'cpm':
+              return parseFloat(insight.cpm || '0').toFixed(2);
+            default:
+              // Handle action-based metrics
+              if (insight.actions && Array.isArray(insight.actions)) {
+                const actionTypes = {
+                  'app_install': ['app_install', 'mobile_app_install'],
+                  'add_to_cart': ['add_to_cart'],
+                  'purchase': ['purchase'],
+                  'view_content': ['view_content'],
+                  'search': ['search'],
+                  'lead': ['lead'],
+                  'complete_registration': ['complete_registration'],
+                  'initiate_checkout': ['initiate_checkout'],
+                  'add_to_wishlist': ['add_to_wishlist']
+                };
+                
+                const actionType = actionTypes[metricId as keyof typeof actionTypes];
+                if (actionType) {
+                  const action = insight.actions.find((a: any) => actionType.includes(a.action_type));
+                  return action ? parseInt(action.value || '0') : 0;
+                }
+              }
+              return 0;
+          }
+        };
+
+        // Create ad-level data export with selected metrics
         const adData = ads.map(ad => {
           // Find matching insights for this ad
           const adInsightData = adInsights.filter(insight => insight.ad_id === ad.id);
           
-          // Calculate totals for this ad
-          let totalSpend = 0;
-          let totalInstalls = 0;
-          
-          adInsightData.forEach(insight => {
-            totalSpend += parseFloat(insight.spend || '0');
-            
-            // Look for install actions
-            if (insight.actions && Array.isArray(insight.actions)) {
-              const installAction = insight.actions.find((action: any) => 
-                action.action_type === 'app_install' || 
-                action.action_type === 'mobile_app_install'
-              );
-              if (installAction) {
-                totalInstalls += parseInt(installAction.value || '0');
-              }
-            }
+          // Calculate totals for selected metrics
+          const metricValues: { [key: string]: number } = {};
+          selectedMetrics.forEach(metricId => {
+            let total = 0;
+            adInsightData.forEach(insight => {
+              const value = calculateMetricValue(insight, metricId);
+              total += typeof value === 'string' ? parseFloat(value) : value;
+            });
+            metricValues[metricId] = total;
           });
           
           // Find the campaign this ad belongs to
           const campaign = campaigns.find(c => c.id === ad.campaign_id);
           
-          return [
+          // Build row data
+          const rowData = [
             new Date().toISOString().split('T')[0], // Export date
             campaign?.name || 'Unknown Campaign',
             ad.id,
             ad.name || 'Unnamed Ad',
             ad.creative?.title || ad.creative?.name || 'No Title',
             ad.status,
-            totalSpend.toFixed(2), // Ad spend
-            totalInstalls, // App installs from this ad
-            ad.creative?.body || 'No Description'
           ];
+          
+          // Add metric values in the order they were selected
+          selectedMetrics.forEach(metricId => {
+            const value = metricValues[metricId];
+            if (metricId === 'spend' || metricId === 'ctr' || metricId === 'cpc' || metricId === 'cpm') {
+              rowData.push(value.toFixed(2));
+            } else {
+              rowData.push(value);
+            }
+          });
+          
+          // Add creative description at the end
+          rowData.push(ad.creative?.body || 'No Description');
+          
+          return rowData;
         });
 
         const campaignData = adData;
         
+        // Create dynamic header row based on selected metrics
+        const metricLabels: { [key: string]: string } = {
+          'spend': 'Spend',
+          'app_install': 'App Installs',
+          'add_to_cart': 'Add to Cart',
+          'purchase': 'Purchases',
+          'view_content': 'View Content',
+          'search': 'Search',
+          'lead': 'Leads',
+          'complete_registration': 'Registrations',
+          'initiate_checkout': 'Checkout Started',
+          'add_to_wishlist': 'Add to Wishlist',
+          'impressions': 'Impressions',
+          'clicks': 'Clicks',
+          'ctr': 'CTR',
+          'cpc': 'CPC',
+          'cpm': 'CPM'
+        };
+
+        const baseHeaders = ['Export Date', 'Campaign Name', 'Ad ID', 'Ad Name', 'Creative Title', 'Status'];
+        const metricHeaders = selectedMetrics.map(metricId => metricLabels[metricId] || metricId);
+        const finalHeaders = [...baseHeaders, ...metricHeaders, 'Creative Description'];
+
         // Add header row
         const dataWithHeaders = [
-          ['Export Date', 'Campaign Name', 'Ad ID', 'Ad Name', 'Creative Title', 'Status', 'Ad Spend', 'App Installs', 'Creative Description'],
+          finalHeaders,
           ...campaignData
         ];
         
