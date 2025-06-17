@@ -38,6 +38,26 @@ export default function Reports() {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const [useCustomDateRange, setUseCustomDateRange] = useState(false);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['spend', 'app_install']);
+
+  // Available Facebook metrics
+  const availableMetrics = [
+    { id: 'spend', label: 'Spend', description: 'Total amount spent' },
+    { id: 'app_install', label: 'App Installs', description: 'Mobile app install actions' },
+    { id: 'add_to_cart', label: 'Add to Cart', description: 'Add to cart actions' },
+    { id: 'purchase', label: 'Purchases', description: 'Purchase conversions' },
+    { id: 'view_content', label: 'View Content', description: 'Content view actions' },
+    { id: 'search', label: 'Search', description: 'Search actions' },
+    { id: 'lead', label: 'Leads', description: 'Lead generation actions' },
+    { id: 'complete_registration', label: 'Registrations', description: 'Registration completions' },
+    { id: 'initiate_checkout', label: 'Checkout Started', description: 'Checkout initiation actions' },
+    { id: 'add_to_wishlist', label: 'Add to Wishlist', description: 'Wishlist additions' },
+    { id: 'impressions', label: 'Impressions', description: 'Number of impressions' },
+    { id: 'clicks', label: 'Clicks', description: 'Number of clicks' },
+    { id: 'ctr', label: 'CTR', description: 'Click-through rate' },
+    { id: 'cpc', label: 'CPC', description: 'Cost per click' },
+    { id: 'cpm', label: 'CPM', description: 'Cost per thousand impressions' }
+  ];
   
   // Fetch date presets
   const { data: datePresets } = useQuery<DatePresets>({
@@ -50,6 +70,7 @@ export default function Reports() {
       dateRange: { since: string; until: string };
       campaignIds?: string[];
       spreadsheetId?: string;
+      metrics?: string[];
     }) => {
       const response = await fetch("/api/reports/generate", {
         method: "POST",
@@ -105,10 +126,27 @@ export default function Reports() {
     }
   };
 
+  const handleMetricToggle = (metricId: string) => {
+    setSelectedMetrics(prev => 
+      prev.includes(metricId)
+        ? prev.filter(id => id !== metricId)
+        : [...prev, metricId]
+    );
+  };
+
+  const handleSelectAllMetrics = (checked: boolean | "indeterminate") => {
+    if (checked === true) {
+      setSelectedMetrics(availableMetrics.map(m => m.id));
+    } else {
+      setSelectedMetrics([]);
+    }
+  };
+
   const handleGenerateReport = () => {
     const reportData: any = {
       campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined,
       spreadsheetId: spreadsheetId || undefined,
+      metrics: selectedMetrics.length > 0 ? selectedMetrics : undefined,
     };
 
     // Only include date range if both dates are provided
@@ -333,6 +371,68 @@ export default function Reports() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Metrics Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Metrics Selection</CardTitle>
+          <CardDescription>
+            Choose which Facebook metrics to include in your report
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="select-all-metrics"
+                checked={selectedMetrics.length === availableMetrics.length}
+                onCheckedChange={handleSelectAllMetrics}
+              />
+              <Label htmlFor="select-all-metrics" className="font-medium">
+                Select All Metrics ({availableMetrics.length})
+              </Label>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {availableMetrics.map((metric) => (
+                <div key={metric.id} className="flex items-start space-x-2 p-3 rounded border">
+                  <Checkbox
+                    id={`metric-${metric.id}`}
+                    checked={selectedMetrics.includes(metric.id)}
+                    onCheckedChange={() => handleMetricToggle(metric.id)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <Label 
+                      htmlFor={`metric-${metric.id}`}
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      {metric.label}
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {metric.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {selectedMetrics.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-3">
+                <span className="text-sm text-muted-foreground">Selected:</span>
+                {selectedMetrics.map(metricId => {
+                  const metric = availableMetrics.find(m => m.id === metricId);
+                  return (
+                    <Badge key={metricId} variant="secondary" className="text-xs">
+                      {metric?.label}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

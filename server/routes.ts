@@ -423,9 +423,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         }).optional(),
         campaignIds: z.array(z.string()).optional(),
         spreadsheetId: z.string().optional(),
+        metrics: z.array(z.string()).optional(),
       });
 
-      const { dateRange, campaignIds, spreadsheetId } = schema.parse(req.body);
+      const { dateRange, campaignIds, spreadsheetId, metrics } = schema.parse(req.body);
       
       const accessToken = await getAccessToken();
       
@@ -435,6 +436,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         dateRange,
         campaignIds,
         spreadsheetId,
+        metrics,
       });
 
       // Log success
