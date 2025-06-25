@@ -363,64 +363,34 @@ export default function Reports() {
         </CardContent>
       </Card>
 
-      {/* Metrics Selection */}
+      {/* Standardized Metrics Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Metrics Selection</CardTitle>
+          <CardTitle>Report Metrics</CardTitle>
           <CardDescription>
-            Choose which Facebook metrics to include in your report
+            Your reports will include these standardized metrics for all campaigns and ads
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="select-all-metrics"
-                checked={selectedMetrics.length === availableMetrics.length}
-                onCheckedChange={handleSelectAllMetrics}
-              />
-              <Label htmlFor="select-all-metrics" className="font-medium">
-                Select All Metrics ({availableMetrics.length})
-              </Label>
+              <Badge variant="secondary">Spend</Badge>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {availableMetrics.map((metric) => (
-                <div key={metric.id} className="flex items-start space-x-2 p-3 rounded border">
-                  <Checkbox
-                    id={`metric-${metric.id}`}
-                    checked={selectedMetrics.includes(metric.id)}
-                    onCheckedChange={() => handleMetricToggle(metric.id)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <Label 
-                      htmlFor={`metric-${metric.id}`}
-                      className="text-sm font-medium cursor-pointer"
-                    >
-                      {metric.label}
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {metric.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary">App Installs</Badge>
             </div>
-            
-            {selectedMetrics.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-3">
-                <span className="text-sm text-muted-foreground">Selected:</span>
-                {selectedMetrics.map(metricId => {
-                  const metric = availableMetrics.find(m => m.id === metricId);
-                  return (
-                    <Badge key={metricId} variant="secondary" className="text-xs">
-                      {metric?.label}
-                    </Badge>
-                  );
-                })}
-              </div>
-            )}
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary">Save Location</Badge>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary">Directions</Badge>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary">Share</Badge>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary">Search 3wa</Badge>
+            </div>
           </div>
         </CardContent>
       </Card>
