@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Header from "@/components/Header";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,7 @@ interface UnifiedResult {
 }
 
 export default function Unified() {
-  const [dateRange, setDateRange] = useState('last_7_days');
+  const [dateRange, setDateRange] = useState('all_time');
   const [customSince, setCustomSince] = useState('');
   const [customUntil, setCustomUntil] = useState('');
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
@@ -45,6 +45,7 @@ export default function Unified() {
   const { data: campaigns = [], isLoading: campaignsLoading } = useCampaigns();
 
   const datePresets = {
+    'all_time': { label: 'All available data (recommended)', since: '2025-01-01', until: '2025-06-25' },
     'last_7_days': { label: 'Last 7 days', since: '2025-06-18', until: '2025-06-25' },
     'last_30_days': { label: 'Last 30 days', since: '2025-05-26', until: '2025-06-25' },
     'last_90_days': { label: 'Last 90 days', since: '2025-03-27', until: '2025-06-25' },
@@ -88,7 +89,7 @@ export default function Unified() {
             since: selectedDateRange.since,
             until: selectedDateRange.until
           },
-          campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined,
+          campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : campaigns.map(c => c.id),
           spreadsheetId: spreadsheetId.trim()
         })
       });
@@ -154,7 +155,7 @@ export default function Unified() {
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Generate performance reports and AI script suggestions in one streamlined workflow. Select your campaigns, provide your Google Sheets URL, and get both reports and optimized scripts automatically.
+          Generate performance reports and AI script suggestions in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
         </p>
         <div className="flex justify-center gap-2 mt-4">
           <Link href="/reports">
@@ -184,9 +185,20 @@ export default function Unified() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Date Range Selection */}
+          {/* Google Sheets URL - moved to top as most important */}
           <div className="space-y-2">
-            <Label htmlFor="date-range">Date Range</Label>
+            <Label htmlFor="spreadsheet">Google Sheets URL or ID</Label>
+            <Input
+              id="spreadsheet"
+              value={spreadsheetId}
+              onChange={(e) => setSpreadsheetId(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit or just the sheet ID"
+            />
+          </div>
+
+          {/* Date Range Selection - Optional */}
+          <div className="space-y-2">
+            <Label htmlFor="date-range">Date Range (Optional - defaults to all data)</Label>
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select date range" />
@@ -225,10 +237,10 @@ export default function Unified() {
             </div>
           )}
 
-          {/* Campaign Selection */}
+          {/* Campaign Selection - Optional */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Campaign Selection</Label>
+              <Label>Campaign Selection (Optional - defaults to all campaigns for best AI analysis)</Label>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -271,20 +283,11 @@ export default function Unified() {
               </div>
             )}
             <p className="text-sm text-gray-500">
-              {selectedCampaigns.length === 0 ? 'All campaigns will be included' : `${selectedCampaigns.length} campaigns selected`}
+              {selectedCampaigns.length === 0 ? `All ${campaigns.length} campaigns will be included (recommended for best AI analysis)` : `${selectedCampaigns.length} campaigns selected`}
             </p>
           </div>
 
-          {/* Google Sheets URL */}
-          <div className="space-y-2">
-            <Label htmlFor="spreadsheet">Google Sheets URL or ID</Label>
-            <Input
-              id="spreadsheet"
-              value={spreadsheetId}
-              onChange={(e) => setSpreadsheetId(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit or just the sheet ID"
-            />
-          </div>
+
 
           {/* Generate Button */}
           <Button 
