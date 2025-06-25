@@ -158,42 +158,71 @@ class AIScriptService {
       }
 
       // Generate suggestions using OpenAI
+      // Analyze existing script lengths to match the format
+      const scriptLengths = topPerformers.map(item => item.scriptContent?.length || 0).filter(len => len > 0);
+      const avgScriptLength = scriptLengths.length > 0 ? Math.round(scriptLengths.reduce((a, b) => a + b, 0) / scriptLengths.length) : 150;
+
       const prompt = `
-You are an expert marketing creative analyst specializing in What3Words app campaigns. These are ads specifically for the What3Words mobile app - a location technology that has divided the world into 3m x 3m squares, each identified by a unique combination of three words.
+You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
 
-CAMPAIGN CONTEXT:
-- All ads are for the What3Words app (iOS/Android)
-- The app helps users find, share, and navigate to precise locations using three words
-- Primary use cases: navigation, delivery, emergency services, social sharing of locations
+CRITICAL REQUIREMENT: You must analyze BOTH what works AND what doesn't work to inform your script creation.
 
-PERFORMANCE DATA ANALYSIS:
-- Usage Score (Column U): A comprehensive performance metric that combines several features. Higher scores = better performing scripts
-- Script Content (Column W): The actual creative copy that was used in these video ads
-- Metrics tracked: app installs, save location actions, directions requests, shares, and search 3wa actions
+CONTEXT:
+- What3Words assigns unique 3-word addresses to every 3x3 meter location globally
+- These are voiceover scripts for video ads encouraging app downloads
+- The background visuals are constant - you only write the spoken narration
+- Target script length: approximately ${avgScriptLength} characters (based on existing successful scripts)
+- "Score" represents overall performance (higher = better performing voiceovers)
 
-TOP PERFORMING CREATIVES (Highest Usage Scores):
-${JSON.stringify(analysisData.topPerformers, null, 2)}
+HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
+${topPerformers.map(item => `
+- Score: ${item.score} | Voiceover: "${item.scriptContent}"
+- Results: ${item.appInstalls} app installs, ${item.saveLocation} saves, ${item.search3wa} searches, ${item.directions} directions, ${item.share} shares
+`).join('\n')}
 
-BOTTOM PERFORMING CREATIVES (Lowest Usage Scores):
-${JSON.stringify(analysisData.bottomPerformers, null, 2)}
+LOW-PERFORMING VOICEOVER SCRIPTS (Learn from these FAILURE patterns):
+${bottomPerformers.map(item => `
+- Score: ${item.score} | Voiceover: "${item.scriptContent}"
+- Results: ${item.appInstalls} app installs, ${item.saveLocation} saves, ${item.search3wa} searches, ${item.directions} directions, ${item.share} shares
+`).join('\n')}
 
-ANALYSIS REQUIREMENTS:
-1. Identify what messaging, hooks, and creative elements in HIGH USAGE SCORE scripts drive performance
-2. Determine what script patterns lead to high app installs, location saves, direction requests, shares, and 3-word address searches
-3. Identify what to avoid based on LOW USAGE SCORE script patterns
-4. Focus on What3Words app benefits: precise location sharing, easy navigation, memorable addresses
+REQUIRED ANALYSIS:
+You must identify:
 
-CREATE 5 NEW WHAT3WORDS VIDEO SCRIPTS:
-Generate scripts that incorporate the best elements from high-scoring performers while avoiding patterns from low-scoring ones. Each script should demonstrate What3Words app functionality and drive the target user actions.
+SUCCESS PATTERNS (from high-scoring scripts):
+1. What specific words, phrases, or messaging approaches drive high scores?
+2. What tone, structure, or call-to-action style works best?
+3. What hooks or value propositions resonate most?
+4. What script length and pacing patterns are most effective?
 
-Respond with JSON in this exact format:
+FAILURE PATTERNS (from low-scoring scripts):
+1. What specific words, phrases, or messaging approaches lead to poor performance?
+2. What tone, structure, or approaches should be avoided?
+3. What hooks or value propositions fall flat?
+4. What script patterns consistently underperform?
+
+TASK:
+Based on your analysis of BOTH success and failure patterns above, write 5 new voiceover scripts that:
+- Incorporate proven successful elements from high-scoring data
+- Actively avoid patterns that led to poor performance in low-scoring data
+- Are ONLY spoken narration (no visual descriptions)
+- Match successful script length (~${avgScriptLength} characters)
+- Focus on encouraging What3Words app downloads
+
+For each voiceover script, provide:
+1. TITLE: Brief concept description
+2. CONTENT: The complete voiceover script (spoken words only)
+3. REASONING: Explain specifically which successful patterns you incorporated AND which failure patterns you avoided
+4. TARGET METRICS: Which metrics this aims to improve based on successful examples
+
+Respond in JSON format:
 {
   "suggestions": [
     {
-      "title": "Compelling script title for What3Words ad",
-      "content": "Complete video script with scenes, dialogue, visual directions, and What3Words app demonstration",
-      "reasoning": "Detailed explanation based on analysis of high vs low usage score patterns from the data",
-      "targetMetrics": ["app_install", "save_location", "directions", "share", "search_3wa"]
+      "title": "Voiceover concept name",
+      "content": "Complete voiceover script - spoken words only",
+      "reasoning": "Detailed analysis of success patterns incorporated and failure patterns avoided from the data", 
+      "targetMetrics": ["app_installs", "save_location", "search_3wa"]
     }
   ]
 }

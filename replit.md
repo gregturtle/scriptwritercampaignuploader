@@ -118,4 +118,4 @@ Changelog:
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-AI Script Generation: Focus only on voiceover scripts, not visual scenes. Scripts must analyze actual performance data to identify successful patterns and incorporate those patterns into new scripts. Never create scripts from scratch - always base them on what the data shows is working. Background visuals are constant - only the spoken narration changes.
+AI Script Generation: Focus only on voiceover scripts, not visual scenes. Scripts must analyze BOTH successful AND failed performance patterns from actual data. Learn from what works AND what doesn't work to create better scripts. Never create scripts from scratch - always base them on patterns found in both high and low performing data. Background visuals are constant - only the spoken narration changes.
