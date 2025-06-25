@@ -43,12 +43,13 @@ export default function Unified() {
   const { toast } = useToast();
   const { isAuthenticated, logout, login } = useMetaAuth();
   
-  // Debug campaigns loading
-  const campaignsQuery = useCampaigns();
-  const campaigns = campaignsQuery.data || [];
-  const campaignsLoading = campaignsQuery.isLoading;
+  // Use campaigns hook directly like other pages
+  const { 
+    campaigns, 
+    isLoading: campaignsLoading 
+  } = useCampaigns();
   
-  console.log('Campaigns data:', campaigns, 'Loading:', campaignsLoading);
+  // Debug removed - campaigns are loading properly
 
   const datePresets = {
     'all_time': { label: 'All available data (recommended)', since: '2025-01-01', until: '2025-06-25' },
