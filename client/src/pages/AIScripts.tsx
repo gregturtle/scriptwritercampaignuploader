@@ -127,7 +127,7 @@ export default function AIScripts() {
               id="tab-name"
               value={tabName}
               onChange={(e) => setTabName(e.target.value)}
-              placeholder="Leave empty to use first sheet, or enter specific tab name"
+              placeholder="Default: 'Cleansed with BEAP' (uses Column U for scores, Column W for scripts)"
               className="w-full"
             />
           </div>

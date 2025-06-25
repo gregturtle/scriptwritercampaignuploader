@@ -30,42 +30,54 @@ interface ScriptSuggestion {
 
 class AIScriptService {
   /**
-   * Read performance data from Google Sheets tab
+   * Read performance data from Google Sheets tab - specifically designed for "Cleansed with BEAP" tab
    */
-  async readPerformanceData(spreadsheetId: string, tabName: string = "Sheet1"): Promise<PerformanceData[]> {
+  async readPerformanceData(spreadsheetId: string, tabName: string = "Cleansed with BEAP"): Promise<PerformanceData[]> {
     try {
       const cleanSpreadsheetId = googleSheetsService.extractSpreadsheetId(spreadsheetId);
       
       const response = await googleSheetsService.sheets.spreadsheets.values.get({
         spreadsheetId: cleanSpreadsheetId,
-        range: `${tabName}!A:Z`, // Get all data from the tab
+        range: `${tabName}!A:W`, // Get data including columns U and W
       });
 
       const rows = response.data.values || [];
       if (rows.length === 0) {
-        throw new Error('No data found in the specified sheet tab');
+        throw new Error(`No data found in the "${tabName}" tab`);
       }
+
+      console.log(`Reading data from "${tabName}" tab with ${rows.length} total rows`);
 
       // Skip header row and parse data
       const dataRows = rows.slice(1);
-      const performanceData: PerformanceData[] = dataRows.map(row => ({
-        exportDate: row[0] || '',
-        campaignName: row[1] || '',
-        adId: row[2] || '',
-        adName: row[3] || '',
-        creativeTitle: row[4] || '',
-        status: row[5] || '',
-        spend: parseFloat(row[6]) || 0,
-        appInstalls: parseInt(row[7]) || 0,
-        saveLocation: parseInt(row[8]) || 0,
-        directions: parseInt(row[9]) || 0,
-        share: parseInt(row[10]) || 0,
-        search3wa: parseInt(row[11]) || 0,
-        score: row[12] ? parseFloat(row[12]) : undefined,
-        scriptContent: row[13] || undefined, // Assuming script content is in column N
-      }));
+      const performanceData: PerformanceData[] = dataRows.map((row, index) => {
+        // Column U is index 20 (U = 21st column, 0-indexed = 20)
+        // Column W is index 22 (W = 23rd column, 0-indexed = 22)
+        const score = row[20] ? parseFloat(row[20]) : undefined;
+        const scriptContent = row[22] || undefined;
+        
+        return {
+          exportDate: row[0] || '',
+          campaignName: row[1] || '',
+          adId: row[2] || '',
+          adName: row[3] || '',
+          creativeTitle: row[4] || '',
+          status: row[5] || '',
+          spend: parseFloat(row[6]) || 0,
+          appInstalls: parseInt(row[7]) || 0,
+          saveLocation: parseInt(row[8]) || 0,
+          directions: parseInt(row[9]) || 0,
+          share: parseInt(row[10]) || 0,
+          search3wa: parseInt(row[11]) || 0,
+          score: score, // Column U (index 20)
+          scriptContent: scriptContent, // Column W (index 22)
+        };
+      });
 
-      return performanceData.filter(item => item.adId); // Filter out empty rows
+      const validData = performanceData.filter(item => item.adId && item.score !== undefined && item.scriptContent);
+      console.log(`Filtered to ${validData.length} rows with valid Ad ID, score (column U), and script content (column W)`);
+      
+      return validData;
     } catch (error) {
       console.error('Error reading performance data from Google Sheets:', error);
       throw error;
@@ -77,7 +89,7 @@ class AIScriptService {
    */
   async generateScriptSuggestions(
     spreadsheetId: string, 
-    tabName: string = "Sheet1"
+    tabName: string = "Cleansed with BEAP"
   ): Promise<ScriptSuggestion[]> {
     try {
       // Read the performance data
@@ -87,23 +99,33 @@ class AIScriptService {
         throw new Error('No performance data available for analysis');
       }
 
-      // Separate high and low performers based on scores
-      const scoredData = performanceData.filter(item => item.score !== undefined);
+      // Separate high and low performers based on scores from column U
+      const scoredData = performanceData.filter(item => 
+        item.score !== undefined && 
+        item.scriptContent && 
+        item.scriptContent.trim().length > 0
+      );
+      
       if (scoredData.length === 0) {
-        throw new Error('No scored performance data found. Please ensure your cleansed data includes performance scores.');
+        throw new Error('No scored performance data found with script content. Please ensure column U has scores and column W has script content.');
       }
+
+      console.log(`Found ${scoredData.length} entries with both scores (column U) and script content (column W)`);
 
       // Sort by score and get top and bottom performers
       const sortedData = scoredData.sort((a, b) => (b.score || 0) - (a.score || 0));
-      const topPerformers = sortedData.slice(0, Math.min(10, Math.ceil(sortedData.length * 0.3)));
-      const bottomPerformers = sortedData.slice(-Math.min(10, Math.ceil(sortedData.length * 0.3)));
+      const topPerformers = sortedData.slice(0, Math.min(8, Math.ceil(sortedData.length * 0.25)));
+      const bottomPerformers = sortedData.slice(-Math.min(5, Math.ceil(sortedData.length * 0.15)));
+
+      console.log(`Analyzing ${topPerformers.length} top performers (highest scores) and ${bottomPerformers.length} bottom performers (lowest scores)`);
 
       // Prepare analysis for OpenAI
       const analysisData = {
         topPerformers: topPerformers.map(item => ({
           title: item.creativeTitle,
-          script: item.scriptContent || 'Script content not available',
-          score: item.score,
+          script: item.scriptContent, // From column W
+          score: item.score, // From column U
+          adId: item.adId,
           metrics: {
             appInstalls: item.appInstalls,
             saveLocation: item.saveLocation,
@@ -115,8 +137,9 @@ class AIScriptService {
         })),
         bottomPerformers: bottomPerformers.map(item => ({
           title: item.creativeTitle,
-          script: item.scriptContent || 'Script content not available',
-          score: item.score,
+          script: item.scriptContent, // From column W
+          score: item.score, // From column U
+          adId: item.adId,
           metrics: {
             appInstalls: item.appInstalls,
             saveLocation: item.saveLocation,
@@ -132,28 +155,35 @@ class AIScriptService {
 
       // Generate suggestions using OpenAI
       const prompt = `
-You are an expert marketing creative analyst specializing in app install campaigns. Analyze the performance data below and create 5 new video script suggestions that should perform exceptionally well.
+You are an expert marketing creative analyst specializing in What3Words app install campaigns. Analyze the performance data below from the "Cleansed with BEAP" dataset and create 5 new video script suggestions that should perform exceptionally well.
 
-TOP PERFORMING CREATIVES (High Scores):
+PERFORMANCE DATA ANALYSIS:
+- Scores are from Column U (performance scores based on actual campaign data)
+- Scripts are from Column W (actual creative copy that was used)
+- Metrics include: app installs, save location, directions, share, search 3wa actions
+
+TOP PERFORMING CREATIVES (High Scores from Column U):
 ${JSON.stringify(analysisData.topPerformers, null, 2)}
 
-BOTTOM PERFORMING CREATIVES (Low Scores):
+BOTTOM PERFORMING CREATIVES (Low Scores from Column U):
 ${JSON.stringify(analysisData.bottomPerformers, null, 2)}
 
-Based on this data, identify:
-1. What messaging, hooks, and creative elements work best
-2. What patterns lead to high app installs, save location, directions, share, and search 3wa actions
-3. What to avoid based on poor performers
+ANALYSIS REQUIRED:
+1. Identify what messaging, hooks, and creative elements in the HIGH SCORING scripts work best
+2. Determine what patterns in script copy lead to high app installs, save location, directions, share, and search 3wa actions
+3. Identify what to avoid based on LOW SCORING script patterns
+4. Consider What3Words app functionality (precise location sharing, navigation, discovery)
 
-Create 5 new video script suggestions that incorporate the best elements. Each script should be optimized for the metrics that matter most.
+CREATE 5 NEW VIDEO SCRIPTS:
+Each script should incorporate the best elements from high performers while avoiding patterns from low performers. Focus on What3Words app benefits and use cases that drive the target actions.
 
 Respond with JSON in this exact format:
 {
   "suggestions": [
     {
-      "title": "Script title",
-      "content": "Full video script with specific scenes, dialogue, and visual directions",
-      "reasoning": "Why this script should perform well based on the data analysis",
+      "title": "Compelling script title",
+      "content": "Full video script with specific scenes, dialogue, visual directions, and What3Words app demonstration",
+      "reasoning": "Detailed explanation of why this script should perform well based on analysis of high vs low scoring scripts from your data",
       "targetMetrics": ["app_install", "save_location", "directions", "share", "search_3wa"]
     }
   ]
