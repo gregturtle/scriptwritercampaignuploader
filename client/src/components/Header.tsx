@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { CircleDashed, Upload, BarChart3 } from "lucide-react";
+import { CircleDashed, Upload, BarChart3, Brain } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface HeaderProps {
@@ -41,6 +41,16 @@ export default function Header({ isAuthenticated, onLogout, onLogin }: HeaderPro
                 >
                   <BarChart3 className="h-4 w-4" />
                   <span>Report Mode</span>
+                </Button>
+              </Link>
+              <Link href="/ai-scripts">
+                <Button 
+                  variant={location === "/ai-scripts" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <Brain className="h-4 w-4" />
+                  <span>AI Scripts</span>
                 </Button>
               </Link>
             </nav>

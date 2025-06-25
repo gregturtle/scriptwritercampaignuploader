@@ -16,6 +16,7 @@ import {
 import { metaApiService } from "./services/metaApi";
 import { fileService } from "./services/fileService";
 import { performanceReportService } from "./services/performanceReportService";
+import { aiScriptService } from "./services/aiScriptService";
 
 // Helper function to get access token
 async function getAccessToken(): Promise<string> {
