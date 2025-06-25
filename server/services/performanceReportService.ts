@@ -233,7 +233,7 @@ class PerformanceReportService {
             ad.id,                                  // Column C: Ad ID  
             ad.name || 'Unnamed Ad',               // Column D: Ad Name
             ad.creative?.title || ad.creative?.name || 'No Title', // Column E: Creative Title
-            ad.creative?.body || 'No Description', // Column F: Creative Description
+            ad.status || 'ACTIVE',                 // Column F: Status
             parseFloat(metricValues['spend']?.toFixed(2) || '0.00'),  // Column G: Spend
             parseInt(metricValues['app_install'] || '0'),       // Column H: App Installs
             parseInt(metricValues['add_to_cart'] || '0'),       // Column I: Save Location
