@@ -11,6 +11,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/reports" component={Reports} />
+      <Route path="/ai-scripts" component={AIScripts} />
       <Route component={NotFound} />
     </Switch>
   );
