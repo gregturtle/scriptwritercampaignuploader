@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { CircleDashed } from "lucide-react";
+import { CircleDashed, Upload, BarChart3 } from "lucide-react";
+import { Link, useLocation } from "wouter";
 
 interface HeaderProps {
   isAuthenticated: boolean;
@@ -8,13 +9,41 @@ interface HeaderProps {
 }
 
 export default function Header({ isAuthenticated, onLogout, onLogin }: HeaderProps) {
+  const [location] = useLocation();
+  
   return (
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex justify-between items-center">
-          <div className="flex items-center">
-            <CircleDashed className="h-8 w-8 text-primary" />
-            <h1 className="ml-2 text-xl font-semibold text-neutral-900">Meta Ad Creative Uploader</h1>
+          <div className="flex items-center space-x-8">
+            <div className="flex items-center">
+              <CircleDashed className="h-8 w-8 text-primary" />
+              <h1 className="ml-2 text-xl font-semibold text-neutral-900">Meta Campaign Manager</h1>
+            </div>
+            
+            {/* Navigation Tabs */}
+            <nav className="flex space-x-1">
+              <Link href="/">
+                <Button 
+                  variant={location === "/" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  <span>Upload Mode</span>
+                </Button>
+              </Link>
+              <Link href="/reports">
+                <Button 
+                  variant={location === "/reports" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Report Mode</span>
+                </Button>
+              </Link>
+            </nav>
           </div>
           <div>
             {isAuthenticated ? (

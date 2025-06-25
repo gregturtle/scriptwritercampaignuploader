@@ -11,6 +11,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, FileSpreadsheetIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react";
 import { useCampaigns } from "@/hooks/useCampaigns";
+import Header from "@/components/Header";
+import { useMetaAuth } from "@/hooks/useMetaAuth";
 
 interface DatePresets {
   yesterday: { since: string; until: string };
@@ -30,6 +32,7 @@ interface ReportResult {
 export default function Reports() {
   const { toast } = useToast();
   const { campaigns = [], isLoading: campaignsLoading } = useCampaigns();
+  const { isAuthenticated, logout, login } = useMetaAuth();
   
   const [dateRange, setDateRange] = useState({
     since: "",
@@ -162,15 +165,22 @@ export default function Reports() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Performance Reports</h1>
-          <p className="text-muted-foreground">
-            Export Meta campaign performance data to Google Sheets
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      <Header 
+        isAuthenticated={isAuthenticated}
+        onLogout={logout}
+        onLogin={login}
+      />
+      
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Performance Reports</h1>
+            <p className="text-muted-foreground">
+              Export Meta campaign performance data to Google Sheets
+            </p>
+          </div>
         </div>
-      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Date Range Selection */}
@@ -492,6 +502,7 @@ export default function Reports() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
