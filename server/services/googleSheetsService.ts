@@ -117,7 +117,7 @@ class GoogleSheetsService {
 
     const request = {
       spreadsheetId,
-      range: 'Campaign Data!A1:K1',
+      range: 'Sheet1!A1:K1',
       valueInputOption: 'RAW',
       resource: {
         values: [headers],
@@ -185,7 +185,7 @@ class GoogleSheetsService {
 
       const request = {
         spreadsheetId: cleanSpreadsheetId,
-        range: `${sheetName}!A:Z`, // Wide range to accommodate any data
+        range: `${sheetName}!A:A`,
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         resource: {

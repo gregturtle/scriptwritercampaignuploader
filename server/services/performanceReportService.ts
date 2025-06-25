@@ -250,42 +250,8 @@ class PerformanceReportService {
           spreadsheetUrl = newSheet.url!;
           createdNew = true;
         }
-        
-        // Create dynamic header row based on selected metrics
-        const metricLabels: { [key: string]: string } = {
-          'spend': 'Spend',
-          'app_install': 'App Installs',
-          'add_to_cart': 'Save Location',
-          'purchase': 'Purchases',
-          'view_content': 'Saved Show',
-          'search': 'Search',
-          'lead': 'Level Achieved',
-          'complete_registration': 'Sign Up',
-          'initiate_checkout': 'Directions',
-          'add_to_wishlist': 'Follow List',
-          'rate': 'Share',
-          'achievement_unlocked': 'Search 3wa',
-          'tutorial_completion': 'Onboarding Completed',
-          'add_payment_info': 'View Grid',
-          'impressions': 'Impressions',
-          'clicks': 'Clicks',
-          'ctr': 'CTR',
-          'cpc': 'CPC',
-          'cpm': 'CPM'
-        };
-
-        const baseHeaders = ['Export Date', 'Campaign Name', 'Ad ID', 'Ad Name', 'Creative Title', 'Status'];
-        const metricHeaders = selectedMetrics.map(metricId => metricLabels[metricId] || metricId);
-        const finalHeaders = [...baseHeaders, ...metricHeaders, 'Creative Description'];
-
-        // Add header row
-        const dataWithHeaders = [
-          finalHeaders,
-          ...campaignData
-        ];
-        
-        console.log('Exporting basic campaign data to existing spreadsheet');
-        await googleSheetsService.appendSimpleData(spreadsheetId, dataWithHeaders);
+        console.log(`Appending ${campaignData.length} rows to sheet "Campaign Data"`);
+        await googleSheetsService.appendSimpleData(spreadsheetId, campaignData);
       }
 
       console.log(`Successfully exported ${performanceData.length} records to Google Sheets`);
