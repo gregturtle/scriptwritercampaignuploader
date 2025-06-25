@@ -24,7 +24,7 @@ class GoogleSheetsService {
   /**
    * Extract spreadsheet ID from URL or return as-is if already an ID
    */
-  private extractSpreadsheetId(input: string): string {
+  extractSpreadsheetId(input: string): string {
     // If it's already a spreadsheet ID (just alphanumeric), return as-is
     if (/^[a-zA-Z0-9-_]+$/.test(input) && !input.includes('/')) {
       return input;

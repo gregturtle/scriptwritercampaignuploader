@@ -218,19 +218,19 @@ class PerformanceReportService {
           // Find the campaign this ad belongs to
           const campaign = campaigns.find(c => c.id === ad.campaign_id);
           
-          // Build standardized row data
+          // Build standardized row data to match your existing columns
           const rowData = [
-            campaign?.name || 'Unknown Campaign',
-            ad.id,
-            ad.name || 'Unnamed Ad',
-            ad.creative?.title || ad.creative?.name || 'No Title',
-            ad.creative?.body || 'No Description',
-            metricValues['spend']?.toFixed(2) || '0.00',
-            metricValues['app_install'] || 0,
-            metricValues['add_to_cart'] || 0,
-            metricValues['initiate_checkout'] || 0,
-            metricValues['rate'] || 0,
-            metricValues['achievement_unlocked'] || 0,
+            campaign?.name || 'Unknown Campaign',  // Campaign Name
+            ad.id,                                  // Ad ID  
+            ad.name || 'Unnamed Ad',               // Ad Name
+            ad.creative?.title || ad.creative?.name || 'No Title', // Creative Title
+            ad.creative?.body || 'No Description', // Creative Description
+            metricValues['spend']?.toFixed(2) || '0.00',  // Spend
+            metricValues['app_install'] || 0,       // App Installs
+            metricValues['add_to_cart'] || 0,       // Save Location
+            metricValues['initiate_checkout'] || 0, // Directions
+            metricValues['rate'] || 0,              // Share
+            metricValues['achievement_unlocked'] || 0, // Search 3wa
           ];
           
           return rowData;
@@ -238,11 +238,13 @@ class PerformanceReportService {
 
         const campaignData = adData;
 
-        console.log(`Exporting basic campaign data to ${options.spreadsheetId ? 'existing' : 'new'} spreadsheet`);
+        console.log(`Appending ${campaignData.length} rows to ${options.spreadsheetId ? 'existing' : 'new'} spreadsheet`);
 
-        // Export to Google Sheets (without headers since they're standardized)
+        // Export to Google Sheets - append data only (no headers)
         if (options.spreadsheetId) {
           await googleSheetsService.appendSimpleData(options.spreadsheetId, campaignData);
+          spreadsheetId = options.spreadsheetId;
+          spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${googleSheetsService.extractSpreadsheetId(options.spreadsheetId)}/edit`;
         } else {
           const newSheet = await googleSheetsService.createPerformanceSheet();
           await googleSheetsService.appendSimpleData(newSheet.spreadsheetId!, campaignData);
@@ -250,8 +252,6 @@ class PerformanceReportService {
           spreadsheetUrl = newSheet.url!;
           createdNew = true;
         }
-        console.log(`Appending ${campaignData.length} rows to sheet "Campaign Data"`);
-        await googleSheetsService.appendSimpleData(spreadsheetId, campaignData);
       }
 
       console.log(`Successfully exported ${performanceData.length} records to Google Sheets`);
