@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import Header from "@/components/Header";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Zap, Calendar, ExternalLink, BarChart3, Brain, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useMetaAuth } from '@/hooks/useMetaAuth';
 import { Link } from 'wouter';
 import { useCampaigns } from '@/hooks/useCampaigns';
 
@@ -39,6 +41,7 @@ export default function Unified() {
   const [result, setResult] = useState<UnifiedResult | null>(null);
 
   const { toast } = useToast();
+  const { isAuthenticated, logout, login } = useMetaAuth();
   const { data: campaigns = [], isLoading: campaignsLoading } = useCampaigns();
 
   const datePresets = {
@@ -135,7 +138,13 @@ export default function Unified() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <Header 
+        isAuthenticated={isAuthenticated}
+        onLogout={logout}
+        onLogin={login}
+      />
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 mb-4">
@@ -366,6 +375,7 @@ export default function Unified() {
           </Card>
         </div>
       )}
+      </div>
     </div>
   );
 }
