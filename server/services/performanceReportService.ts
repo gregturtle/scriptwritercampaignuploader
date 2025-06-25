@@ -150,9 +150,9 @@ class PerformanceReportService {
           }
         }
 
-        // Get selected metrics or default set
-        const selectedMetrics = options.metrics || ['spend', 'app_install'];
-        console.log(`Using metrics: ${selectedMetrics.join(', ')}`);
+        // Use standardized metrics always
+        const standardMetrics = ['spend', 'app_install', 'add_to_cart', 'initiate_checkout', 'rate', 'achievement_unlocked'];
+        console.log(`Using standardized metrics: ${standardMetrics.join(', ')}`);
 
         // Create metric calculation function
         const calculateMetricValue = (insight: any, metricId: string): string | number => {
@@ -172,13 +172,6 @@ class PerformanceReportService {
             default:
               // Handle action-based metrics
               if (insight.actions && Array.isArray(insight.actions)) {
-                // Log all available actions for debugging
-                console.log(`All available actions in insight:`, insight.actions.map((a: any) => `${a.action_type}: ${a.value}`));
-                
-                // Log available actions for debugging specific metrics
-                if (metricId === 'achievement_unlocked' || metricId === 'rate') {
-                  console.log(`Searching for ${metricId} in actions:`, insight.actions.map((a: any) => a.action_type));
-                }
                 
                 const actionTypes = {
                   'app_install': ['app_install', 'mobile_app_install', 'omni_app_install'],
@@ -206,14 +199,14 @@ class PerformanceReportService {
           }
         };
 
-        // Create ad-level data export with selected metrics
+        // Create ad-level data export with standardized metrics
         const adData = ads.map(ad => {
           // Find matching insights for this ad
           const adInsightData = adInsights.filter(insight => insight.ad_id === ad.id);
           
-          // Calculate totals for selected metrics
+          // Calculate totals for standardized metrics
           const metricValues: { [key: string]: number } = {};
-          selectedMetrics.forEach(metricId => {
+          standardMetrics.forEach(metricId => {
             let total = 0;
             adInsightData.forEach(insight => {
               const value = calculateMetricValue(insight, metricId);
@@ -225,33 +218,38 @@ class PerformanceReportService {
           // Find the campaign this ad belongs to
           const campaign = campaigns.find(c => c.id === ad.campaign_id);
           
-          // Build row data
+          // Build standardized row data
           const rowData = [
-            new Date().toISOString().split('T')[0], // Export date
             campaign?.name || 'Unknown Campaign',
             ad.id,
             ad.name || 'Unnamed Ad',
             ad.creative?.title || ad.creative?.name || 'No Title',
-            ad.status,
+            ad.creative?.body || 'No Description',
+            metricValues['spend']?.toFixed(2) || '0.00',
+            metricValues['app_install'] || 0,
+            metricValues['add_to_cart'] || 0,
+            metricValues['initiate_checkout'] || 0,
+            metricValues['rate'] || 0,
+            metricValues['achievement_unlocked'] || 0,
           ];
-          
-          // Add metric values in the order they were selected
-          selectedMetrics.forEach(metricId => {
-            const value = metricValues[metricId];
-            if (metricId === 'spend' || metricId === 'ctr' || metricId === 'cpc' || metricId === 'cpm') {
-              rowData.push(value.toFixed(2));
-            } else {
-              rowData.push(value);
-            }
-          });
-          
-          // Add creative description at the end
-          rowData.push(ad.creative?.body || 'No Description');
           
           return rowData;
         });
 
         const campaignData = adData;
+
+        console.log(`Exporting basic campaign data to ${options.spreadsheetId ? 'existing' : 'new'} spreadsheet`);
+
+        // Export to Google Sheets (without headers since they're standardized)
+        if (options.spreadsheetId) {
+          await googleSheetsService.appendSimpleData(options.spreadsheetId, campaignData);
+        } else {
+          const newSheet = await googleSheetsService.createPerformanceSheet();
+          await googleSheetsService.appendSimpleData(newSheet.spreadsheetId!, campaignData);
+          spreadsheetId = newSheet.spreadsheetId!;
+          spreadsheetUrl = newSheet.url!;
+          createdNew = true;
+        }
         
         // Create dynamic header row based on selected metrics
         const metricLabels: { [key: string]: string } = {

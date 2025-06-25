@@ -102,21 +102,22 @@ class GoogleSheetsService {
    */
   private async addHeaders(spreadsheetId: string) {
     const headers = [
-      'Date',
-      'Campaign ID',
       'Campaign Name',
-      'Spend ($)',
-      'Impressions',
-      'Clicks',
-      'Conversions',
-      'CTR (%)',
-      'CPC ($)',
-      'CPM ($)',
+      'Ad ID', 
+      'Ad Name',
+      'Creative Title',
+      'Creative Description',
+      'Spend',
+      'App Installs',
+      'Save Location',
+      'Directions', 
+      'Share',
+      'Search 3wa',
     ];
 
     const request = {
       spreadsheetId,
-      range: 'CampaignPerformance!A1:J1',
+      range: 'Campaign Data!A1:K1',
       valueInputOption: 'RAW',
       resource: {
         values: [headers],

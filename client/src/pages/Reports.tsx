@@ -41,30 +41,7 @@ export default function Reports() {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const [useCustomDateRange, setUseCustomDateRange] = useState(false);
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['spend', 'app_install']);
 
-  // Available Facebook metrics
-  const availableMetrics = [
-    { id: 'spend', label: 'Spend', description: 'Total amount spent' },
-    { id: 'app_install', label: 'App Installs', description: 'Mobile app install actions' },
-    { id: 'add_to_cart', label: 'Save Location', description: 'save_location events' },
-    { id: 'purchase', label: 'Purchases', description: 'Purchase conversions' },
-    { id: 'view_content', label: 'Saved Show', description: 'saved_show events' },
-    { id: 'search', label: 'Search', description: 'search events' },
-    { id: 'lead', label: 'Level Achieved', description: 'account_id events' },
-    { id: 'complete_registration', label: 'Sign Up', description: 'sign_up events' },
-    { id: 'initiate_checkout', label: 'Directions', description: 'directions events' },
-    { id: 'add_to_wishlist', label: 'Follow List', description: 'follow_list events' },
-    { id: 'rate', label: 'Share', description: 'share events' },
-    { id: 'achievement_unlocked', label: 'Search 3wa', description: 'search_3wa events' },
-    { id: 'tutorial_completion', label: 'Onboarding Completed', description: 'ob_completed events' },
-    { id: 'add_payment_info', label: 'View Grid', description: 'view_grid events' },
-    { id: 'impressions', label: 'Impressions', description: 'Number of impressions' },
-    { id: 'clicks', label: 'Clicks', description: 'Number of clicks' },
-    { id: 'ctr', label: 'CTR', description: 'Click-through rate' },
-    { id: 'cpc', label: 'CPC', description: 'Cost per click' },
-    { id: 'cpm', label: 'CPM', description: 'Cost per thousand impressions' }
-  ];
   
   // Fetch date presets
   const { data: datePresets } = useQuery<DatePresets>({
@@ -77,7 +54,6 @@ export default function Reports() {
       dateRange: { since: string; until: string };
       campaignIds?: string[];
       spreadsheetId?: string;
-      metrics?: string[];
     }) => {
       const response = await fetch("/api/reports/generate", {
         method: "POST",
@@ -153,7 +129,6 @@ export default function Reports() {
     const reportData: any = {
       campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : undefined,
       spreadsheetId: spreadsheetId || undefined,
-      metrics: selectedMetrics.length > 0 ? selectedMetrics : undefined,
     };
 
     // Only include date range if both dates are provided
