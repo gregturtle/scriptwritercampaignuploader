@@ -210,28 +210,44 @@ class PerformanceReportService {
             let total = 0;
             adInsightData.forEach(insight => {
               const value = calculateMetricValue(insight, metricId);
-              total += typeof value === 'string' ? parseFloat(value) : value;
+              const numValue = typeof value === 'string' ? parseFloat(value) : value;
+              total += numValue;
             });
             metricValues[metricId] = total;
           });
+          
+          // Debug log for first few ads
+          if (adInsightData.length > 0) {
+            console.log(`Debug - Ad ${ad.id} calculated metrics:`, metricValues);
+            console.log(`Debug - Raw insight actions sample:`, adInsightData[0]?.actions?.slice(0, 5));
+          }
           
           // Find the campaign this ad belongs to
           const campaign = campaigns.find(c => c.id === ad.campaign_id);
           
           // Build standardized row data to match your existing columns
           const rowData = [
-            campaign?.name || 'Unknown Campaign',  // Campaign Name
-            ad.id,                                  // Ad ID  
-            ad.name || 'Unnamed Ad',               // Ad Name
-            ad.creative?.title || ad.creative?.name || 'No Title', // Creative Title
-            ad.creative?.body || 'No Description', // Creative Description
-            metricValues['spend']?.toFixed(2) || '0.00',  // Spend
-            metricValues['app_install'] || 0,       // App Installs
-            metricValues['add_to_cart'] || 0,       // Save Location
-            metricValues['initiate_checkout'] || 0, // Directions
-            metricValues['rate'] || 0,              // Share
-            metricValues['achievement_unlocked'] || 0, // Search 3wa
+            campaign?.name || 'Unknown Campaign',  // Column A: Campaign Name
+            ad.id,                                  // Column B: Ad ID  
+            ad.name || 'Unnamed Ad',               // Column C: Ad Name
+            ad.creative?.title || ad.creative?.name || 'No Title', // Column D: Creative Title
+            ad.creative?.body || 'No Description', // Column E: Creative Description
+            parseFloat(metricValues['spend']?.toFixed(2) || '0.00'),  // Column F: Spend
+            parseInt(metricValues['app_install'] || '0'),       // Column G: App Installs
+            parseInt(metricValues['add_to_cart'] || '0'),       // Column H: Save Location
+            parseInt(metricValues['initiate_checkout'] || '0'), // Column I: Directions
+            parseInt(metricValues['rate'] || '0'),              // Column J: Share
+            parseInt(metricValues['achievement_unlocked'] || '0'), // Column K: Search 3wa
           ];
+          
+          console.log(`Ad ${ad.id} metrics:`, {
+            spend: metricValues['spend'],
+            app_install: metricValues['app_install'],
+            add_to_cart: metricValues['add_to_cart'],
+            initiate_checkout: metricValues['initiate_checkout'],
+            rate: metricValues['rate'],
+            achievement_unlocked: metricValues['achievement_unlocked']
+          });
           
           return rowData;
         });
