@@ -153,6 +153,10 @@ class AIScriptService {
 
       console.log(`Analyzing ${topPerformers.length} top performers and ${bottomPerformers.length} bottom performers`);
 
+      if (topPerformers.length === 0) {
+        throw new Error('No top performers found. Please ensure your data has entries with high scores in column U.');
+      }
+
       // Generate suggestions using OpenAI
       const prompt = `
 You are an expert marketing creative analyst specializing in What3Words app campaigns. These are ads specifically for the What3Words mobile app - a location technology that has divided the world into 3m x 3m squares, each identified by a unique combination of three words.

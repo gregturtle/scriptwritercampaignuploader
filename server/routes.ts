@@ -595,6 +595,78 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // AI Script Generation endpoints
+  app.post('/api/ai/generate-scripts', async (req, res) => {
+    try {
+      console.log('AI script generation request received:', req.body);
+      const { spreadsheetId, tabName } = req.body;
+      
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: 'Spreadsheet ID is required' });
+      }
+
+      console.log(`Generating AI script suggestions from sheet: ${spreadsheetId}, tab: ${tabName || 'Cleansed with BEAP'}`);
+      
+      const suggestions = await aiScriptService.generateScriptSuggestions(
+        spreadsheetId, 
+        tabName || 'Cleansed with BEAP'
+      );
+
+      console.log(`Generated ${suggestions.length} suggestions`);
+
+      // Save suggestions to "New Scripts" tab
+      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, suggestions, "New Scripts");
+
+      res.json({
+        suggestions,
+        message: `Generated ${suggestions.length} script suggestions based on performance data analysis`,
+        savedToSheet: true
+      });
+    } catch (error) {
+      console.error('Error generating AI script suggestions:', error);
+      
+      // Log error to activity logs
+      try {
+        await appStorage.createActivityLog({
+          type: "error",
+          message: `Failed to generate AI script suggestions: ${error.message}`,
+          timestamp: new Date(),
+        });
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
+      
+      res.status(500).json({ 
+        message: 'Failed to generate script suggestions', 
+        error: error.message 
+      });
+    }
+  });
+
+  app.get('/api/ai/performance-data/:spreadsheetId', async (req, res) => {
+    try {
+      const { spreadsheetId } = req.params;
+      const { tabName } = req.query;
+      
+      const performanceData = await aiScriptService.readPerformanceData(
+        spreadsheetId, 
+        tabName as string || 'Cleansed with BEAP'
+      );
+      
+      res.json({
+        data: performanceData,
+        count: performanceData.length,
+        scoredCount: performanceData.filter(item => item.score !== undefined).length
+      });
+    } catch (error) {
+      console.error('Error reading performance data:', error);
+      res.status(500).json({ 
+        message: 'Failed to read performance data', 
+        error: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
