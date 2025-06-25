@@ -155,35 +155,40 @@ class AIScriptService {
 
       // Generate suggestions using OpenAI
       const prompt = `
-You are an expert marketing creative analyst specializing in What3Words app install campaigns. Analyze the performance data below from the "Cleansed with BEAP" dataset and create 5 new video script suggestions that should perform exceptionally well.
+You are an expert marketing creative analyst specializing in What3Words app campaigns. These are ads specifically for the What3Words mobile app - a location technology that has divided the world into 3m x 3m squares, each identified by a unique combination of three words.
+
+CAMPAIGN CONTEXT:
+- All ads are for the What3Words app (iOS/Android)
+- The app helps users find, share, and navigate to precise locations using three words
+- Primary use cases: navigation, delivery, emergency services, social sharing of locations
 
 PERFORMANCE DATA ANALYSIS:
-- Scores are from Column U (performance scores based on actual campaign data)
-- Scripts are from Column W (actual creative copy that was used)
-- Metrics include: app installs, save location, directions, share, search 3wa actions
+- Usage Score (Column U): A comprehensive performance metric that combines several features. Higher scores = better performing scripts
+- Script Content (Column W): The actual creative copy that was used in these video ads
+- Metrics tracked: app installs, save location actions, directions requests, shares, and search 3wa actions
 
-TOP PERFORMING CREATIVES (High Scores from Column U):
+TOP PERFORMING CREATIVES (Highest Usage Scores):
 ${JSON.stringify(analysisData.topPerformers, null, 2)}
 
-BOTTOM PERFORMING CREATIVES (Low Scores from Column U):
+BOTTOM PERFORMING CREATIVES (Lowest Usage Scores):
 ${JSON.stringify(analysisData.bottomPerformers, null, 2)}
 
-ANALYSIS REQUIRED:
-1. Identify what messaging, hooks, and creative elements in the HIGH SCORING scripts work best
-2. Determine what patterns in script copy lead to high app installs, save location, directions, share, and search 3wa actions
-3. Identify what to avoid based on LOW SCORING script patterns
-4. Consider What3Words app functionality (precise location sharing, navigation, discovery)
+ANALYSIS REQUIREMENTS:
+1. Identify what messaging, hooks, and creative elements in HIGH USAGE SCORE scripts drive performance
+2. Determine what script patterns lead to high app installs, location saves, direction requests, shares, and 3-word address searches
+3. Identify what to avoid based on LOW USAGE SCORE script patterns
+4. Focus on What3Words app benefits: precise location sharing, easy navigation, memorable addresses
 
-CREATE 5 NEW VIDEO SCRIPTS:
-Each script should incorporate the best elements from high performers while avoiding patterns from low performers. Focus on What3Words app benefits and use cases that drive the target actions.
+CREATE 5 NEW WHAT3WORDS VIDEO SCRIPTS:
+Generate scripts that incorporate the best elements from high-scoring performers while avoiding patterns from low-scoring ones. Each script should demonstrate What3Words app functionality and drive the target user actions.
 
 Respond with JSON in this exact format:
 {
   "suggestions": [
     {
-      "title": "Compelling script title",
-      "content": "Full video script with specific scenes, dialogue, visual directions, and What3Words app demonstration",
-      "reasoning": "Detailed explanation of why this script should perform well based on analysis of high vs low scoring scripts from your data",
+      "title": "Compelling script title for What3Words ad",
+      "content": "Complete video script with scenes, dialogue, visual directions, and What3Words app demonstration",
+      "reasoning": "Detailed explanation based on analysis of high vs low usage score patterns from the data",
       "targetMetrics": ["app_install", "save_location", "directions", "share", "search_3wa"]
     }
   ]

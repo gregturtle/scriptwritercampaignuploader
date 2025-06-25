@@ -94,7 +94,7 @@ export default function AIScripts() {
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Analyze your performance data to generate optimized video scripts. The AI will identify what works best and suggest new high-performing creative concepts.
+          Analyze your What3Words campaign performance data to generate optimized video scripts. The AI will identify what works best based on usage scores and suggest new high-performing creative concepts.
         </p>
       </div>
 
@@ -223,9 +223,9 @@ export default function AIScripts() {
           <CardTitle className="text-blue-800">How It Works</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-blue-700 space-y-2">
-          <p>1. <strong>Data Analysis:</strong> The AI analyzes your top and bottom performing creatives based on scores</p>
-          <p>2. <strong>Pattern Recognition:</strong> Identifies what messaging, hooks, and elements drive performance</p>
-          <p>3. <strong>Script Generation:</strong> Creates 5 new scripts optimized for your best-performing metrics</p>
+          <p>1. <strong>Data Analysis:</strong> The AI analyzes your top and bottom performing What3Words creatives based on usage scores</p>
+          <p>2. <strong>Pattern Recognition:</strong> Identifies what messaging, hooks, and elements drive high usage scores</p>
+          <p>3. <strong>Script Generation:</strong> Creates 5 new What3Words scripts optimized for your best-performing metrics</p>
           <p>4. <strong>Auto-Save:</strong> Suggestions are automatically saved to your Google Sheet for easy access</p>
         </CardContent>
       </Card>
