@@ -232,7 +232,7 @@ Respond with JSON in this exact format:
   async saveSuggestionsToSheet(
     spreadsheetId: string, 
     suggestions: ScriptSuggestion[],
-    tabName: string = "AI Suggestions"
+    tabName: string = "New Scripts"
   ): Promise<void> {
     try {
       const cleanSpreadsheetId = googleSheetsService.extractSpreadsheetId(spreadsheetId);

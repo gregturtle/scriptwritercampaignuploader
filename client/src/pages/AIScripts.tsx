@@ -5,8 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, TrendingUp, FileText, Brain } from 'lucide-react';
+import { Loader2, Sparkles, TrendingUp, FileText, Brain, BarChart3, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'wouter';
 
 interface ScriptSuggestion {
   title: string;
@@ -96,6 +97,20 @@ export default function AIScripts() {
         <p className="text-gray-600 max-w-2xl mx-auto">
           Analyze your What3Words campaign performance data to generate optimized video scripts. The AI will identify what works best based on usage scores and suggest new high-performing creative concepts.
         </p>
+        <div className="flex justify-center gap-2 mt-4">
+          <Link href="/reports">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Back to Reports
+            </Button>
+          </Link>
+          <Link href="/">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Upload Mode
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Input Form */}
@@ -210,7 +225,7 @@ export default function AIScripts() {
                 <span className="font-medium">Suggestions saved to Google Sheets</span>
               </div>
               <p className="text-sm text-green-700 mt-1">
-                All generated suggestions have been automatically saved to a new "AI Suggestions" tab in your spreadsheet.
+                All generated suggestions have been automatically saved to the "New Scripts" tab (tab 4) in your spreadsheet.
               </p>
             </CardContent>
           </Card>
@@ -226,7 +241,7 @@ export default function AIScripts() {
           <p>1. <strong>Data Analysis:</strong> The AI analyzes your top and bottom performing What3Words creatives based on usage scores</p>
           <p>2. <strong>Pattern Recognition:</strong> Identifies what messaging, hooks, and elements drive high usage scores</p>
           <p>3. <strong>Script Generation:</strong> Creates 5 new What3Words scripts optimized for your best-performing metrics</p>
-          <p>4. <strong>Auto-Save:</strong> Suggestions are automatically saved to your Google Sheet for easy access</p>
+          <p>4. <strong>Auto-Save:</strong> Suggestions are automatically saved to the "New Scripts" tab (tab 4) in your Google Sheet</p>
         </CardContent>
       </Card>
     </div>
