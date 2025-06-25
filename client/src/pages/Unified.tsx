@@ -42,7 +42,13 @@ export default function Unified() {
 
   const { toast } = useToast();
   const { isAuthenticated, logout, login } = useMetaAuth();
-  const { data: campaigns = [], isLoading: campaignsLoading } = useCampaigns();
+  
+  // Debug campaigns loading
+  const campaignsQuery = useCampaigns();
+  const campaigns = campaignsQuery.data || [];
+  const campaignsLoading = campaignsQuery.isLoading;
+  
+  console.log('Campaigns data:', campaigns, 'Loading:', campaignsLoading);
 
   const datePresets = {
     'all_time': { label: 'All available data (recommended)', since: '2025-01-01', until: '2025-06-25' },
@@ -267,7 +273,7 @@ export default function Unified() {
                 <Loader2 className="h-6 w-6 animate-spin" />
                 <span className="ml-2">Loading campaigns...</span>
               </div>
-            ) : (
+            ) : campaigns.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto border rounded-lg p-4">
                 {campaigns.map((campaign) => (
                   <label key={campaign.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
@@ -280,6 +286,10 @@ export default function Unified() {
                     <span className="text-sm truncate">{campaign.name}</span>
                   </label>
                 ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8 text-gray-500">
+                <span>No campaigns found. Please check your Meta connection.</span>
               </div>
             )}
             <p className="text-sm text-gray-500">
