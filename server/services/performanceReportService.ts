@@ -225,19 +225,21 @@ class PerformanceReportService {
           // Find the campaign this ad belongs to
           const campaign = campaigns.find(c => c.id === ad.campaign_id);
           
-          // Build standardized row data to match your existing columns
+          // Build standardized row data with Export Date in column A
+          const exportDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
           const rowData = [
-            campaign?.name || 'Unknown Campaign',  // Column A: Campaign Name
-            ad.id,                                  // Column B: Ad ID  
-            ad.name || 'Unnamed Ad',               // Column C: Ad Name
-            ad.creative?.title || ad.creative?.name || 'No Title', // Column D: Creative Title
-            ad.creative?.body || 'No Description', // Column E: Creative Description
-            parseFloat(metricValues['spend']?.toFixed(2) || '0.00'),  // Column F: Spend
-            parseInt(metricValues['app_install'] || '0'),       // Column G: App Installs
-            parseInt(metricValues['add_to_cart'] || '0'),       // Column H: Save Location
-            parseInt(metricValues['initiate_checkout'] || '0'), // Column I: Directions
-            parseInt(metricValues['rate'] || '0'),              // Column J: Share
-            parseInt(metricValues['achievement_unlocked'] || '0'), // Column K: Search 3wa
+            exportDate,                             // Column A: Export Date
+            campaign?.name || 'Unknown Campaign',  // Column B: Campaign Name
+            ad.id,                                  // Column C: Ad ID  
+            ad.name || 'Unnamed Ad',               // Column D: Ad Name
+            ad.creative?.title || ad.creative?.name || 'No Title', // Column E: Creative Title
+            ad.creative?.body || 'No Description', // Column F: Creative Description
+            parseFloat(metricValues['spend']?.toFixed(2) || '0.00'),  // Column G: Spend
+            parseInt(metricValues['app_install'] || '0'),       // Column H: App Installs
+            parseInt(metricValues['add_to_cart'] || '0'),       // Column I: Save Location
+            parseInt(metricValues['initiate_checkout'] || '0'), // Column J: Directions
+            parseInt(metricValues['rate'] || '0'),              // Column K: Share
+            parseInt(metricValues['achievement_unlocked'] || '0'), // Column L: Search 3wa
           ];
           
           console.log(`Ad ${ad.id} metrics:`, {
