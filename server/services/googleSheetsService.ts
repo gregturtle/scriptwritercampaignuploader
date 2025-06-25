@@ -185,9 +185,9 @@ class GoogleSheetsService {
 
       const request = {
         spreadsheetId: cleanSpreadsheetId,
-        range: `${sheetName}!A:A`,
+        range: `${sheetName}!A:L`,
         valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
+        insertDataOption: 'OVERWRITE',
         resource: {
           values: data,
         },
