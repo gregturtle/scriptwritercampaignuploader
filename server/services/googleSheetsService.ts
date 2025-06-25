@@ -181,26 +181,35 @@ class GoogleSheetsService {
       const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
       const sheetName = await this.getFirstSheetName(cleanSpreadsheetId);
       
-      console.log(`Appending ${data.length} rows to sheet "${sheetName}"`);
+      // First, find the next empty row by getting existing data
+      const existingDataResponse = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: cleanSpreadsheetId,
+        range: `${sheetName}!A:A`, // Just get column A to find last row
+      });
+      
+      const existingRows = existingDataResponse.data.values || [];
+      const nextRow = existingRows.length + 1; // +1 because sheets are 1-indexed
+      
+      console.log(`Adding ${data.length} rows starting at row ${nextRow} in sheet "${sheetName}"`);
 
+      // Use update instead of append to place data at specific location
       const request = {
         spreadsheetId: cleanSpreadsheetId,
-        range: `${sheetName}!A:L`,
+        range: `${sheetName}!A${nextRow}:L${nextRow + data.length - 1}`,
         valueInputOption: 'RAW',
-        insertDataOption: 'OVERWRITE',
         resource: {
           values: data,
         },
       };
 
-      const response = await this.sheets.spreadsheets.values.append(request);
+      const response = await this.sheets.spreadsheets.values.update(request);
 
       return {
         updatedRows: data.length,
-        updatedRange: response.data.updates?.updatedRange || 'Unknown',
+        updatedRange: response.data.updatedRange || 'Unknown',
       };
     } catch (error) {
-      console.error('Error appending data to Google Sheet:', error);
+      console.error('Error adding data to Google Sheet:', error);
       throw error;
     }
   }
