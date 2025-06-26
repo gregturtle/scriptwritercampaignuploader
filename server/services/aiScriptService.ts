@@ -271,7 +271,8 @@ Based on your analysis of BOTH success and failure patterns above, write 5 new v
 - Actively avoid patterns that led to poor performance in low-scoring data
 - Are ONLY spoken narration (no visual descriptions)
 - Match successful script length (~${avgScriptLength} characters)
-- Focus on encouraging What3Words app downloads
+- Focus on encouraging What Three Words app downloads
+- Always write "what three words" instead of "what3words" for proper voice pronunciation
 
 For each voiceover script, provide:
 1. TITLE: Brief concept description
@@ -284,7 +285,7 @@ Respond in JSON format:
   "suggestions": [
     {
       "title": "Voiceover concept name",
-      "content": "Complete voiceover script - spoken words only",
+      "content": "Complete voiceover script - spoken words only (use 'what three words' not 'what3words')",
       "reasoning": "Detailed analysis of success patterns incorporated and failure patterns avoided from the data", 
       "targetMetrics": ["app_installs", "save_location", "search_3wa"]
     }

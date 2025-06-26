@@ -119,5 +119,5 @@ Changelog:
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
-AI Script Generation: Focus only on voiceover scripts, not visual scenes. Scripts must analyze BOTH successful AND failed performance patterns from actual data. Learn from what works AND what doesn't work to create better scripts. Never create scripts from scratch - always base them on patterns found in both high and low performing data. Background visuals are constant - only the spoken narration changes.
+AI Script Generation: Focus only on voiceover scripts, not visual scenes. Scripts must analyze BOTH successful AND failed performance patterns from actual data. Learn from what works AND what doesn't work to create better scripts. Never create scripts from scratch - always base them on patterns found in both high and low performing data. Background visuals are constant - only the spoken narration changes. Always write "what three words" instead of "what3words" for proper voice pronunciation.
 Voice Generation: Automatically generate professional voice recordings using ElevenLabs API for all AI-generated scripts to create complete, ready-to-use ad content. Default voice: 'Ella AI' for consistent professional narration.
