@@ -67,7 +67,7 @@ class ElevenLabsService {
    */
   async generateSpeech(
     text: string,
-    voiceId: string = 'pNInz6obpgDQGcFmaJgB', // Default voice (Adam)
+    voiceId: string = 'flq6f7yk4E4fJM5XTYuZ', // Default voice (Mark)
     options: {
       stability?: number;
       similarityBoost?: number;
