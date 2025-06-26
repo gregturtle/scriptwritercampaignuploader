@@ -234,25 +234,19 @@ export default function AudioCreativeGenerator() {
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <Zap className="h-8 w-8 text-blue-600" />
+          <Mic className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Unified Report & Script Generator
+            Audio Creative Generator
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Generate performance reports and AI script suggestions in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
+          Generate performance reports and AI script suggestions with professional voice recordings in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
         </p>
         <div className="flex justify-center gap-2 mt-4">
-          <Link href="/reports">
+          <Link href="/">
             <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Reports Only
-            </Button>
-          </Link>
-          <Link href="/ai-scripts">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              Scripts Only
+              <Upload className="h-4 w-4" />
+              Back to Upload
             </Button>
           </Link>
         </div>
