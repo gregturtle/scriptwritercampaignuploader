@@ -163,6 +163,11 @@ class ElevenLabsService {
       return suggestions;
     }
 
+    // Use Mark's voice ID as default
+    const defaultVoiceId = 'JBFqnCBsd6RMkjVDRZzb'; // Mark's voice ID
+    const selectedVoiceId = voiceId || defaultVoiceId;
+    console.log('Using voice ID:', selectedVoiceId);
+
     const results = [];
 
     for (let i = 0; i < suggestions.length; i++) {
@@ -171,7 +176,7 @@ class ElevenLabsService {
         // Generate audio for the script content
         const audioBuffer = await this.generateSpeech(
           suggestion.content,
-          voiceId,
+          selectedVoiceId,
           {
             stability: 0.6, // Slightly more stable for scripted content
             similarityBoost: 0.8, // Higher similarity for consistency
