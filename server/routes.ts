@@ -7,6 +7,7 @@ import fs from "fs";
 import { z } from "zod";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import archiver from "archiver";
 import { 
   insertFileSchema, 
   insertActivityLogSchema, 

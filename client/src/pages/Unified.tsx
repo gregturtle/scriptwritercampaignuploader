@@ -172,7 +172,15 @@ export default function AudioCreativeGenerator() {
 
   const downloadAudioFile = async (audioUrl: string, filename: string) => {
     try {
-      const response = await fetch(audioUrl);
+      // Extract filename from audioUrl if it's a server path
+      const actualFilename = audioUrl.startsWith('/uploads/') ? audioUrl.replace('/uploads/', '') : filename;
+      
+      // Use the server download endpoint
+      const response = await fetch(`/api/download/${actualFilename}`);
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -180,8 +188,8 @@ export default function AudioCreativeGenerator() {
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading audio:', error);
       toast({
@@ -203,24 +211,51 @@ export default function AudioCreativeGenerator() {
     }
 
     toast({
-      title: "Downloading Files",
-      description: `Starting download of ${selectedAudios.length} audio files`,
+      title: "Creating Zip File",
+      description: `Preparing ${selectedAudios.length} audio files for download`,
     });
 
-    for (const index of selectedAudios) {
-      const suggestion = result.scriptResult.suggestions[index];
-      if (suggestion.audioUrl) {
-        const filename = `${suggestion.title.replace(/[^a-zA-Z0-9]/g, '_')}_script_${index + 1}.mp3`;
-        await downloadAudioFile(suggestion.audioUrl, filename);
-        // Add small delay between downloads
-        await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const filenames = selectedAudios.map(index => {
+        const suggestion = result.scriptResult.suggestions[index];
+        // Extract filename from audioUrl
+        return suggestion.audioUrl ? suggestion.audioUrl.replace('/uploads/', '') : '';
+      }).filter(filename => filename !== '');
+
+      const response = await fetch('/api/download/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filenames })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create bulk download');
       }
-    }
 
-    toast({
-      title: "Download Complete",
-      description: `Successfully downloaded ${selectedAudios.length} audio files`,
-    });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'audio_files.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      setSelectedAudios([]);
+      
+      toast({
+        title: "Download Complete",
+        description: `Downloaded ${selectedAudios.length} audio files as audio_files.zip`,
+      });
+    } catch (error) {
+      console.error('Error in bulk download:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to create zip file for download",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
