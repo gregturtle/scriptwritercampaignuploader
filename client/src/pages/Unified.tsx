@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Zap, Calendar, ExternalLink, BarChart3, Brain, CheckCircle } from 'lucide-react';
+import { Loader2, Zap, Calendar, ExternalLink, BarChart3, Brain, CheckCircle, Mic } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
 import { Link } from 'wouter';
