@@ -147,7 +147,80 @@ export default function Unified() {
       });
     } finally {
       setIsGenerating(false);
+      setSelectedAudios([]);
     }
+  };
+
+  const handleAudioSelection = (index: number, checked: boolean) => {
+    if (checked) {
+      setSelectedAudios(prev => [...prev, index]);
+    } else {
+      setSelectedAudios(prev => prev.filter(i => i !== index));
+    }
+  };
+
+  const handleSelectAllAudios = (selectAll: boolean) => {
+    if (selectAll && result) {
+      const availableAudios = result.scriptResult.suggestions
+        .map((_, index) => index)
+        .filter(index => result.scriptResult.suggestions[index].audioUrl);
+      setSelectedAudios(availableAudios);
+    } else {
+      setSelectedAudios([]);
+    }
+  };
+
+  const downloadAudioFile = async (audioUrl: string, filename: string) => {
+    try {
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading audio:', error);
+      toast({
+        title: "Download Error",
+        description: "Failed to download audio file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedAudios.length === 0 || !result) {
+      toast({
+        title: "No Selection",
+        description: "Please select at least one audio file to download",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Downloading Files",
+      description: `Starting download of ${selectedAudios.length} audio files`,
+    });
+
+    for (const index of selectedAudios) {
+      const suggestion = result.scriptResult.suggestions[index];
+      if (suggestion.audioUrl) {
+        const filename = `${suggestion.title.replace(/[^a-zA-Z0-9]/g, '_')}_script_${index + 1}.mp3`;
+        await downloadAudioFile(suggestion.audioUrl, filename);
+        // Add small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    toast({
+      title: "Download Complete",
+      description: `Successfully downloaded ${selectedAudios.length} audio files`,
+    });
   };
 
   return (
@@ -366,10 +439,45 @@ export default function Unified() {
           {/* Script Suggestions Preview */}
           <Card>
             <CardHeader>
-              <CardTitle>Generated Script Suggestions</CardTitle>
-              <CardDescription>
-                AI-generated voiceover scripts based on your performance data
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Generated Script Suggestions</CardTitle>
+                  <CardDescription>
+                    AI-generated voiceover scripts based on your performance data
+                  </CardDescription>
+                </div>
+                
+                {/* Bulk Download Controls */}
+                {result?.scriptResult.suggestions.some(s => s.audioUrl) && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSelectAllAudios(true)}
+                      disabled={selectedAudios.length === result.scriptResult.suggestions.filter(s => s.audioUrl).length}
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSelectAllAudios(false)}
+                      disabled={selectedAudios.length === 0}
+                    >
+                      Clear All
+                    </Button>
+                    <Button
+                      onClick={handleBulkDownload}
+                      disabled={selectedAudios.length === 0}
+                      className="flex items-center gap-2"
+                      size="sm"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Selected ({selectedAudios.length})
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -383,9 +491,21 @@ export default function Unified() {
                       {/* Audio Player */}
                       {suggestion.audioUrl && (
                         <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mt-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Mic className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Mic className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`unified-audio-${index}`}
+                                checked={selectedAudios.includes(index)}
+                                onCheckedChange={(checked) => handleAudioSelection(index, checked as boolean)}
+                              />
+                              <Label htmlFor={`unified-audio-${index}`} className="text-sm text-blue-700 cursor-pointer">
+                                Select for download
+                              </Label>
+                            </div>
                           </div>
                           <audio controls className="w-full">
                             <source src={suggestion.audioUrl} type="audio/mpeg" />
