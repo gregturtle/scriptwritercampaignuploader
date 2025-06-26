@@ -35,7 +35,7 @@ interface UnifiedResult {
   };
 }
 
-export default function Unified() {
+export default function AudioCreativeGenerator() {
   const [dateRange, setDateRange] = useState('all_time');
   const [customSince, setCustomSince] = useState('');
   const [customUntil, setCustomUntil] = useState('');
