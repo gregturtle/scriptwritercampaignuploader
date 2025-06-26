@@ -14,12 +14,16 @@ interface ScriptSuggestion {
   content: string;
   reasoning: string;
   targetMetrics: string[];
+  audioFile?: string;
+  audioUrl?: string;
+  error?: string;
 }
 
 interface GenerationResponse {
   suggestions: ScriptSuggestion[];
   message: string;
   savedToSheet: boolean;
+  voiceGenerated?: boolean;
 }
 
 export default function AIScripts() {

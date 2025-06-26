@@ -1,0 +1,229 @@
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+
+interface VoiceSettings {
+  stability: number;
+  similarity_boost: number;
+  style?: number;
+  use_speaker_boost?: boolean;
+}
+
+interface GenerateVoiceRequest {
+  text: string;
+  model_id?: string;
+  voice_settings?: VoiceSettings;
+}
+
+interface Voice {
+  voice_id: string;
+  name: string;
+  category: string;
+  description?: string;
+}
+
+class ElevenLabsService {
+  private apiKey: string;
+  private baseUrl = 'https://api.elevenlabs.io/v1';
+
+  constructor() {
+    this.apiKey = process.env.ELEVENLABS_API_KEY || '';
+    if (!this.apiKey) {
+      console.warn('ELEVENLABS_API_KEY not found. Voice generation will be disabled.');
+    }
+  }
+
+  /**
+   * Check if ElevenLabs is properly configured
+   */
+  isConfigured(): boolean {
+    return !!this.apiKey;
+  }
+
+  /**
+   * Get available voices from ElevenLabs
+   */
+  async getVoices(): Promise<Voice[]> {
+    if (!this.isConfigured()) {
+      throw new Error('ElevenLabs API key not configured');
+    }
+
+    try {
+      const response = await axios.get(`${this.baseUrl}/voices`, {
+        headers: {
+          'xi-api-key': this.apiKey,
+        },
+      });
+
+      return response.data.voices || [];
+    } catch (error) {
+      console.error('Error fetching voices:', error);
+      throw new Error('Failed to fetch available voices from ElevenLabs');
+    }
+  }
+
+  /**
+   * Generate speech from text using ElevenLabs
+   */
+  async generateSpeech(
+    text: string,
+    voiceId: string = 'pNInz6obpgDQGcFmaJgB', // Default voice (Adam)
+    options: {
+      stability?: number;
+      similarityBoost?: number;
+      style?: number;
+      useSpeakerBoost?: boolean;
+      modelId?: string;
+    } = {}
+  ): Promise<Buffer> {
+    if (!this.isConfigured()) {
+      throw new Error('ElevenLabs API key not configured');
+    }
+
+    const {
+      stability = 0.5,
+      similarityBoost = 0.75,
+      style = 0.0,
+      useSpeakerBoost = true,
+      modelId = 'eleven_multilingual_v2'
+    } = options;
+
+    const requestData: GenerateVoiceRequest = {
+      text,
+      model_id: modelId,
+      voice_settings: {
+        stability,
+        similarity_boost: similarityBoost,
+        style,
+        use_speaker_boost: useSpeakerBoost,
+      },
+    };
+
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/text-to-speech/${voiceId}`,
+        requestData,
+        {
+          headers: {
+            'Accept': 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': this.apiKey,
+          },
+          responseType: 'arraybuffer',
+        }
+      );
+
+      return Buffer.from(response.data);
+    } catch (error: any) {
+      console.error('Error generating speech:', error.response?.data || error.message);
+      throw new Error(`Failed to generate speech: ${error.response?.data?.detail || error.message}`);
+    }
+  }
+
+  /**
+   * Save generated audio to file
+   */
+  async saveAudioToFile(audioBuffer: Buffer, filename: string): Promise<string> {
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Add .mp3 extension if not present
+    const audioFilename = filename.endsWith('.mp3') ? filename : `${filename}.mp3`;
+    const filePath = path.join(uploadsDir, audioFilename);
+
+    fs.writeFileSync(filePath, audioBuffer);
+    return filePath;
+  }
+
+  /**
+   * Generate multiple voice recordings for script suggestions
+   */
+  async generateScriptVoiceovers(
+    suggestions: Array<{
+      title: string;
+      content: string;
+      reasoning: string;
+      targetMetrics: string[];
+    }>,
+    voiceId?: string
+  ): Promise<Array<{
+    title: string;
+    content: string;
+    reasoning: string;
+    targetMetrics: string[];
+    audioFile?: string;
+    audioUrl?: string;
+    error?: string;
+  }>> {
+    if (!this.isConfigured()) {
+      console.warn('ElevenLabs not configured, returning suggestions without audio');
+      return suggestions;
+    }
+
+    const results = [];
+
+    for (let i = 0; i < suggestions.length; i++) {
+      const suggestion = suggestions[i];
+      try {
+        // Generate audio for the script content
+        const audioBuffer = await this.generateSpeech(
+          suggestion.content,
+          voiceId,
+          {
+            stability: 0.6, // Slightly more stable for scripted content
+            similarityBoost: 0.8, // Higher similarity for consistency
+            style: 0.1, // Slight style for engagement
+          }
+        );
+
+        // Create filename based on suggestion title
+        const filename = `script_${i + 1}_${suggestion.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)}_${Date.now()}`;
+        const filePath = await this.saveAudioToFile(audioBuffer, filename);
+        
+        // Create URL for frontend access
+        const audioUrl = `/uploads/${path.basename(filePath)}`;
+
+        results.push({
+          ...suggestion,
+          audioFile: filePath,
+          audioUrl: audioUrl,
+        });
+      } catch (error: any) {
+        console.error(`Error generating voice for suggestion ${i + 1}:`, error.message);
+        results.push({
+          ...suggestion,
+          error: `Voice generation failed: ${error.message}`,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get account information and usage
+   */
+  async getAccountInfo(): Promise<any> {
+    if (!this.isConfigured()) {
+      throw new Error('ElevenLabs API key not configured');
+    }
+
+    try {
+      const response = await axios.get(`${this.baseUrl}/user`, {
+        headers: {
+          'xi-api-key': this.apiKey,
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching account info:', error);
+      throw new Error('Failed to fetch account information from ElevenLabs');
+    }
+  }
+}
+
+export const elevenLabsService = new ElevenLabsService();

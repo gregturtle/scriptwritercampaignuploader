@@ -26,27 +26,38 @@ interface ScriptSuggestion {
   content: string;
   reasoning: string;
   targetMetrics: string[];
+  audioFile?: string;
+  audioUrl?: string;
+  error?: string;
 }
 
 class AIScriptService {
   /**
    * Read performance data from Google Sheets tab - specifically designed for "Cleansed with BEAP" tab
    */
-  async readPerformanceData(spreadsheetId: string, tabName: string = "Cleansed with BEAP"): Promise<PerformanceData[]> {
+  async readPerformanceData(
+    spreadsheetId: string,
+    tabName: string = "Cleansed with BEAP",
+  ): Promise<PerformanceData[]> {
     try {
-      const cleanSpreadsheetId = googleSheetsService.extractSpreadsheetId(spreadsheetId);
-      
-      const response = await googleSheetsService.sheets.spreadsheets.values.get({
-        spreadsheetId: cleanSpreadsheetId,
-        range: `${tabName}!A:W`, // Get data including columns U and W
-      });
+      const cleanSpreadsheetId =
+        googleSheetsService.extractSpreadsheetId(spreadsheetId);
+
+      const response = await googleSheetsService.sheets.spreadsheets.values.get(
+        {
+          spreadsheetId: cleanSpreadsheetId,
+          range: `${tabName}!A:W`, // Get data including columns U and W
+        },
+      );
 
       const rows = response.data.values || [];
       if (rows.length === 0) {
         throw new Error(`No data found in the "${tabName}" tab`);
       }
 
-      console.log(`Reading data from "${tabName}" tab with ${rows.length} total rows`);
+      console.log(
+        `Reading data from "${tabName}" tab with ${rows.length} total rows`,
+      );
 
       // Skip header row and parse data
       const dataRows = rows.slice(1);
@@ -55,14 +66,14 @@ class AIScriptService {
         // Column W is index 22 (W = 23rd column, 0-indexed = 22)
         const score = row[20] ? parseFloat(row[20]) : undefined;
         const scriptContent = row[22] || undefined;
-        
+
         return {
-          exportDate: row[0] || '',
-          campaignName: row[1] || '',
-          adId: row[2] || '',
-          adName: row[3] || '',
-          creativeTitle: row[4] || '',
-          status: row[5] || '',
+          exportDate: row[0] || "",
+          campaignName: row[1] || "",
+          adId: row[2] || "",
+          adName: row[3] || "",
+          creativeTitle: row[4] || "",
+          status: row[5] || "",
           spend: parseFloat(row[6]) || 0,
           appInstalls: parseInt(row[7]) || 0,
           saveLocation: parseInt(row[8]) || 0,
@@ -74,12 +85,19 @@ class AIScriptService {
         };
       });
 
-      const validData = performanceData.filter(item => item.adId && item.score !== undefined && item.scriptContent);
-      console.log(`Filtered to ${validData.length} rows with valid Ad ID, score (column U), and script content (column W)`);
-      
+      const validData = performanceData.filter(
+        (item) => item.adId && item.score !== undefined && item.scriptContent,
+      );
+      console.log(
+        `Filtered to ${validData.length} rows with valid Ad ID, score (column U), and script content (column W)`,
+      );
+
       return validData;
     } catch (error) {
-      console.error('Error reading performance data from Google Sheets:', error);
+      console.error(
+        "Error reading performance data from Google Sheets:",
+        error,
+      );
       throw error;
     }
   }
@@ -88,40 +106,57 @@ class AIScriptService {
    * Analyze performance data and generate script suggestions
    */
   async generateScriptSuggestions(
-    spreadsheetId: string, 
-    tabName: string = "Cleansed with BEAP"
+    spreadsheetId: string,
+    tabName: string = "Cleansed with BEAP",
   ): Promise<ScriptSuggestion[]> {
     try {
       // Read the performance data
-      const performanceData = await this.readPerformanceData(spreadsheetId, tabName);
-      
+      const performanceData = await this.readPerformanceData(
+        spreadsheetId,
+        tabName,
+      );
+
       if (performanceData.length === 0) {
-        throw new Error('No performance data available for analysis');
+        throw new Error("No performance data available for analysis");
       }
 
       // Separate high and low performers based on scores from column U
-      const scoredData = performanceData.filter(item => 
-        item.score !== undefined && 
-        item.scriptContent && 
-        item.scriptContent.trim().length > 0
+      const scoredData = performanceData.filter(
+        (item) =>
+          item.score !== undefined &&
+          item.scriptContent &&
+          item.scriptContent.trim().length > 0,
       );
-      
+
       if (scoredData.length === 0) {
-        throw new Error('No scored performance data found with script content. Please ensure column U has scores and column W has script content.');
+        throw new Error(
+          "No scored performance data found with script content. Please ensure column U has scores and column W has script content.",
+        );
       }
 
-      console.log(`Found ${scoredData.length} entries with both scores (column U) and script content (column W)`);
+      console.log(
+        `Found ${scoredData.length} entries with both scores (column U) and script content (column W)`,
+      );
 
       // Sort by score and get top and bottom performers
-      const sortedData = scoredData.sort((a, b) => (b.score || 0) - (a.score || 0));
-      const topPerformers = sortedData.slice(0, Math.min(8, Math.ceil(sortedData.length * 0.25)));
-      const bottomPerformers = sortedData.slice(-Math.min(5, Math.ceil(sortedData.length * 0.15)));
+      const sortedData = scoredData.sort(
+        (a, b) => (b.score || 0) - (a.score || 0),
+      );
+      const topPerformers = sortedData.slice(
+        0,
+        Math.min(8, Math.ceil(sortedData.length * 0.25)),
+      );
+      const bottomPerformers = sortedData.slice(
+        -Math.min(5, Math.ceil(sortedData.length * 0.15)),
+      );
 
-      console.log(`Analyzing ${topPerformers.length} top performers (highest scores) and ${bottomPerformers.length} bottom performers (lowest scores)`);
+      console.log(
+        `Analyzing ${topPerformers.length} top performers (highest scores) and ${bottomPerformers.length} bottom performers (lowest scores)`,
+      );
 
       // Prepare analysis for OpenAI
       const analysisData = {
-        topPerformers: topPerformers.map(item => ({
+        topPerformers: topPerformers.map((item) => ({
           title: item.creativeTitle,
           script: item.scriptContent, // From column W
           score: item.score, // From column U
@@ -132,10 +167,10 @@ class AIScriptService {
             directions: item.directions,
             share: item.share,
             search3wa: item.search3wa,
-            spend: item.spend
-          }
+            spend: item.spend,
+          },
         })),
-        bottomPerformers: bottomPerformers.map(item => ({
+        bottomPerformers: bottomPerformers.map((item) => ({
           title: item.creativeTitle,
           script: item.scriptContent, // From column W
           score: item.score, // From column U
@@ -146,21 +181,32 @@ class AIScriptService {
             directions: item.directions,
             share: item.share,
             search3wa: item.search3wa,
-            spend: item.spend
-          }
-        }))
+            spend: item.spend,
+          },
+        })),
       };
 
-      console.log(`Analyzing ${topPerformers.length} top performers and ${bottomPerformers.length} bottom performers`);
+      console.log(
+        `Analyzing ${topPerformers.length} top performers and ${bottomPerformers.length} bottom performers`,
+      );
 
       if (topPerformers.length === 0) {
-        throw new Error('No top performers found. Please ensure your data has entries with high scores in column U.');
+        throw new Error(
+          "No top performers found. Please ensure your data has entries with high scores in column U.",
+        );
       }
 
       // Generate suggestions using OpenAI
       // Analyze existing script lengths to match the format
-      const scriptLengths = topPerformers.map(item => item.scriptContent?.length || 0).filter(len => len > 0);
-      const avgScriptLength = scriptLengths.length > 0 ? Math.round(scriptLengths.reduce((a, b) => a + b, 0) / scriptLengths.length) : 150;
+      const scriptLengths = topPerformers
+        .map((item) => item.scriptContent?.length || 0)
+        .filter((len) => len > 0);
+      const avgScriptLength =
+        scriptLengths.length > 0
+          ? Math.round(
+              scriptLengths.reduce((a, b) => a + b, 0) / scriptLengths.length,
+            )
+          : 150;
 
       const prompt = `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
@@ -175,16 +221,24 @@ CONTEXT:
 - "Score" represents overall performance (higher = better performing voiceovers)
 
 HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
-${topPerformers.map(item => `
+${topPerformers
+  .map(
+    (item) => `
 - Score: ${item.score} | Voiceover: "${item.scriptContent}"
 - Results: ${item.appInstalls} app installs, ${item.saveLocation} saves, ${item.search3wa} searches, ${item.directions} directions, ${item.share} shares
-`).join('\n')}
+`,
+  )
+  .join("\n")}
 
 LOW-PERFORMING VOICEOVER SCRIPTS (Learn from these FAILURE patterns):
-${bottomPerformers.map(item => `
+${bottomPerformers
+  .map(
+    (item) => `
 - Score: ${item.score} | Voiceover: "${item.scriptContent}"
 - Results: ${item.appInstalls} app installs, ${item.saveLocation} saves, ${item.search3wa} searches, ${item.directions} directions, ${item.share} shares
-`).join('\n')}
+`,
+  )
+  .join("\n")}
 
 REQUIRED ANALYSIS:
 You must identify:
@@ -229,32 +283,32 @@ Respond in JSON format:
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4.1-2025-04-14",
         messages: [
           {
             role: "system",
-            content: "You are an expert marketing creative analyst who excels at identifying winning creative patterns and generating high-performing video scripts."
+            content:
+              "You are an expert marketing creative analyst who excels at identifying winning creative patterns and generating high-performing video scripts.",
           },
           {
             role: "user",
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
       });
 
-      const result = JSON.parse(response.choices[0].message.content || '{}');
-      
+      const result = JSON.parse(response.choices[0].message.content || "{}");
+
       if (!result.suggestions || !Array.isArray(result.suggestions)) {
-        throw new Error('Invalid response format from OpenAI');
+        throw new Error("Invalid response format from OpenAI");
       }
 
       console.log(`Generated ${result.suggestions.length} script suggestions`);
       return result.suggestions;
-
     } catch (error) {
-      console.error('Error generating script suggestions:', error);
+      console.error("Error generating script suggestions:", error);
       throw error;
     }
   }
@@ -263,23 +317,30 @@ Respond in JSON format:
    * Save generated suggestions back to Google Sheets
    */
   async saveSuggestionsToSheet(
-    spreadsheetId: string, 
+    spreadsheetId: string,
     suggestions: ScriptSuggestion[],
-    tabName: string = "New Scripts"
+    tabName: string = "New Scripts",
   ): Promise<void> {
     try {
-      const cleanSpreadsheetId = googleSheetsService.extractSpreadsheetId(spreadsheetId);
-      
+      const cleanSpreadsheetId =
+        googleSheetsService.extractSpreadsheetId(spreadsheetId);
+
       // Prepare data for sheets
-      const headers = ['Generated Date', 'Script Title', 'Script Content', 'AI Reasoning', 'Target Metrics'];
-      const generatedDate = new Date().toISOString().split('T')[0];
-      
-      const rows = suggestions.map(suggestion => [
+      const headers = [
+        "Generated Date",
+        "Script Title",
+        "Script Content",
+        "AI Reasoning",
+        "Target Metrics",
+      ];
+      const generatedDate = new Date().toISOString().split("T")[0];
+
+      const rows = suggestions.map((suggestion) => [
         generatedDate,
         suggestion.title,
         suggestion.content,
         suggestion.reasoning,
-        suggestion.targetMetrics.join(', ')
+        suggestion.targetMetrics.join(", "),
       ]);
 
       // Try to create the tab first (will fail silently if it exists)
@@ -287,51 +348,55 @@ Respond in JSON format:
         await googleSheetsService.sheets.spreadsheets.batchUpdate({
           spreadsheetId: cleanSpreadsheetId,
           resource: {
-            requests: [{
-              addSheet: {
-                properties: {
-                  title: tabName
-                }
-              }
-            }]
-          }
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: tabName,
+                  },
+                },
+              },
+            ],
+          },
         });
-        
+
         // Add headers to new sheet
         await googleSheetsService.sheets.spreadsheets.values.update({
           spreadsheetId: cleanSpreadsheetId,
           range: `${tabName}!A1:E1`,
-          valueInputOption: 'RAW',
+          valueInputOption: "RAW",
           resource: {
-            values: [headers]
-          }
+            values: [headers],
+          },
         });
-        
       } catch (error) {
         // Tab might already exist, continue
       }
 
       // Find next empty row and add data
-      const existingDataResponse = await googleSheetsService.sheets.spreadsheets.values.get({
-        spreadsheetId: cleanSpreadsheetId,
-        range: `${tabName}!A:A`,
-      });
-      
+      const existingDataResponse =
+        await googleSheetsService.sheets.spreadsheets.values.get({
+          spreadsheetId: cleanSpreadsheetId,
+          range: `${tabName}!A:A`,
+        });
+
       const existingRows = existingDataResponse.data.values || [];
       const nextRow = existingRows.length + 1;
 
       await googleSheetsService.sheets.spreadsheets.values.update({
         spreadsheetId: cleanSpreadsheetId,
         range: `${tabName}!A${nextRow}:E${nextRow + rows.length - 1}`,
-        valueInputOption: 'RAW',
+        valueInputOption: "RAW",
         resource: {
-          values: rows
-        }
+          values: rows,
+        },
       });
 
-      console.log(`Saved ${suggestions.length} suggestions to sheet tab "${tabName}"`);
+      console.log(
+        `Saved ${suggestions.length} suggestions to sheet tab "${tabName}"`,
+      );
     } catch (error) {
-      console.error('Error saving suggestions to Google Sheets:', error);
+      console.error("Error saving suggestions to Google Sheets:", error);
       throw error;
     }
   }
