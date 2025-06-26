@@ -17,6 +17,7 @@ import { metaApiService } from "./services/metaApi";
 import { fileService } from "./services/fileService";
 import { performanceReportService } from "./services/performanceReportService";
 import { aiScriptService } from "./services/aiScriptService";
+import { elevenLabsService } from "./services/elevenLabsService";
 
 // Helper function to get access token
 async function getAccessToken(): Promise<string> {
@@ -657,6 +658,132 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   });
 
 
+
+  // AI Script Generation endpoints
+  app.post('/api/ai-scripts/generate', async (req, res) => {
+    try {
+      const { spreadsheetId, voiceId, includeVoice = false } = req.body;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ error: 'Spreadsheet ID is required' });
+      }
+
+      const result = await aiScriptService.generateScriptSuggestions(spreadsheetId, {
+        voiceId,
+        includeVoice
+      });
+      res.json(result);
+    } catch (error: any) {
+      console.error('Error generating AI scripts:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate AI scripts',
+        details: error.message 
+      });
+    }
+  });
+
+  // Unified workflow endpoint
+  app.post('/api/unified/generate', async (req, res) => {
+    try {
+      const { dateRange, campaignIds, spreadsheetId } = req.body;
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ error: 'Spreadsheet ID is required' });
+      }
+
+      // Generate performance report first
+      const reportResult = await performanceReportService.generateReport(
+        await getAccessToken(),
+        {
+          dateRange,
+          campaignIds,
+          spreadsheetId: spreadsheetId.trim()
+        }
+      );
+
+      // Generate AI scripts with voice
+      const aiResult = await aiScriptService.generateScriptSuggestions(spreadsheetId, {
+        includeVoice: true // Always include voice in unified workflow
+      });
+      
+      return res.json({
+        reportResult: reportResult,
+        scriptResult: aiResult
+      });
+    } catch (error: any) {
+      console.error('Error in unified generation:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate unified report and scripts',
+        details: error.message 
+      });
+    }
+  });
+
+  // ElevenLabs voice endpoints
+  app.get('/api/elevenlabs/status', async (req, res) => {
+    try {
+      if (!process.env.ELEVENLABS_API_KEY) {
+        return res.json({ 
+          configured: false, 
+          message: 'ElevenLabs API key not configured' 
+        });
+      }
+
+      const accountInfo = await elevenLabsService.getAccountInfo();
+      res.json({ 
+        configured: true, 
+        account: accountInfo,
+        message: 'ElevenLabs is configured and ready' 
+      });
+    } catch (error: any) {
+      console.error('Error checking ElevenLabs status:', error);
+      res.status(500).json({ 
+        configured: false,
+        error: 'Failed to check ElevenLabs status',
+        details: error.message 
+      });
+    }
+  });
+
+  app.get('/api/elevenlabs/voices', async (req, res) => {
+    try {
+      const voices = await elevenLabsService.getVoices();
+      res.json(voices);
+    } catch (error: any) {
+      console.error('Error fetching voices:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch voices',
+        details: error.message 
+      });
+    }
+  });
+
+  app.post('/api/elevenlabs/generate', async (req, res) => {
+    try {
+      const { text, voiceId, options = {} } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: 'Text is required' });
+      }
+
+      const audioBuffer = await elevenLabsService.generateSpeech(text, voiceId, options);
+      const filename = `voice_${Date.now()}`;
+      const filePath = await elevenLabsService.saveAudioToFile(audioBuffer, filename);
+      const audioUrl = `/uploads/${path.basename(filePath)}`;
+
+      res.json({
+        audioUrl,
+        filename: path.basename(filePath),
+        message: 'Voice generated successfully'
+      });
+    } catch (error: any) {
+      console.error('Error generating voice:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate voice',
+        details: error.message 
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

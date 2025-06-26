@@ -54,6 +54,7 @@ export default function AIScripts() {
         body: JSON.stringify({
           spreadsheetId: spreadsheetId.trim(),
           tabName: tabName.trim() || undefined,
+          includeVoice: true
         }),
       });
 
@@ -62,7 +63,7 @@ export default function AIScripts() {
         throw new Error(error.message || 'Failed to generate scripts');
       }
 
-      const result: GenerationResponse = await response.json();
+      const result = await response.json();
       setSuggestions(result.suggestions);
       setGenerationComplete(true);
 

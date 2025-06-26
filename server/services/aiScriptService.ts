@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { googleSheetsService } from "./googleSheetsService";
+import { elevenLabsService } from "./elevenLabsService";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -103,12 +104,21 @@ class AIScriptService {
   }
 
   /**
-   * Analyze performance data and generate script suggestions
+   * Analyze performance data and generate script suggestions with optional voice generation
    */
   async generateScriptSuggestions(
     spreadsheetId: string,
-    tabName: string = "Cleansed with BEAP",
-  ): Promise<ScriptSuggestion[]> {
+    options: {
+      tabName?: string;
+      voiceId?: string;
+      includeVoice?: boolean;
+    } = {}
+  ): Promise<{
+    suggestions: ScriptSuggestion[];
+    message: string;
+    voiceGenerated?: boolean;
+  }> {
+    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false } = options;
     try {
       // Read the performance data
       const performanceData = await this.readPerformanceData(
@@ -306,7 +316,29 @@ Respond in JSON format:
       }
 
       console.log(`Generated ${result.suggestions.length} script suggestions`);
-      return result.suggestions;
+      
+      let suggestions: ScriptSuggestion[] = result.suggestions;
+      let voiceGenerated = false;
+
+      // Generate voice recordings if requested and ElevenLabs is configured
+      if (includeVoice && elevenLabsService.isConfigured()) {
+        try {
+          suggestions = await elevenLabsService.generateScriptVoiceovers(
+            suggestions,
+            voiceId
+          );
+          voiceGenerated = true;
+        } catch (error) {
+          console.error('Error generating voice recordings:', error);
+          // Continue without voice - don't fail the entire operation
+        }
+      }
+
+      return {
+        suggestions,
+        message: 'Successfully generated script suggestions based on performance analysis',
+        voiceGenerated
+      };
     } catch (error) {
       console.error("Error generating script suggestions:", error);
       throw error;
