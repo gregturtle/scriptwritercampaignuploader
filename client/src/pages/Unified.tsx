@@ -374,6 +374,21 @@ export default function Unified() {
                       <h4 className="font-medium text-blue-900 mb-2">{suggestion.title}</h4>
                       <p className="text-sm text-gray-700 mb-3 italic">"{suggestion.content}"</p>
                       <p className="text-xs text-blue-700">{suggestion.reasoning}</p>
+                      
+                      {/* Audio Player */}
+                      {suggestion.audioUrl && (
+                        <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mt-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Mic className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
+                          </div>
+                          <audio controls className="w-full">
+                            <source src={suggestion.audioUrl} type="audio/mpeg" />
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
+                      )}
+                      
                       <div className="flex flex-wrap gap-1 mt-2">
                         {suggestion.targetMetrics.map((metric) => (
                           <span key={metric} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">

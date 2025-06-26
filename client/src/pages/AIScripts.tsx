@@ -218,6 +218,20 @@ export default function AIScripts() {
                       {suggestion.reasoning}
                     </div>
                   </div>
+
+                  {/* Audio Player */}
+                  {suggestion.audioUrl && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Mic className="h-4 w-4 text-blue-600" />
+                        <Label className="text-sm font-medium text-blue-800">AI Voice Recording:</Label>
+                      </div>
+                      <audio controls className="w-full">
+                        <source src={suggestion.audioUrl} type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
