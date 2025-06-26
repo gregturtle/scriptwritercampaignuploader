@@ -25,6 +25,9 @@ interface UnifiedResult {
       content: string;
       reasoning: string;
       targetMetrics: string[];
+      audioUrl?: string;
+      audioFile?: string;
+      error?: string;
     }>;
     message: string;
     savedToSheet: boolean;
