@@ -163,8 +163,8 @@ class ElevenLabsService {
       return suggestions;
     }
 
-    // Use Ella AI's voice ID as default
-    const defaultVoiceId = 'MF3mGyEYCl7XYWbV9V6O'; // Ella AI's voice ID
+    // Use Ella voice ID as default
+    const defaultVoiceId = 'MF3mGyEYCl7XYWbV9V6O'; // Ella voice ID
     const selectedVoiceId = voiceId || defaultVoiceId;
     console.log('Using voice ID:', selectedVoiceId);
 
