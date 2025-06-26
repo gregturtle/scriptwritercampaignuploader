@@ -185,6 +185,7 @@ class ElevenLabsService {
         
         // Create URL for frontend access
         const audioUrl = `/uploads/${path.basename(filePath)}`;
+        console.log(`Generated voice for suggestion ${i + 1}: ${audioUrl}`);
 
         results.push({
           ...suggestion,

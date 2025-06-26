@@ -322,16 +322,20 @@ Respond in JSON format:
 
       // Generate voice recordings if requested and ElevenLabs is configured
       if (includeVoice && elevenLabsService.isConfigured()) {
+        console.log('Starting voice generation for', suggestions.length, 'suggestions');
         try {
           suggestions = await elevenLabsService.generateScriptVoiceovers(
             suggestions,
             voiceId
           );
           voiceGenerated = true;
+          console.log('Voice generation completed. Suggestions now have audioUrl:', suggestions.some(s => s.audioUrl));
         } catch (error) {
           console.error('Error generating voice recordings:', error);
           // Continue without voice - don't fail the entire operation
         }
+      } else {
+        console.log('Voice generation skipped. includeVoice:', includeVoice, 'isConfigured:', elevenLabsService.isConfigured());
       }
 
       return {
