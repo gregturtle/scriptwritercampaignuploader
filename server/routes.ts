@@ -82,20 +82,24 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       console.log(`Generating AI script suggestions from sheet: ${spreadsheetId}, tab: ${tabName || 'Cleansed with BEAP'}`);
       
-      const suggestions = await aiScriptService.generateScriptSuggestions(
+      const result = await aiScriptService.generateScriptSuggestions(
         spreadsheetId, 
-        tabName || 'Cleansed with BEAP'
+        {
+          tabName: tabName || 'Cleansed with BEAP',
+          includeVoice: true
+        }
       );
 
-      console.log(`Generated ${suggestions.length} suggestions`);
+      console.log(`Generated ${result.suggestions.length} suggestions`);
 
       // Save suggestions to "New Scripts" tab
-      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, suggestions, "New Scripts");
+      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
       res.json({
-        suggestions,
-        message: `Generated ${suggestions.length} script suggestions based on performance data analysis`,
-        savedToSheet: true
+        suggestions: result.suggestions,
+        message: `Generated ${result.suggestions.length} script suggestions based on performance data analysis`,
+        savedToSheet: true,
+        voiceGenerated: result.voiceGenerated
       });
     } catch (error) {
       console.error('Error generating AI script suggestions:', error);
