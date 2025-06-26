@@ -789,6 +789,66 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Download audio file endpoint
+  app.get('/api/download/:filename', async (req, res) => {
+    try {
+      const { filename } = req.params;
+      const filePath = path.join(__dirname, '../uploads', filename);
+      
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      // Set proper headers for download
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', 'audio/mpeg');
+      
+      // Stream the file
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error: any) {
+      console.error('Error downloading file:', error);
+      res.status(500).json({ 
+        error: 'Failed to download file',
+        details: error.message 
+      });
+    }
+  });
+
+  // Bulk download endpoint for multiple files
+  app.post('/api/download/bulk', async (req, res) => {
+    try {
+      const { filenames } = req.body;
+      
+      if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+        return res.status(400).json({ error: 'Filenames array is required' });
+      }
+
+
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      
+      res.setHeader('Content-Disposition', 'attachment; filename="audio_files.zip"');
+      res.setHeader('Content-Type', 'application/zip');
+      
+      archive.pipe(res);
+      
+      for (const filename of filenames) {
+        const filePath = path.join(__dirname, '../uploads', filename);
+        if (fs.existsSync(filePath)) {
+          archive.file(filePath, { name: filename });
+        }
+      }
+      
+      archive.finalize();
+    } catch (error: any) {
+      console.error('Error creating bulk download:', error);
+      res.status(500).json({ 
+        error: 'Failed to create bulk download',
+        details: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
