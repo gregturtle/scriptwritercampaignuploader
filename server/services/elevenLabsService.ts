@@ -163,8 +163,8 @@ class ElevenLabsService {
       return suggestions;
     }
 
-    // Use Ella voice ID as default
-    const defaultVoiceId = 'MF3mGyEYCl7XYWbV9V6O'; // Ella voice ID
+    // Use Ella AI voice ID as default (what3words Ellabot 2.0)
+    const defaultVoiceId = 'huvDR9lwwSKC0zEjZUox'; // Ella AI voice ID
     const selectedVoiceId = voiceId || defaultVoiceId;
     console.log('Using voice ID:', selectedVoiceId);
 
