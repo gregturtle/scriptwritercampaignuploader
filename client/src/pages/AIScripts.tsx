@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, TrendingUp, FileText, Brain, BarChart3, Upload, Mic } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Sparkles, TrendingUp, FileText, Brain, BarChart3, Upload, Mic, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 
@@ -32,6 +33,7 @@ export default function AIScripts() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<ScriptSuggestion[]>([]);
   const [generationComplete, setGenerationComplete] = useState(false);
+  const [selectedAudios, setSelectedAudios] = useState<number[]>([]);
   const { toast } = useToast();
 
   const handleGenerateScripts = async () => {
@@ -81,6 +83,78 @@ export default function AIScripts() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleAudioSelection = (index: number, checked: boolean) => {
+    if (checked) {
+      setSelectedAudios(prev => [...prev, index]);
+    } else {
+      setSelectedAudios(prev => prev.filter(i => i !== index));
+    }
+  };
+
+  const handleSelectAllAudios = (selectAll: boolean) => {
+    if (selectAll) {
+      const availableAudios = suggestions
+        .map((_, index) => index)
+        .filter(index => suggestions[index].audioUrl);
+      setSelectedAudios(availableAudios);
+    } else {
+      setSelectedAudios([]);
+    }
+  };
+
+  const downloadAudioFile = async (audioUrl: string, filename: string) => {
+    try {
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading audio:', error);
+      toast({
+        title: "Download Error",
+        description: "Failed to download audio file",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedAudios.length === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select at least one audio file to download",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Downloading Files",
+      description: `Starting download of ${selectedAudios.length} audio files`,
+    });
+
+    for (const index of selectedAudios) {
+      const suggestion = suggestions[index];
+      if (suggestion.audioUrl) {
+        const filename = `${suggestion.title.replace(/[^a-zA-Z0-9]/g, '_')}_script_${index + 1}.mp3`;
+        await downloadAudioFile(suggestion.audioUrl, filename);
+        // Add small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    toast({
+      title: "Download Complete",
+      description: `Successfully downloaded ${selectedAudios.length} audio files`,
+    });
   };
 
   const formatSpreadsheetId = (value: string) => {
@@ -176,12 +250,45 @@ export default function AIScripts() {
       {/* Generated Suggestions */}
       {generationComplete && suggestions.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-green-600" />
-            <h2 className="text-2xl font-bold">Generated Script Suggestions</h2>
-            <Badge variant="secondary" className="ml-2">
-              {suggestions.length} suggestions
-            </Badge>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              <h2 className="text-2xl font-bold">Generated Script Suggestions</h2>
+              <Badge variant="secondary" className="ml-2">
+                {suggestions.length} suggestions
+              </Badge>
+            </div>
+            
+            {/* Bulk Download Controls */}
+            {suggestions.some(s => s.audioUrl) && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSelectAllAudios(true)}
+                  disabled={selectedAudios.length === suggestions.filter(s => s.audioUrl).length}
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSelectAllAudios(false)}
+                  disabled={selectedAudios.length === 0}
+                >
+                  Clear All
+                </Button>
+                <Button
+                  onClick={handleBulkDownload}
+                  disabled={selectedAudios.length === 0}
+                  className="flex items-center gap-2"
+                  size="sm"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Selected ({selectedAudios.length})
+                </Button>
+              </div>
+            )}
           </div>
           
           <div className="grid gap-6">
@@ -222,9 +329,21 @@ export default function AIScripts() {
                   {/* Audio Player */}
                   {suggestion.audioUrl && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Mic className="h-4 w-4 text-blue-600" />
-                        <Label className="text-sm font-medium text-blue-800">AI Voice Recording:</Label>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Mic className="h-4 w-4 text-blue-600" />
+                          <Label className="text-sm font-medium text-blue-800">AI Voice Recording:</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`audio-${index}`}
+                            checked={selectedAudios.includes(index)}
+                            onCheckedChange={(checked) => handleAudioSelection(index, checked as boolean)}
+                          />
+                          <Label htmlFor={`audio-${index}`} className="text-sm text-blue-700 cursor-pointer">
+                            Select for download
+                          </Label>
+                        </div>
                       </div>
                       <audio controls className="w-full">
                         <source src={suggestion.audioUrl} type="audio/mpeg" />
