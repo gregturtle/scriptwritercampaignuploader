@@ -794,7 +794,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.get('/api/download/:filename', async (req, res) => {
     try {
       const { filename } = req.params;
-      const filePath = path.join(__dirname, '../uploads', filename);
+      const filePath = path.join(process.cwd(), 'uploads', filename);
       
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'File not found' });
@@ -834,7 +834,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       archive.pipe(res);
       
       for (const filename of filenames) {
-        const filePath = path.join(__dirname, '../uploads', filename);
+        const filePath = path.join(process.cwd(), 'uploads', filename);
         if (fs.existsSync(filePath)) {
           archive.file(filePath, { name: filename });
         }
