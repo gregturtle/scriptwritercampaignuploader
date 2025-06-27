@@ -819,7 +819,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Bulk download endpoint for multiple files
   app.post('/api/download/bulk', async (req, res) => {
     try {
-      const { filenames } = req.body;
+      // Handle both JSON and form data
+      let filenames;
+      if (req.body.filenames) {
+        if (typeof req.body.filenames === 'string') {
+          filenames = JSON.parse(req.body.filenames);
+        } else {
+          filenames = req.body.filenames;
+        }
+      }
       
       if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
         return res.status(400).json({ error: 'Filenames array is required' });

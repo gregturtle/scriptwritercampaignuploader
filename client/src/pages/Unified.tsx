@@ -175,30 +175,19 @@ export default function AudioCreativeGenerator() {
       // Extract filename from audioUrl if it's a server path
       const actualFilename = audioUrl.startsWith('/uploads/') ? audioUrl.replace('/uploads/', '') : filename;
       
-      // Use the server download endpoint
-      const response = await fetch(`/api/download/${actualFilename}`);
-      if (!response.ok) {
-        throw new Error('Failed to download file');
-      }
-      
-      const blob = await response.blob();
-      console.log('Individual file blob size:', blob.size, 'bytes');
-      
-      const url = window.URL.createObjectURL(blob);
+      // Use a direct link approach for individual files
       const a = document.createElement('a');
-      a.href = url;
+      a.href = `/api/download/${actualFilename}`;
       a.download = filename;
       a.style.display = 'none';
       document.body.appendChild(a);
-      
-      // Force the download
       a.click();
+      document.body.removeChild(a);
       
-      // Clean up after a delay
-      setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      }, 100);
+      toast({
+        title: "Download Started",
+        description: `${filename} should download to your Downloads folder`,
+      });
     } catch (error) {
       console.error('Error downloading audio:', error);
       toast({
@@ -231,40 +220,27 @@ export default function AudioCreativeGenerator() {
         return suggestion.audioUrl ? suggestion.audioUrl.replace('/uploads/', '') : '';
       }).filter(filename => filename !== '');
 
-      const response = await fetch('/api/download/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filenames })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create bulk download');
-      }
-
-      const blob = await response.blob();
-      console.log('Blob size:', blob.size, 'bytes');
+      // Create a form to submit the download request directly
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/download/bulk';
+      form.style.display = 'none';
       
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'audio_files.zip';
-      a.style.display = 'none';
-      document.body.appendChild(a);
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'filenames';
+      input.value = JSON.stringify(filenames);
       
-      // Force the download
-      a.click();
-      
-      // Clean up after a delay
-      setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      }, 100);
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
 
       setSelectedAudios([]);
       
       toast({
-        title: "Download Complete",
-        description: `Downloaded ${selectedAudios.length} audio files as audio_files.zip. Check your Downloads folder or browser's download manager.`,
+        title: "Download Started",
+        description: `Preparing ${selectedAudios.length} audio files. The zip file should download automatically to your Downloads folder.`,
       });
     } catch (error) {
       console.error('Error in bulk download:', error);
