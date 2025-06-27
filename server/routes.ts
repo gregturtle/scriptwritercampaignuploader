@@ -816,6 +816,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Test endpoint to check query parameters
+  app.get('/api/test-bulk', (req, res) => {
+    console.log('Test query:', req.query);
+    res.json({ query: req.query });
+  });
+
   // Bulk download endpoint for multiple files (GET version)
   app.get('/api/download/bulk', async (req, res) => {
     try {
@@ -856,6 +862,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       if (filesAdded === 0) {
+        console.log('No files were added to archive');
         return res.status(404).json({ error: 'No files found' });
       }
       
@@ -876,7 +883,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       // Handle both JSON and form data
       let filenames;
-      console.log('Request body:', req.body);
+      console.log('POST Request body:', req.body);
+      console.log('POST Request headers:', req.headers['content-type']);
       
       if (req.body.filenames) {
         if (typeof req.body.filenames === 'string') {
@@ -892,9 +900,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+        console.log('No valid filenames found in POST request');
         return res.status(400).json({ error: 'Filenames array is required' });
       }
 
+      console.log('Processing POST filenames:', filenames);
+      let filesAdded = 0;
 
       const archive = archiver('zip', { zlib: { level: 9 } });
       
@@ -905,10 +916,19 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       for (const filename of filenames) {
         const filePath = path.join(process.cwd(), 'uploads', filename);
+        console.log('POST Checking file:', filePath, 'exists:', fs.existsSync(filePath));
         if (fs.existsSync(filePath)) {
           archive.file(filePath, { name: filename });
+          filesAdded++;
         }
       }
+      
+      if (filesAdded === 0) {
+        console.log('POST: No files were added to archive');
+        return res.status(404).json({ error: 'No files found' });
+      }
+      
+      console.log(`POST: Added ${filesAdded} files to archive`);
       
       archive.finalize();
     } catch (error: any) {
