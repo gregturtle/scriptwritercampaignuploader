@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Zap, Calendar, ExternalLink, BarChart3, Brain, CheckCircle, Mic } from 'lucide-react';
+import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
 import { Link } from 'wouter';
@@ -161,23 +161,17 @@ export default function Unified() {
         <div className="flex items-center justify-center gap-2 mb-4">
           <Zap className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Unified Report & Script Generator
+            Script and Audio Generation
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
           Generate performance reports and AI script suggestions in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
         </p>
         <div className="flex justify-center gap-2 mt-4">
-          <Link href="/reports">
+          <Link href="/">
             <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Reports Only
-            </Button>
-          </Link>
-          <Link href="/ai-scripts">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              Scripts Only
+              <Upload className="h-4 w-4" />
+              Video Upload Mode
             </Button>
           </Link>
         </div>
