@@ -816,14 +816,63 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // Bulk download endpoint for multiple files
+  // Bulk download endpoint for multiple files (GET version)
+  app.get('/api/download/bulk', async (req, res) => {
+    try {
+      const filenames = req.query.filename;
+      let filenameArray: string[];
+      
+      if (typeof filenames === 'string') {
+        filenameArray = [filenames];
+      } else if (Array.isArray(filenames)) {
+        filenameArray = filenames as string[];
+      } else {
+        return res.status(400).json({ error: 'No filenames provided' });
+      }
+      
+      if (filenameArray.length === 0) {
+        return res.status(400).json({ error: 'Filenames array is required' });
+      }
+
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      
+      res.setHeader('Content-Disposition', 'attachment; filename="audio_files.zip"');
+      res.setHeader('Content-Type', 'application/zip');
+      
+      archive.pipe(res);
+      
+      for (const filename of filenameArray) {
+        const filePath = path.join(process.cwd(), 'uploads', filename);
+        if (fs.existsSync(filePath)) {
+          archive.file(filePath, { name: filename });
+        }
+      }
+      
+      archive.finalize();
+    } catch (error: any) {
+      console.error('Error creating bulk download:', error);
+      res.status(500).json({ 
+        error: 'Failed to create bulk download',
+        details: error.message 
+      });
+    }
+  });
+
+  // Keep POST version for backward compatibility
   app.post('/api/download/bulk', async (req, res) => {
     try {
       // Handle both JSON and form data
       let filenames;
+      console.log('Request body:', req.body);
+      
       if (req.body.filenames) {
         if (typeof req.body.filenames === 'string') {
-          filenames = JSON.parse(req.body.filenames);
+          try {
+            filenames = JSON.parse(req.body.filenames);
+          } catch (e) {
+            console.error('Failed to parse filenames JSON:', e);
+            return res.status(400).json({ error: 'Invalid filenames format' });
+          }
         } else {
           filenames = req.body.filenames;
         }

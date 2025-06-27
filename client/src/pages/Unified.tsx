@@ -220,21 +220,17 @@ export default function AudioCreativeGenerator() {
         return suggestion.audioUrl ? suggestion.audioUrl.replace('/uploads/', '') : '';
       }).filter(filename => filename !== '');
 
-      // Create a form to submit the download request directly
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/api/download/bulk';
-      form.style.display = 'none';
+      // Use a simple GET request with query parameters for better compatibility
+      const filenameParams = filenames.map(f => `filename=${encodeURIComponent(f)}`).join('&');
+      const downloadUrl = `/api/download/bulk?${filenameParams}`;
       
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'filenames';
-      input.value = JSON.stringify(filenames);
-      
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
+      // Create a link and click it
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       setSelectedAudios([]);
       
