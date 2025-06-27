@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Zap, Calendar, ExternalLink, BarChart3, Brain, CheckCircle, Mic, Download, Upload } from 'lucide-react';
+import { Loader2, Zap, Calendar, ExternalLink, BarChart3, Brain, CheckCircle, Mic } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
 import { Link } from 'wouter';
@@ -35,7 +34,7 @@ interface UnifiedResult {
   };
 }
 
-export default function AudioCreativeGenerator() {
+export default function Unified() {
   const [dateRange, setDateRange] = useState('all_time');
   const [customSince, setCustomSince] = useState('');
   const [customUntil, setCustomUntil] = useState('');
@@ -43,7 +42,6 @@ export default function AudioCreativeGenerator() {
   const [spreadsheetId, setSpreadsheetId] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
-  const [selectedAudios, setSelectedAudios] = useState<number[]>([]);
 
   const { toast } = useToast();
   const { isAuthenticated, logout, login } = useMetaAuth();
@@ -147,108 +145,6 @@ export default function AudioCreativeGenerator() {
       });
     } finally {
       setIsGenerating(false);
-      setSelectedAudios([]);
-    }
-  };
-
-  const handleAudioSelection = (index: number, checked: boolean) => {
-    if (checked) {
-      setSelectedAudios(prev => [...prev, index]);
-    } else {
-      setSelectedAudios(prev => prev.filter(i => i !== index));
-    }
-  };
-
-  const handleSelectAllAudios = (selectAll: boolean) => {
-    if (selectAll && result) {
-      const availableAudios = result.scriptResult.suggestions
-        .map((_, index) => index)
-        .filter(index => result.scriptResult.suggestions[index].audioUrl);
-      setSelectedAudios(availableAudios);
-    } else {
-      setSelectedAudios([]);
-    }
-  };
-
-  const downloadAudioFile = async (audioUrl: string, filename: string) => {
-    try {
-      // Extract filename from audioUrl if it's a server path
-      const actualFilename = audioUrl.startsWith('/uploads/') ? audioUrl.replace('/uploads/', '') : filename;
-      
-      // Use a direct link approach for individual files
-      const a = document.createElement('a');
-      a.href = `/api/download/${actualFilename}`;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Download Started",
-        description: `${filename} should download to your Downloads folder`,
-      });
-    } catch (error) {
-      console.error('Error downloading audio:', error);
-      toast({
-        title: "Download Error",
-        description: "Failed to download audio file",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleBulkDownload = async () => {
-    if (selectedAudios.length === 0 || !result) {
-      toast({
-        title: "No Selection",
-        description: "Please select at least one audio file to download",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Creating Zip File",
-      description: `Preparing ${selectedAudios.length} audio files for download`,
-    });
-
-    try {
-      const filenames = selectedAudios.map(index => {
-        const suggestion = result.scriptResult.suggestions[index];
-        // Extract filename from audioUrl
-        return suggestion.audioUrl ? suggestion.audioUrl.replace('/uploads/', '') : '';
-      }).filter(filename => filename !== '');
-
-      // Debug: log the filenames being sent
-      console.log('Attempting to download filenames:', filenames);
-      
-      // Use the same approach as single downloads - direct link to existing bulk endpoint
-      const filenameParams = filenames.map(f => `filename=${encodeURIComponent(f)}`).join('&');
-      const downloadUrl = `/api/download/bulk?${filenameParams}`;
-      
-      // Create a direct link just like the working single download
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = 'audio_files.zip';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      setSelectedAudios([]);
-      
-      toast({
-        title: "Download Started",
-        description: `Preparing ${selectedAudios.length} audio files. The zip file should download automatically to your Downloads folder.`,
-      });
-    } catch (error) {
-      console.error('Error in bulk download:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to create zip file for download",
-        variant: "destructive"
-      });
     }
   };
 
@@ -263,19 +159,25 @@ export default function AudioCreativeGenerator() {
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <Mic className="h-8 w-8 text-blue-600" />
+          <Zap className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Audio Creative Generator
+            Unified Report & Script Generator
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Generate performance reports and AI script suggestions with professional voice recordings in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
+          Generate performance reports and AI script suggestions in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
         </p>
         <div className="flex justify-center gap-2 mt-4">
-          <Link href="/">
+          <Link href="/reports">
             <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Back to Upload
+              <BarChart3 className="h-4 w-4" />
+              Reports Only
+            </Button>
+          </Link>
+          <Link href="/ai-scripts">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              Scripts Only
             </Button>
           </Link>
         </div>
@@ -462,45 +364,10 @@ export default function AudioCreativeGenerator() {
           {/* Script Suggestions Preview */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Generated Script Suggestions</CardTitle>
-                  <CardDescription>
-                    AI-generated voiceover scripts based on your performance data
-                  </CardDescription>
-                </div>
-                
-                {/* Bulk Download Controls */}
-                {result?.scriptResult.suggestions.some(s => s.audioUrl) && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSelectAllAudios(true)}
-                      disabled={selectedAudios.length === result.scriptResult.suggestions.filter(s => s.audioUrl).length}
-                    >
-                      Select All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSelectAllAudios(false)}
-                      disabled={selectedAudios.length === 0}
-                    >
-                      Clear All
-                    </Button>
-                    <Button
-                      onClick={handleBulkDownload}
-                      disabled={selectedAudios.length === 0}
-                      className="flex items-center gap-2"
-                      size="sm"
-                    >
-                      <Download className="h-4 w-4" />
-                      Download Selected ({selectedAudios.length})
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <CardTitle>Generated Script Suggestions</CardTitle>
+              <CardDescription>
+                AI-generated voiceover scripts based on your performance data
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -514,21 +381,9 @@ export default function AudioCreativeGenerator() {
                       {/* Audio Player */}
                       {suggestion.audioUrl && (
                         <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mt-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Mic className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id={`unified-audio-${index}`}
-                                checked={selectedAudios.includes(index)}
-                                onCheckedChange={(checked) => handleAudioSelection(index, checked as boolean)}
-                              />
-                              <Label htmlFor={`unified-audio-${index}`} className="text-sm text-blue-700 cursor-pointer">
-                                Select for download
-                              </Label>
-                            </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Mic className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
                           </div>
                           <audio controls className="w-full">
                             <source src={suggestion.audioUrl} type="audio/mpeg" />

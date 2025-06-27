@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { CircleDashed, Upload, Mic } from "lucide-react";
+import { CircleDashed, Upload, BarChart3, Brain, Zap } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface HeaderProps {
@@ -33,14 +33,34 @@ export default function Header({ isAuthenticated, onLogout, onLogin }: HeaderPro
                   <span>Upload</span>
                 </Button>
               </Link>
-              <Link href="/audio-creative-generator">
+              <Link href="/unified">
                 <Button 
-                  variant={location === "/audio-creative-generator" ? "default" : "ghost"}
+                  variant={location === "/unified" ? "default" : "ghost"}
                   size="sm"
                   className="flex items-center space-x-2"
                 >
-                  <Mic className="h-4 w-4" />
-                  <span>Audio Creative Generator</span>
+                  <Zap className="h-4 w-4" />
+                  <span>Unified</span>
+                </Button>
+              </Link>
+              <Link href="/reports">
+                <Button 
+                  variant={location === "/reports" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Reports</span>
+                </Button>
+              </Link>
+              <Link href="/ai-scripts">
+                <Button 
+                  variant={location === "/ai-scripts" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <Brain className="h-4 w-4" />
+                  <span>AI Scripts</span>
                 </Button>
               </Link>
             </nav>
