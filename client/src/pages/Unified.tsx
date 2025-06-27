@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
 import { Link } from 'wouter';
@@ -45,8 +46,88 @@ export default function Unified() {
   const [scriptCount, setScriptCount] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
+  const [selectedScripts, setSelectedScripts] = useState<Set<number>>(new Set());
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
   const { toast } = useToast();
+
+  const handleScriptSelection = (index: number, checked: boolean) => {
+    setSelectedScripts(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(index);
+      } else {
+        newSet.delete(index);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllScripts = (checked: boolean) => {
+    if (checked) {
+      setSelectedScripts(new Set(result?.scriptResult.suggestions.map((_, index) => index) || []));
+    } else {
+      setSelectedScripts(new Set());
+    }
+  };
+
+  const handleGenerateAudioForSelected = async () => {
+    if (!result || selectedScripts.size === 0) return;
+
+    setIsGeneratingAudio(true);
+    try {
+      const selectedSuggestions = Array.from(selectedScripts).map(index => 
+        result.scriptResult.suggestions[index]
+      );
+
+      const response = await fetch('/api/ai/generate-audio-only', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suggestions: selectedSuggestions,
+          indices: Array.from(selectedScripts)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate audio');
+      }
+
+      const audioResult = await response.json();
+      
+      // Update the result with new audio URLs
+      setResult(prevResult => {
+        if (!prevResult) return prevResult;
+        
+        const updatedSuggestions = [...prevResult.scriptResult.suggestions];
+        audioResult.suggestions.forEach((updatedSuggestion: any, resultIndex: number) => {
+          const originalIndex = Array.from(selectedScripts)[resultIndex];
+          updatedSuggestions[originalIndex] = updatedSuggestion;
+        });
+
+        return {
+          ...prevResult,
+          scriptResult: {
+            ...prevResult.scriptResult,
+            suggestions: updatedSuggestions
+          }
+        };
+      });
+
+      toast({
+        title: "Audio Generated!",
+        description: `Generated ${selectedScripts.size} audio recording${selectedScripts.size !== 1 ? 's' : ''}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Audio Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate audio",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+  };
   const { isAuthenticated, logout, login } = useMetaAuth();
   
   // Use campaigns hook directly like other pages
@@ -89,6 +170,8 @@ export default function Unified() {
 
     setIsGenerating(true);
     setResult(null);
+    setSelectedScripts(new Set());
+    setIsGeneratingAudio(false);
 
     try {
       const selectedDateRange = datePresets[dateRange as keyof typeof datePresets];
@@ -413,34 +496,87 @@ export default function Unified() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Bulk Audio Generation Controls (only show if scripts were generated without audio) */}
+              {result.scriptResult.suggestions.some(s => !s.audioUrl) && (
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="select-all"
+                        checked={selectedScripts.size === result.scriptResult.suggestions.length}
+                        onCheckedChange={handleSelectAllScripts}
+                      />
+                      <Label htmlFor="select-all" className="text-sm font-medium">
+                        Select all scripts
+                      </Label>
+                    </div>
+                    <Button
+                      onClick={handleGenerateAudioForSelected}
+                      disabled={selectedScripts.size === 0 || isGeneratingAudio}
+                      size="sm"
+                      className="ml-4"
+                    >
+                      {isGeneratingAudio ? (
+                        <>
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                          Generating Audio...
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="mr-2 h-3 w-3" />
+                          Generate Audio ({selectedScripts.size})
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Select which scripts to convert to professional voice recordings using Ella AI
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4">
                 {result.scriptResult.suggestions.map((suggestion, index) => (
                   <Card key={index} className="bg-blue-50 border-blue-200">
                     <CardContent className="pt-4">
-                      <h4 className="font-medium text-blue-900 mb-2">{suggestion.title}</h4>
-                      <p className="text-sm text-gray-700 mb-3 italic">"{suggestion.content}"</p>
-                      <p className="text-xs text-blue-700">{suggestion.reasoning}</p>
-                      
-                      {/* Audio Player */}
-                      {suggestion.audioUrl && (
-                        <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mt-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Mic className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
+                      <div className="flex items-start gap-3">
+                        {/* Checkbox for script selection (only show if no audio) */}
+                        {!suggestion.audioUrl && (
+                          <Checkbox
+                            id={`script-${index}`}
+                            checked={selectedScripts.has(index)}
+                            onCheckedChange={(checked) => handleScriptSelection(index, checked as boolean)}
+                            className="mt-1"
+                          />
+                        )}
+                        
+                        <div className="flex-1">
+                          <h4 className="font-medium text-blue-900 mb-2">{suggestion.title}</h4>
+                          <p className="text-sm text-gray-700 mb-3 italic">"{suggestion.content}"</p>
+                          <p className="text-xs text-blue-700">{suggestion.reasoning}</p>
+                          
+                          {/* Audio Player */}
+                          {suggestion.audioUrl && (
+                            <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mt-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Mic className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
+                              </div>
+                              <audio controls className="w-full">
+                                <source src={suggestion.audioUrl} type="audio/mpeg" />
+                                Your browser does not support the audio element.
+                              </audio>
+                            </div>
+                          )}
+                          
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {suggestion.targetMetrics.map((metric) => (
+                              <span key={metric} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                {metric}
+                              </span>
+                            ))}
                           </div>
-                          <audio controls className="w-full">
-                            <source src={suggestion.audioUrl} type="audio/mpeg" />
-                            Your browser does not support the audio element.
-                          </audio>
                         </div>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {suggestion.targetMetrics.map((metric) => (
-                          <span key={metric} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                            {metric}
-                          </span>
-                        ))}
                       </div>
                     </CardContent>
                   </Card>

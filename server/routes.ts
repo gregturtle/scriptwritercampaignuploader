@@ -724,6 +724,41 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Audio generation for selected scripts only
+  app.post('/api/ai/generate-audio-only', async (req, res) => {
+    try {
+      console.log('Audio-only generation request received:', req.body);
+      const { suggestions, indices } = req.body;
+      
+      if (!suggestions || !Array.isArray(suggestions)) {
+        return res.status(400).json({ message: 'Suggestions array is required' });
+      }
+
+      console.log(`Generating audio for ${suggestions.length} selected scripts`);
+      
+      // Generate audio using ElevenLabs for the selected suggestions
+      const suggestionsWithAudio = await elevenLabsService.generateScriptVoiceovers(
+        suggestions,
+        'huvDR9lwwSKC0zEjZUox' // Ella AI voice ID
+      );
+
+      console.log(`Generated audio for ${suggestionsWithAudio.length} suggestions`);
+
+      res.json({
+        suggestions: suggestionsWithAudio,
+        message: `Generated audio for ${suggestionsWithAudio.length} script${suggestionsWithAudio.length !== 1 ? 's' : ''}`,
+        voiceGenerated: true
+      });
+    } catch (error) {
+      console.error('Error generating audio for selected scripts:', error);
+      
+      res.status(500).json({ 
+        message: 'Failed to generate audio for selected scripts', 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // ElevenLabs voice endpoints
   app.get('/api/elevenlabs/status', async (req, res) => {
     try {
