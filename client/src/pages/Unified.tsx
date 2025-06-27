@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
@@ -40,6 +41,7 @@ export default function Unified() {
   const [customUntil, setCustomUntil] = useState('');
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [spreadsheetId, setSpreadsheetId] = useState('');
+  const [withAudio, setWithAudio] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
 
@@ -116,7 +118,8 @@ export default function Unified() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
-          tabName: 'Cleansed with BEAP'
+          tabName: 'Cleansed with BEAP',
+          generateAudio: withAudio
         })
       });
 
@@ -297,6 +300,29 @@ export default function Unified() {
 
 
 
+          {/* Audio Generation Toggle */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-center space-x-3">
+              <Label htmlFor="audio-toggle" className="text-sm font-medium">
+                Scripts only
+              </Label>
+              <Switch
+                id="audio-toggle"
+                checked={withAudio}
+                onCheckedChange={setWithAudio}
+              />
+              <Label htmlFor="audio-toggle" className="text-sm font-medium">
+                With audio
+              </Label>
+            </div>
+            <p className="text-center text-sm text-gray-500">
+              {withAudio 
+                ? "Scripts will include professional voice recordings using Ella AI" 
+                : "Scripts will be generated without audio recordings"
+              }
+            </p>
+          </div>
+
           {/* Generate Button */}
           <Button 
             onClick={handleGenerate} 
@@ -312,7 +338,7 @@ export default function Unified() {
             ) : (
               <>
                 <Zap className="mr-2 h-4 w-4" />
-                Generate Report & AI Scripts
+                Generate Report & Scripts {withAudio && '+ Audio'}
               </>
             )}
           </Button>

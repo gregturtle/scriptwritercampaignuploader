@@ -74,19 +74,19 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.post('/api/ai/generate-scripts', async (req, res) => {
     try {
       console.log('AI script generation request received:', req.body);
-      const { spreadsheetId, tabName } = req.body;
+      const { spreadsheetId, tabName, generateAudio = true } = req.body;
       
       if (!spreadsheetId) {
         return res.status(400).json({ message: 'Spreadsheet ID is required' });
       }
 
-      console.log(`Generating AI script suggestions from sheet: ${spreadsheetId}, tab: ${tabName || 'Cleansed with BEAP'}`);
+      console.log(`Generating AI script suggestions from sheet: ${spreadsheetId}, tab: ${tabName || 'Cleansed with BEAP'}, with audio: ${generateAudio}`);
       
       const result = await aiScriptService.generateScriptSuggestions(
         spreadsheetId, 
         {
           tabName: tabName || 'Cleansed with BEAP',
-          includeVoice: true
+          includeVoice: generateAudio
         }
       );
 
