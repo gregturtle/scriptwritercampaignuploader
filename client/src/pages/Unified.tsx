@@ -42,6 +42,7 @@ export default function Unified() {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [spreadsheetId, setSpreadsheetId] = useState('');
   const [withAudio, setWithAudio] = useState(true);
+  const [scriptCount, setScriptCount] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<UnifiedResult | null>(null);
 
@@ -119,7 +120,8 @@ export default function Unified() {
         body: JSON.stringify({
           spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
           tabName: 'Cleansed with BEAP',
-          generateAudio: withAudio
+          generateAudio: withAudio,
+          scriptCount: scriptCount
         })
       });
 
@@ -300,6 +302,27 @@ export default function Unified() {
 
 
 
+          {/* Script Count Selection */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-center space-x-3">
+              <Label htmlFor="script-count" className="text-sm font-medium">
+                Number of scripts:
+              </Label>
+              <Select value={scriptCount.toString()} onValueChange={(value) => setScriptCount(parseInt(value))}>
+                <SelectTrigger className="w-20" id="script-count">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* Audio Generation Toggle */}
           <div className="space-y-4">
             <div className="flex items-center justify-center space-x-3">
@@ -317,8 +340,8 @@ export default function Unified() {
             </div>
             <p className="text-center text-sm text-gray-500">
               {withAudio 
-                ? "Scripts will include professional voice recordings using Ella AI" 
-                : "Scripts will be generated without audio recordings"
+                ? `Will generate ${scriptCount} scripts with professional voice recordings using Ella AI` 
+                : `Will generate ${scriptCount} scripts without audio recordings`
               }
             </p>
           </div>
@@ -338,7 +361,7 @@ export default function Unified() {
             ) : (
               <>
                 <Zap className="mr-2 h-4 w-4" />
-                Generate Report & Scripts {withAudio && '+ Audio'}
+                Generate {scriptCount} Script{scriptCount !== 1 ? 's' : ''} {withAudio && '+ Audio'}
               </>
             )}
           </Button>

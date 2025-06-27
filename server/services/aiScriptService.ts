@@ -112,13 +112,14 @@ class AIScriptService {
       tabName?: string;
       voiceId?: string;
       includeVoice?: boolean;
+      scriptCount?: number;
     } = {}
   ): Promise<{
     suggestions: ScriptSuggestion[];
     message: string;
     voiceGenerated?: boolean;
   }> {
-    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false } = options;
+    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false, scriptCount = 5 } = options;
     try {
       // Read the performance data
       const performanceData = await this.readPerformanceData(
