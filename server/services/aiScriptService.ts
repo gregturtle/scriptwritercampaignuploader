@@ -267,7 +267,7 @@ FAILURE PATTERNS (from low-scoring scripts):
 4. What script patterns consistently underperform?
 
 TASK:
-Based on your analysis of BOTH success and failure patterns above, write 5 new voiceover scripts that:
+Based on your analysis of BOTH success and failure patterns above, write ${scriptCount} new voiceover scripts that:
 - Incorporate proven successful elements from high-scoring data
 - Actively avoid patterns that led to poor performance in low-scoring data
 - Are ONLY spoken narration (no visual descriptions)
