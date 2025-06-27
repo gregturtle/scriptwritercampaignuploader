@@ -878,6 +878,55 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Simple GET download endpoint
+  app.get('/api/download/zip', async (req, res) => {
+    try {
+      const filenames = req.query.f;
+      let filenameArray: string[];
+      
+      if (typeof filenames === 'string') {
+        filenameArray = [filenames];
+      } else if (Array.isArray(filenames)) {
+        filenameArray = filenames as string[];
+      } else {
+        return res.status(400).send('No files specified');
+      }
+      
+      console.log('ZIP download for files:', filenameArray);
+      
+      // Set headers that force download
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="audio_files.zip"');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      archive.pipe(res);
+      
+      let filesAdded = 0;
+      for (const filename of filenameArray) {
+        const filePath = path.join(process.cwd(), 'uploads', filename);
+        if (fs.existsSync(filePath)) {
+          archive.file(filePath, { name: filename });
+          filesAdded++;
+          console.log('Added to zip:', filename);
+        }
+      }
+      
+      if (filesAdded === 0) {
+        return res.status(404).send('No files found');
+      }
+      
+      archive.finalize();
+      console.log(`ZIP: Streaming ${filesAdded} files`);
+      
+    } catch (error: any) {
+      console.error('ZIP download error:', error);
+      res.status(500).send('Download failed');
+    }
+  });
+
   // Direct download endpoint that forces browser download
   app.post('/api/download/bulk-direct', async (req, res) => {
     try {
@@ -926,7 +975,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       console.log(`Direct: Added ${filesAdded} files to archive`);
-      await archive.finalize();
+      
+      // Finalize and wait for completion
+      archive.finalize();
+      
+      // Log when archive is complete
+      archive.on('end', () => {
+        console.log('Archive completed, total bytes:', archive.pointer());
+      });
       
     } catch (error: any) {
       console.error('Error in direct download:', error);
