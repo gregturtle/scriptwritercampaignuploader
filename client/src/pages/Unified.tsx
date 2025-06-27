@@ -223,12 +223,18 @@ export default function AudioCreativeGenerator() {
       // Debug: log the filenames being sent
       console.log('Attempting to download filenames:', filenames);
       
-      // Use window.open to trigger download - this bypasses all browser restrictions
-      const filenameParams = filenames.map(f => `f=${encodeURIComponent(f)}`).join('&');
-      const downloadUrl = `/api/download/zip?${filenameParams}`;
+      // Use the same approach as single downloads - direct link to existing bulk endpoint
+      const filenameParams = filenames.map(f => `filename=${encodeURIComponent(f)}`).join('&');
+      const downloadUrl = `/api/download/bulk?${filenameParams}`;
       
-      // Open in new window which forces download
-      window.open(downloadUrl, '_blank');
+      // Create a direct link just like the working single download
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = 'audio_files.zip';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       setSelectedAudios([]);
       
