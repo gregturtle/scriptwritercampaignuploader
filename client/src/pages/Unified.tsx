@@ -182,14 +182,23 @@ export default function AudioCreativeGenerator() {
       }
       
       const blob = await response.blob();
+      console.log('Individual file blob size:', blob.size, 'bytes');
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
+      a.style.display = 'none';
       document.body.appendChild(a);
+      
+      // Force the download
       a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      
+      // Clean up after a delay
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Error downloading audio:', error);
       toast({
@@ -233,20 +242,29 @@ export default function AudioCreativeGenerator() {
       }
 
       const blob = await response.blob();
+      console.log('Blob size:', blob.size, 'bytes');
+      
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'audio_files.zip';
+      a.style.display = 'none';
       document.body.appendChild(a);
+      
+      // Force the download
       a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      
+      // Clean up after a delay
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
       setSelectedAudios([]);
       
       toast({
         title: "Download Complete",
-        description: `Downloaded ${selectedAudios.length} audio files as audio_files.zip`,
+        description: `Downloaded ${selectedAudios.length} audio files as audio_files.zip. Check your Downloads folder or browser's download manager.`,
       });
     } catch (error) {
       console.error('Error in bulk download:', error);
