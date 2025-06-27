@@ -878,6 +878,62 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Direct download endpoint that forces browser download
+  app.post('/api/download/bulk-direct', async (req, res) => {
+    try {
+      console.log('Direct download request body:', req.body);
+      
+      let filenames = req.body['filenames[]'];
+      if (typeof filenames === 'string') {
+        filenames = [filenames];
+      }
+      
+      if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
+        return res.status(400).send('No files selected');
+      }
+
+      console.log('Direct download filenames:', filenames);
+      
+      // Set headers that force download
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="audio_files.zip"');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Pragma', 'no-cache');
+      
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      
+      // Handle archive errors
+      archive.on('error', (err) => {
+        console.error('Archive error:', err);
+        res.status(500).send('Archive creation failed');
+      });
+      
+      // Pipe archive to response
+      archive.pipe(res);
+      
+      let filesAdded = 0;
+      for (const filename of filenames) {
+        const filePath = path.join(process.cwd(), 'uploads', filename);
+        console.log('Direct: Checking file:', filePath, 'exists:', fs.existsSync(filePath));
+        if (fs.existsSync(filePath)) {
+          archive.file(filePath, { name: filename });
+          filesAdded++;
+        }
+      }
+      
+      if (filesAdded === 0) {
+        return res.status(404).send('No files found');
+      }
+      
+      console.log(`Direct: Added ${filesAdded} files to archive`);
+      await archive.finalize();
+      
+    } catch (error: any) {
+      console.error('Error in direct download:', error);
+      res.status(500).send('Download failed');
+    }
+  });
+
   // Keep POST version for backward compatibility
   app.post('/api/download/bulk', async (req, res) => {
     try {

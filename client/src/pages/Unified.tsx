@@ -223,32 +223,24 @@ export default function AudioCreativeGenerator() {
       // Debug: log the filenames being sent
       console.log('Attempting to download filenames:', filenames);
       
-      // Use fetch with POST to get the zip file, then trigger download
-      const response = await fetch('/api/download/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filenames })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`);
-      }
-
-      // Get the blob and create a download
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'audio_files.zip';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
+      // Create a form that submits to the server directly - this forces a real download
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/download/bulk-direct';
+      form.style.display = 'none';
       
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      }, 100);
+      // Add each filename as a separate input
+      filenames.forEach(filename => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'filenames[]';
+        input.value = filename;
+        form.appendChild(input);
+      });
+      
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
 
       setSelectedAudios([]);
       
