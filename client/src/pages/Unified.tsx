@@ -220,9 +220,14 @@ export default function AudioCreativeGenerator() {
         return suggestion.audioUrl ? suggestion.audioUrl.replace('/uploads/', '') : '';
       }).filter(filename => filename !== '');
 
+      // Debug: log the filenames being sent
+      console.log('Attempting to download filenames:', filenames);
+      
       // Use a simple GET request with query parameters for better compatibility
       const filenameParams = filenames.map(f => `filename=${encodeURIComponent(f)}`).join('&');
       const downloadUrl = `/api/download/bulk?${filenameParams}`;
+      
+      console.log('Download URL:', downloadUrl);
       
       // Create a link and click it
       const a = document.createElement('a');

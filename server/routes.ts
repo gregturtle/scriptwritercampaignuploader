@@ -819,6 +819,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Bulk download endpoint for multiple files (GET version)
   app.get('/api/download/bulk', async (req, res) => {
     try {
+      console.log('Bulk download request query:', req.query);
       const filenames = req.query.filename;
       let filenameArray: string[];
       
@@ -827,6 +828,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       } else if (Array.isArray(filenames)) {
         filenameArray = filenames as string[];
       } else {
+        console.log('No filenames found in query');
         return res.status(400).json({ error: 'No filenames provided' });
       }
       
@@ -841,12 +843,23 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       archive.pipe(res);
       
+      console.log('Processing filenames:', filenameArray);
+      let filesAdded = 0;
+      
       for (const filename of filenameArray) {
         const filePath = path.join(process.cwd(), 'uploads', filename);
+        console.log('Checking file:', filePath, 'exists:', fs.existsSync(filePath));
         if (fs.existsSync(filePath)) {
           archive.file(filePath, { name: filename });
+          filesAdded++;
         }
       }
+      
+      if (filesAdded === 0) {
+        return res.status(404).json({ error: 'No files found' });
+      }
+      
+      console.log(`Added ${filesAdded} files to archive`);
       
       archive.finalize();
     } catch (error: any) {
