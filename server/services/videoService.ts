@@ -1,23 +1,15 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
-
-// Configure FFmpeg paths
-if (ffmpegStatic) {
-  ffmpeg.setFfmpegPath(ffmpegStatic);
-}
-
-// Try to set ffprobe path (usually in same directory as ffmpeg)
-const ffprobePath = ffmpegStatic ? ffmpegStatic.replace('ffmpeg', 'ffprobe') : 'ffprobe';
-try {
-  ffmpeg.setFfprobePath(ffprobePath);
-} catch (error) {
-  console.log('Could not set ffprobe path, trying system path');
-}
 import path from 'path';
 import fs from 'fs';
 
-// Set the path to the static ffmpeg binary
-ffmpeg.setFfmpegPath(ffmpegStatic!);
+// Configure FFmpeg to use system binaries
+ffmpeg.setFfmpegPath('/nix/store/jfybfbnknyiwggcrhi4v9rsx5g4hksvf-ffmpeg-full-6.1.1-bin/bin/ffmpeg');
+ffmpeg.setFfprobePath('/nix/store/jfybfbnknyiwggcrhi4v9rsx5g4hksvf-ffmpeg-full-6.1.1-bin/bin/ffprobe');
+
+console.log('FFmpeg configured with system paths');
+
+
 
 interface VideoOverlayOptions {
   backgroundVideoPath: string;
