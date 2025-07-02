@@ -264,7 +264,7 @@ Based on your analysis of BOTH success and failure patterns above, write ${scrip
 - Incorporate proven successful elements from high-scoring data
 - Actively avoid patterns that led to poor performance in low-scoring data
 - Are ONLY spoken narration (no visual descriptions)
-- Match successful script length (~${avgScriptLength} characters)
+- Must be EXACTLY 80-90 words (18-20 seconds when spoken naturally)
 - Focus on encouraging What Three Words app downloads
 - Always write "what three words" instead of "what3words" for proper voice pronunciation
 
