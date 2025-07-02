@@ -29,6 +29,9 @@ interface UnifiedResult {
       targetMetrics: string[];
       audioUrl?: string;
       audioFile?: string;
+      videoUrl?: string;
+      videoFile?: string;
+      videoError?: string;
       error?: string;
     }>;
     message: string;
@@ -490,9 +493,9 @@ export default function Unified() {
           {/* Script Suggestions Preview */}
           <Card>
             <CardHeader>
-              <CardTitle>Generated Script Suggestions</CardTitle>
+              <CardTitle>Generated Creative Assets</CardTitle>
               <CardDescription>
-                AI-generated voiceover scripts based on your performance data
+                AI-generated scripts with optional voiceovers and complete video assets ready for Meta campaigns
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -555,8 +558,25 @@ export default function Unified() {
                           <p className="text-sm text-gray-700 mb-3 italic">"{suggestion.content}"</p>
                           <p className="text-xs text-blue-700">{suggestion.reasoning}</p>
                           
-                          {/* Audio Player */}
-                          {suggestion.audioUrl && (
+                          {/* Video Player (if available) */}
+                          {suggestion.videoUrl && (
+                            <div className="bg-green-100 border border-green-300 rounded-lg p-3 mt-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Upload className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-800">Complete Video Asset:</span>
+                              </div>
+                              <video controls className="w-full max-h-60 rounded">
+                                <source src={suggestion.videoUrl} type="video/mp4" />
+                                Your browser does not support the video element.
+                              </video>
+                              <p className="text-xs text-green-700 mt-2">
+                                Ready-to-use video with voiceover for Meta campaigns
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Audio Player (if no video available) */}
+                          {suggestion.audioUrl && !suggestion.videoUrl && (
                             <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mt-3">
                               <div className="flex items-center gap-2 mb-2">
                                 <Mic className="h-4 w-4 text-blue-600" />
@@ -566,6 +586,19 @@ export default function Unified() {
                                 <source src={suggestion.audioUrl} type="audio/mpeg" />
                                 Your browser does not support the audio element.
                               </audio>
+                            </div>
+                          )}
+
+                          {/* Video Error */}
+                          {suggestion.videoError && (
+                            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mt-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Upload className="h-4 w-4 text-yellow-600" />
+                                <span className="text-sm font-medium text-yellow-800">Video Creation:</span>
+                              </div>
+                              <p className="text-xs text-yellow-700">
+                                {suggestion.videoError}
+                              </p>
                             </div>
                           )}
                           
