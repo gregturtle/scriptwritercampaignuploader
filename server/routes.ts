@@ -853,6 +853,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       // Move file to backgrounds directory
       const backgroundsDir = path.join(process.cwd(), 'uploads', 'backgrounds');
+
       if (!fs.existsSync(backgroundsDir)) {
         fs.mkdirSync(backgroundsDir, { recursive: true });
       }
