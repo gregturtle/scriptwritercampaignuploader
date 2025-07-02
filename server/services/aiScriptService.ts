@@ -119,7 +119,7 @@ class AIScriptService {
     message: string;
     voiceGenerated?: boolean;
   }> {
-    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false, scriptCount = 5 } = options;
+    const { tabName = "Raw Data", voiceId, includeVoice = false, scriptCount = 5 } = options;
     try {
       // Read the performance data
       const performanceData = await this.readPerformanceData(
