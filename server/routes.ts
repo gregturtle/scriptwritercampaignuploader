@@ -18,6 +18,8 @@ import { fileService } from "./services/fileService";
 import { performanceReportService } from "./services/performanceReportService";
 import { aiScriptService } from "./services/aiScriptService";
 import { elevenLabsService } from "./services/elevenLabsService";
+import { videoService } from "./services/videoService";
+import { googleDriveService } from "./services/googleDriveService";
 
 // Helper function to get access token
 async function getAccessToken(): Promise<string> {
@@ -56,11 +58,23 @@ const diskStorage = multer.diskStorage({
 const upload = multer({
   storage: diskStorage,
   fileFilter: (_req, file, cb) => {
-    // Only accept .mov files
-    if (file.originalname.endsWith(".mov")) {
+    const allowedTypes = [
+      'video/mp4',
+      'video/quicktime', // .mov
+      'video/x-msvideo', // .avi
+      'video/x-matroska' // .mkv
+    ];
+    const allowedExtensions = ['.mp4', '.mov', '.avi', '.mkv'];
+    
+    const hasValidMimeType = allowedTypes.includes(file.mimetype);
+    const hasValidExtension = allowedExtensions.some(ext => 
+      file.originalname.toLowerCase().endsWith(ext)
+    );
+    
+    if (hasValidMimeType || hasValidExtension) {
       cb(null, true);
     } else {
-      cb(new Error("Only .mov files are allowed"));
+      cb(new Error("Only .mp4, .mov, .avi, and .mkv video files are allowed"));
     }
   },
   limits: {
@@ -90,6 +104,28 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           scriptCount: scriptCount
         }
       );
+
+      // Auto-generate videos if audio was generated and background videos are available
+      if (generateAudio && result.suggestions.some(s => s.audioFile)) {
+        const backgroundVideos = videoService.getAvailableBackgroundVideos();
+        if (backgroundVideos.length > 0) {
+          console.log(`Creating videos using background: ${backgroundVideos[0]}`);
+          
+          try {
+            const videosResult = await videoService.createVideosForScripts(
+              result.suggestions,
+              backgroundVideos[0] // Use first available background video
+            );
+            
+            // Update suggestions with video information
+            result.suggestions = videosResult;
+            console.log(`Created ${videosResult.filter(v => v.videoUrl).length} videos successfully`);
+          } catch (videoError) {
+            console.error('Video creation failed:', videoError);
+            // Continue without videos - don't fail the entire request
+          }
+        }
+      }
 
       console.log(`Generated ${result.suggestions.length} suggestions`);
 
@@ -744,6 +780,33 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       console.log(`Generated audio for ${suggestionsWithAudio.length} suggestions`);
 
+      // Auto-generate videos if audio was generated and background videos are available
+      const backgroundVideos = videoService.getAvailableBackgroundVideos();
+      if (backgroundVideos.length > 0) {
+        console.log(`Creating videos for selected scripts using background: ${backgroundVideos[0]}`);
+        
+        try {
+          const videosResult = await videoService.createVideosForScripts(
+            suggestionsWithAudio,
+            backgroundVideos[0] // Use first available background video
+          );
+          
+          console.log(`Created ${videosResult.filter(v => v.videoUrl).length} videos successfully`);
+          
+          // Return the results with video information
+          res.json({
+            suggestions: videosResult,
+            message: `Generated audio and videos for ${videosResult.length} script${videosResult.length !== 1 ? 's' : ''}`,
+            voiceGenerated: true,
+            videosGenerated: true
+          });
+          return;
+        } catch (videoError) {
+          console.error('Video creation failed:', videoError);
+          // Continue with just audio if video creation fails
+        }
+      }
+
       res.json({
         suggestions: suggestionsWithAudio,
         message: `Generated audio for ${suggestionsWithAudio.length} script${suggestionsWithAudio.length !== 1 ? 's' : ''}`,
@@ -759,33 +822,176 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // Audio-only generation for selected scripts
-  app.post('/api/ai/generate-audio-only', async (req, res) => {
+  // Video service endpoints
+  app.get('/api/video/status', async (req, res) => {
     try {
-      const { suggestions, indices } = req.body;
+      const ffmpegAvailable = await videoService.checkFfmpegAvailability();
+      const backgroundVideos = videoService.getAvailableBackgroundVideos();
+      const driveConfigured = googleDriveService.isConfigured();
       
-      if (!suggestions || !Array.isArray(suggestions) || suggestions.length === 0) {
-        return res.status(400).json({ message: 'Suggestions array is required' });
-      }
-
-      console.log(`Generating audio for ${suggestions.length} selected scripts`);
-      
-      // Generate voice recordings for the selected scripts
-      const voiceResults = await elevenLabsService.generateScriptVoiceovers(
-        suggestions,
-        'huvDR9lwwSKC0zEjZUox' // Ella AI voice ID
-      );
-
       res.json({
-        suggestions: voiceResults,
-        message: `Generated audio for ${suggestions.length} scripts`,
-        voiceGenerated: true
+        ffmpegAvailable,
+        backgroundVideosCount: backgroundVideos.length,
+        backgroundVideos: backgroundVideos.map(path => path.split('/').pop()),
+        driveConfigured,
+        message: ffmpegAvailable 
+          ? `Video service ready with ${backgroundVideos.length} background video${backgroundVideos.length !== 1 ? 's' : ''}${driveConfigured ? ' + Google Drive access' : ''}`
+          : 'FFmpeg not available - video creation disabled'
+      });
+    } catch (error: any) {
+      console.error('Error checking video service status:', error);
+      res.status(500).json({
+        ffmpegAvailable: false,
+        driveConfigured: false,
+        error: 'Failed to check video service status',
+        details: error.message
+      });
+    }
+  });
+
+  app.post('/api/video/upload-background', upload.single('video'), async (req, res) => {
+    try {
+      const file = req.file;
+      
+      if (!file) {
+        return res.status(400).json({ message: 'No video file uploaded' });
+      }
+      
+      const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv'];
+      const isValidVideo = videoExtensions.some(ext => 
+        file.originalname.toLowerCase().endsWith(ext)
+      );
+      
+      if (!isValidVideo) {
+        return res.status(400).json({ 
+          message: 'Only video files (.mp4, .mov, .avi, .mkv) are allowed' 
+        });
+      }
+      
+      // Move file to backgrounds directory
+      const backgroundsDir = path.join(process.cwd(), 'uploads', 'backgrounds');
+      if (!fs.existsSync(backgroundsDir)) {
+        fs.mkdirSync(backgroundsDir, { recursive: true });
+      }
+      
+      const newPath = path.join(backgroundsDir, file.originalname);
+      fs.renameSync(file.path, newPath);
+      
+      res.json({
+        message: 'Background video uploaded successfully',
+        filename: file.originalname,
+        path: newPath
       });
     } catch (error) {
-      console.error('Error generating audio-only:', error);
-      res.status(500).json({ 
-        message: 'Failed to generate audio for selected scripts', 
-        error: error instanceof Error ? error.message : 'Unknown error'
+      console.error('Background video upload error:', error);
+      res.status(500).json({ message: 'Failed to upload background video' });
+    }
+  });
+
+  // Google Drive video endpoints
+  app.get('/api/drive/videos', async (req, res) => {
+    try {
+      if (!googleDriveService.isConfigured()) {
+        return res.status(400).json({
+          error: 'Google Drive not configured',
+          message: 'Please configure Google Drive service account'
+        });
+      }
+
+      const { search } = req.query;
+      let videos;
+
+      if (search && typeof search === 'string') {
+        videos = await googleDriveService.searchVideoFiles(search);
+      } else {
+        videos = await googleDriveService.listVideoFiles();
+      }
+
+      // Format the response with additional info
+      const formattedVideos = videos.map(video => ({
+        ...video,
+        formattedSize: video.size ? googleDriveService.formatFileSize(video.size) : 'Unknown',
+        isVideo: video.mimeType?.includes('video/') || false
+      }));
+
+      res.json({
+        videos: formattedVideos,
+        count: formattedVideos.length,
+        message: `Found ${formattedVideos.length} video${formattedVideos.length !== 1 ? 's' : ''} in Google Drive`
+      });
+    } catch (error: any) {
+      console.error('Error listing Google Drive videos:', error);
+      res.status(500).json({
+        error: 'Failed to list Google Drive videos',
+        details: error.message
+      });
+    }
+  });
+
+  app.post('/api/drive/download', async (req, res) => {
+    try {
+      if (!googleDriveService.isConfigured()) {
+        return res.status(400).json({
+          error: 'Google Drive not configured'
+        });
+      }
+
+      const { fileId, fileName } = req.body;
+
+      if (!fileId || !fileName) {
+        return res.status(400).json({
+          error: 'File ID and name are required'
+        });
+      }
+
+      console.log(`Downloading video from Google Drive: ${fileName} (${fileId})`);
+
+      const result = await googleDriveService.downloadVideoFile(fileId, fileName);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: `Video "${fileName}" downloaded successfully`,
+          fileName
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.error || 'Failed to download video'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error downloading video from Google Drive:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to download video from Google Drive',
+        details: error.message
+      });
+    }
+  });
+
+  app.get('/api/drive/status', async (req, res) => {
+    try {
+      if (!googleDriveService.isConfigured()) {
+        return res.json({
+          configured: false,
+          message: 'Google Drive service account not configured'
+        });
+      }
+
+      const storageInfo = await googleDriveService.getStorageInfo();
+      
+      res.json({
+        configured: true,
+        storageInfo,
+        message: 'Google Drive access configured'
+      });
+    } catch (error: any) {
+      console.error('Error checking Google Drive status:', error);
+      res.status(500).json({
+        configured: false,
+        error: 'Failed to check Google Drive status',
+        details: error.message
       });
     }
   });
