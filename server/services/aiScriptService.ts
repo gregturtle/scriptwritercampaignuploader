@@ -294,22 +294,89 @@ Respond in JSON format:
 }
 `;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1-2025-04-14",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert marketing creative analyst who excels at identifying winning creative patterns and generating high-performing video scripts.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-      });
+      let response;
+      try {
+        response = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo", // Use cheaper model to avoid quota issues
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert copywriter specializing in What3Words app advertising. Create compelling 20-second voiceover scripts (45-50 words max).
+
+REQUIREMENTS:
+- Each script must be exactly 45-50 words for 20-second audio
+- Write "what three words" not "what3words" 
+- Include hook, benefit, and call-to-action
+- Target app downloads and location sharing
+
+Structure: Hook (8-12 words) + Benefit (25-30 words) + CTA (8-12 words) = 45-50 words total`,
+            },
+            {
+              role: "user",
+              content: `Generate ${count} unique What3Words app advertising scripts. Each must be 45-50 words for 20-second voiceover.
+
+Respond in JSON format:
+{
+  "suggestions": [
+    {
+      "title": "Script name",
+      "content": "Complete script text (45-50 words)",
+      "reasoning": "Why this works",
+      "targetMetrics": ["app_installs"]
+    }
+  ]
+}`,
+            },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7,
+          max_tokens: 1000,
+        });
+      } catch (quotaError: any) {
+        // If quota exceeded, provide pre-written 20-second scripts as fallback
+        if (quotaError.code === 'insufficient_quota' || quotaError.status === 429) {
+          console.log('OpenAI quota exceeded, using fallback 20-second scripts');
+          const fallbackScripts = [
+            {
+              title: "Lost Again? Not Anymore",
+              content: "Tired of getting lost? What three words gives every location a unique three-word address. Find anywhere precisely with just three simple words. Download What three words today and never lose your way again.",
+              reasoning: "Addresses common pain point of getting lost with clear solution",
+              targetMetrics: ["app_installs", "location_accuracy"]
+            },
+            {
+              title: "Emergency Precision",
+              content: "Emergency services need exact locations fast. What three words turns any spot into three simple words. Help arrives faster when you can say exactly where you are. Download What three words for emergency peace of mind.",
+              reasoning: "Focuses on safety and emergency use cases for high urgency",
+              targetMetrics: ["app_installs", "emergency_usage"]
+            },
+            {
+              title: "Delivery Made Simple", 
+              content: "Tired of delivery drivers getting lost? What three words gives every door a precise three-word address. No more missed deliveries or wrong locations. Download What three words and get your packages every time.",
+              reasoning: "Targets delivery and logistics pain points with clear benefit",
+              targetMetrics: ["app_installs", "delivery_accuracy"]
+            },
+            {
+              title: "Meet Up Anywhere",
+              content: "Meeting friends somewhere new? What three words makes any location findable with just three words. Share exact spots instantly without confusing directions. Download What three words and never miss a meetup again.",
+              reasoning: "Social use case for meeting friends and events",
+              targetMetrics: ["app_installs", "social_sharing"]
+            },
+            {
+              title: "Travel Confidently",
+              content: "Exploring new places shouldn't mean getting lost. What three words gives every location worldwide a unique three-word address. Navigate confidently anywhere on Earth. Download What three words before your next adventure.",
+              reasoning: "Appeals to travelers and explorers with confidence messaging",
+              targetMetrics: ["app_installs", "travel_usage"]
+            }
+          ];
+          
+          return {
+            suggestions: fallbackScripts.slice(0, count),
+            message: `Generated ${Math.min(count, fallbackScripts.length)} fallback scripts (OpenAI quota reached)`,
+            voiceGenerated: false
+          };
+        }
+        throw quotaError;
+      }
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
 
