@@ -58,11 +58,23 @@ const diskStorage = multer.diskStorage({
 const upload = multer({
   storage: diskStorage,
   fileFilter: (_req, file, cb) => {
-    // Only accept .mov files
-    if (file.originalname.endsWith(".mov")) {
+    const allowedTypes = [
+      'video/mp4',
+      'video/quicktime', // .mov
+      'video/x-msvideo', // .avi
+      'video/x-matroska' // .mkv
+    ];
+    const allowedExtensions = ['.mp4', '.mov', '.avi', '.mkv'];
+    
+    const hasValidMimeType = allowedTypes.includes(file.mimetype);
+    const hasValidExtension = allowedExtensions.some(ext => 
+      file.originalname.toLowerCase().endsWith(ext)
+    );
+    
+    if (hasValidMimeType || hasValidExtension) {
       cb(null, true);
     } else {
-      cb(new Error("Only .mov files are allowed"));
+      cb(new Error("Only .mp4, .mov, .avi, and .mkv video files are allowed"));
     }
   },
   limits: {
