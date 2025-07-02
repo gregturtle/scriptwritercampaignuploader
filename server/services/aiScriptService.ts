@@ -208,16 +208,9 @@ class AIScriptService {
       }
 
       // Generate suggestions using OpenAI
-      // Analyze existing script lengths to match the format
-      const scriptLengths = topPerformers
-        .map((item) => item.scriptContent?.length || 0)
-        .filter((len) => len > 0);
-      const avgScriptLength =
-        scriptLengths.length > 0
-          ? Math.round(
-              scriptLengths.reduce((a, b) => a + b, 0) / scriptLengths.length,
-            )
-          : 150;
+      // Force 80-90 word scripts regardless of existing data
+      const targetWordCount = "80-90";
+      console.log(`Targeting ${targetWordCount} words for 18-20 second scripts`);
 
       const prompt = `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
@@ -228,7 +221,7 @@ CONTEXT:
 - What3Words assigns unique 3-word addresses to every 3x3 meter location globally
 - These are voiceover scripts for video ads encouraging app downloads
 - The background visuals are constant - you only write the spoken narration
-- Target script length: approximately ${avgScriptLength} characters (based on existing successful scripts)
+- MANDATORY: Each script must be EXACTLY 80-90 words (18-20 seconds when spoken)
 - "Score" represents overall performance (higher = better performing voiceovers)
 
 HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
