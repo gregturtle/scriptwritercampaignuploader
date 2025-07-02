@@ -114,7 +114,9 @@ Meta Campaign Manager is a full-stack web application built for managing Meta (F
 
 Changelog:
 - June 25, 2025. Initial setup
-- June 27, 2025. Added ElevenLabs integration for AI voice generation - scripts now automatically converted to professional voice recordings
+- June 27, 2025. Added ElevenLabs integration for AI voice generation with selective audio controls
+- June 27, 2025. Added script quantity selector (1, 5, 10, 25, 50 scripts) and audio toggle for optional voice generation
+- June 27, 2025. Implemented selective audio generation with checkboxes - users can generate scripts first, then selectively add audio to chosen scripts
 
 ## User Preferences
 

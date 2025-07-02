@@ -218,6 +218,11 @@ export default function Unified() {
         reportResult,
         scriptResult
       });
+      
+      // Pre-select all scripts if audio was enabled
+      if (withAudio) {
+        setSelectedScripts(new Set(scriptResult.suggestions.map((_, index) => index)));
+      }
 
       toast({
         title: "Complete Success!",
