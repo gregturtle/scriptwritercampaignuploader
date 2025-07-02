@@ -19,6 +19,7 @@ import { performanceReportService } from "./services/performanceReportService";
 import { aiScriptService } from "./services/aiScriptService";
 import { elevenLabsService } from "./services/elevenLabsService";
 import { videoService } from "./services/videoService";
+import { googleDriveService } from "./services/googleDriveService";
 
 // Helper function to get access token
 async function getAccessToken(): Promise<string> {
@@ -814,19 +815,22 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       const ffmpegAvailable = await videoService.checkFfmpegAvailability();
       const backgroundVideos = videoService.getAvailableBackgroundVideos();
+      const driveConfigured = googleDriveService.isConfigured();
       
       res.json({
         ffmpegAvailable,
         backgroundVideosCount: backgroundVideos.length,
         backgroundVideos: backgroundVideos.map(path => path.split('/').pop()),
+        driveConfigured,
         message: ffmpegAvailable 
-          ? `Video service ready with ${backgroundVideos.length} background video${backgroundVideos.length !== 1 ? 's' : ''}`
+          ? `Video service ready with ${backgroundVideos.length} background video${backgroundVideos.length !== 1 ? 's' : ''}${driveConfigured ? ' + Google Drive access' : ''}`
           : 'FFmpeg not available - video creation disabled'
       });
     } catch (error: any) {
       console.error('Error checking video service status:', error);
       res.status(500).json({
         ffmpegAvailable: false,
+        driveConfigured: false,
         error: 'Failed to check video service status',
         details: error.message
       });
@@ -869,6 +873,114 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     } catch (error) {
       console.error('Background video upload error:', error);
       res.status(500).json({ message: 'Failed to upload background video' });
+    }
+  });
+
+  // Google Drive video endpoints
+  app.get('/api/drive/videos', async (req, res) => {
+    try {
+      if (!googleDriveService.isConfigured()) {
+        return res.status(400).json({
+          error: 'Google Drive not configured',
+          message: 'Please configure Google Drive service account'
+        });
+      }
+
+      const { search } = req.query;
+      let videos;
+
+      if (search && typeof search === 'string') {
+        videos = await googleDriveService.searchVideoFiles(search);
+      } else {
+        videos = await googleDriveService.listVideoFiles();
+      }
+
+      // Format the response with additional info
+      const formattedVideos = videos.map(video => ({
+        ...video,
+        formattedSize: video.size ? googleDriveService.formatFileSize(video.size) : 'Unknown',
+        isVideo: video.mimeType?.includes('video/') || false
+      }));
+
+      res.json({
+        videos: formattedVideos,
+        count: formattedVideos.length,
+        message: `Found ${formattedVideos.length} video${formattedVideos.length !== 1 ? 's' : ''} in Google Drive`
+      });
+    } catch (error: any) {
+      console.error('Error listing Google Drive videos:', error);
+      res.status(500).json({
+        error: 'Failed to list Google Drive videos',
+        details: error.message
+      });
+    }
+  });
+
+  app.post('/api/drive/download', async (req, res) => {
+    try {
+      if (!googleDriveService.isConfigured()) {
+        return res.status(400).json({
+          error: 'Google Drive not configured'
+        });
+      }
+
+      const { fileId, fileName } = req.body;
+
+      if (!fileId || !fileName) {
+        return res.status(400).json({
+          error: 'File ID and name are required'
+        });
+      }
+
+      console.log(`Downloading video from Google Drive: ${fileName} (${fileId})`);
+
+      const result = await googleDriveService.downloadVideoFile(fileId, fileName);
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: `Video "${fileName}" downloaded successfully`,
+          fileName
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.error || 'Failed to download video'
+        });
+      }
+    } catch (error: any) {
+      console.error('Error downloading video from Google Drive:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to download video from Google Drive',
+        details: error.message
+      });
+    }
+  });
+
+  app.get('/api/drive/status', async (req, res) => {
+    try {
+      if (!googleDriveService.isConfigured()) {
+        return res.json({
+          configured: false,
+          message: 'Google Drive service account not configured'
+        });
+      }
+
+      const storageInfo = await googleDriveService.getStorageInfo();
+      
+      res.json({
+        configured: true,
+        storageInfo,
+        message: 'Google Drive access configured'
+      });
+    } catch (error: any) {
+      console.error('Error checking Google Drive status:', error);
+      res.status(500).json({
+        configured: false,
+        error: 'Failed to check Google Drive status',
+        details: error.message
+      });
     }
   });
 

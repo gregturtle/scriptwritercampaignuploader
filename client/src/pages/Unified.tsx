@@ -53,6 +53,10 @@ export default function Unified() {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [backgroundVideos, setBackgroundVideos] = useState<string[]>([]);
+  const [showDriveVideos, setShowDriveVideos] = useState(false);
+  const [driveVideos, setDriveVideos] = useState<any[]>([]);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
+  const [isDriveConfigured, setIsDriveConfigured] = useState(false);
 
   const { toast } = useToast();
 
@@ -146,9 +150,68 @@ export default function Unified() {
       if (response.ok) {
         const data = await response.json();
         setBackgroundVideos(data.backgroundVideos || []);
+        setIsDriveConfigured(data.driveConfigured || false);
       }
     } catch (error) {
       console.error('Failed to fetch background videos:', error);
+    }
+  };
+
+  const fetchDriveVideos = async () => {
+    setIsLoadingDrive(true);
+    try {
+      const response = await fetch('/api/drive/videos');
+      if (response.ok) {
+        const data = await response.json();
+        setDriveVideos(data.videos || []);
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Drive Access Failed",
+          description: errorData.message || "Unable to access Google Drive",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Drive Error",
+        description: "Failed to load Google Drive videos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDrive(false);
+    }
+  };
+
+  const handleDriveVideoDownload = async (fileId: string, fileName: string) => {
+    setIsUploadingVideo(true);
+    try {
+      const response = await fetch('/api/drive/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, fileName })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Video Downloaded!",
+          description: `"${fileName}" is now available as a background video`,
+        });
+        await fetchBackgroundVideos();
+        setShowDriveVideos(false);
+      } else {
+        throw new Error(result.error || 'Download failed');
+      }
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : "Failed to download video",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingVideo(false);
     }
   };
 
@@ -497,6 +560,32 @@ export default function Unified() {
                     </>
                   )}
                 </Button>
+                {isDriveConfigured && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowDriveVideos(!showDriveVideos);
+                      if (!showDriveVideos) {
+                        fetchDriveVideos();
+                      }
+                    }}
+                    disabled={isLoadingDrive}
+                  >
+                    {isLoadingDrive ? (
+                      <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="mr-2 h-3 w-3" />
+                        Google Drive
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
             <p className="text-center text-xs text-gray-500">
@@ -504,7 +593,45 @@ export default function Unified() {
                 ? `Available: ${backgroundVideos.join(', ')}. Videos will be automatically created when audio is generated.`
                 : "Upload background videos (.mp4, .mov, .avi, .mkv) to automatically create complete video assets."
               }
+              {isDriveConfigured && " You can also import videos from Google Drive."}
             </p>
+
+            {/* Google Drive Video Browser */}
+            {showDriveVideos && (
+              <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+                <h4 className="font-medium mb-3">Google Drive Videos</h4>
+                {isLoadingDrive ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Loading videos from Google Drive...</p>
+                  </div>
+                ) : driveVideos.length === 0 ? (
+                  <p className="text-sm text-gray-600 text-center py-4">No videos found in Google Drive</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
+                    {driveVideos.map((video) => (
+                      <div key={video.id} className="flex items-center justify-between p-3 bg-white rounded border">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{video.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {video.formattedSize} • {video.mimeType?.split('/')[1]?.toUpperCase()}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDriveVideoDownload(video.id, video.name)}
+                          disabled={isUploadingVideo}
+                          className="ml-2"
+                        >
+                          Download
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Audio Generation Toggle */}
