@@ -38,7 +38,7 @@ class AIScriptService {
    */
   async readPerformanceData(
     spreadsheetId: string,
-    tabName: string = "Cleansed with BEAP",
+    tabName: string = "Raw Data",
   ): Promise<PerformanceData[]> {
     try {
       const cleanSpreadsheetId =
