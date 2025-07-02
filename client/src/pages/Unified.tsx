@@ -318,14 +318,7 @@ export default function Unified() {
         <p className="text-gray-600 max-w-2xl mx-auto">
           Generate performance reports and AI script suggestions in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
         </p>
-        <div className="flex justify-center gap-2 mt-4">
-          <Link href="/">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Video Upload Mode
-            </Button>
-          </Link>
-        </div>
+
       </div>
 
       {/* Configuration Form */}

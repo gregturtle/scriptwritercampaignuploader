@@ -18,6 +18,7 @@ import { fileService } from "./services/fileService";
 import { performanceReportService } from "./services/performanceReportService";
 import { aiScriptService } from "./services/aiScriptService";
 import { elevenLabsService } from "./services/elevenLabsService";
+import { videoService } from "./services/videoService";
 
 // Helper function to get access token
 async function getAccessToken(): Promise<string> {
