@@ -51,6 +51,8 @@ export default function Unified() {
   const [result, setResult] = useState<UnifiedResult | null>(null);
   const [selectedScripts, setSelectedScripts] = useState<Set<number>>(new Set());
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [backgroundVideos, setBackgroundVideos] = useState<string[]>([]);
 
   const { toast } = useToast();
 
@@ -132,6 +134,64 @@ export default function Unified() {
     }
   };
   const { isAuthenticated, logout, login } = useMetaAuth();
+
+  // Fetch background videos on component mount
+  React.useEffect(() => {
+    fetchBackgroundVideos();
+  }, []);
+
+  const fetchBackgroundVideos = async () => {
+    try {
+      const response = await fetch('/api/video/status');
+      if (response.ok) {
+        const data = await response.json();
+        setBackgroundVideos(data.backgroundVideos || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch background videos:', error);
+    }
+  };
+
+  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('video', file);
+
+    setIsUploadingVideo(true);
+    try {
+      const response = await fetch('/api/video/upload-background', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload video');
+      }
+
+      const result = await response.json();
+      
+      toast({
+        title: "Video Uploaded!",
+        description: `Background video "${result.filename}" uploaded successfully`,
+      });
+
+      // Refresh the background videos list
+      await fetchBackgroundVideos();
+      
+      // Clear the input
+      event.target.value = '';
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload video",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
   
   // Use campaigns hook directly like other pages
   const { 
@@ -409,6 +469,50 @@ export default function Unified() {
             </div>
           </div>
 
+          {/* Background Video Upload */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-center space-x-3">
+              <Label htmlFor="video-upload" className="text-sm font-medium">
+                Background Videos ({backgroundVideos.length}):
+              </Label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="video-upload"
+                  type="file"
+                  accept=".mp4,.mov,.avi,.mkv"
+                  onChange={handleVideoUpload}
+                  disabled={isUploadingVideo}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('video-upload')?.click()}
+                  disabled={isUploadingVideo}
+                >
+                  {isUploadingVideo ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-3 w-3" />
+                      Upload Video
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            <p className="text-center text-xs text-gray-500">
+              {backgroundVideos.length > 0 
+                ? `Available: ${backgroundVideos.join(', ')}. Videos will be automatically created when audio is generated.`
+                : "Upload background videos (.mp4, .mov, .avi, .mkv) to automatically create complete video assets."
+              }
+            </p>
+          </div>
+
           {/* Audio Generation Toggle */}
           <div className="space-y-4">
             <div className="flex items-center justify-center space-x-3">
@@ -421,12 +525,12 @@ export default function Unified() {
                 onCheckedChange={setWithAudio}
               />
               <Label htmlFor="audio-toggle" className="text-sm font-medium">
-                With audio
+                With audio{backgroundVideos.length > 0 ? ' + video' : ''}
               </Label>
             </div>
             <p className="text-center text-sm text-gray-500">
               {withAudio 
-                ? `Will generate ${scriptCount} scripts with professional voice recordings using Ella AI` 
+                ? `Will generate ${scriptCount} scripts with professional voice recordings${backgroundVideos.length > 0 ? ' and complete video assets' : ''} using Ella AI` 
                 : `Will generate ${scriptCount} scripts without audio recordings`
               }
             </p>
