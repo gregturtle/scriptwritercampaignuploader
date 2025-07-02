@@ -312,7 +312,7 @@ export default function Unified() {
         <div className="flex items-center justify-center gap-2 mb-4">
           <Zap className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Script and Audio Generation
+            Script, Audio and Video Generation
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
@@ -486,20 +486,21 @@ export default function Unified() {
                 />
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   onClick={() => document.getElementById('video-upload')?.click()}
                   disabled={isUploadingVideo}
+                  className="bg-black text-white hover:bg-gray-800"
                 >
                   {isUploadingVideo ? (
                     <>
                       <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                      Uploading...
+                      UPLOADING...
                     </>
                   ) : (
                     <>
                       <Upload className="mr-2 h-3 w-3" />
-                      Upload Video
+                      UPLOAD VIDEO
                     </>
                   )}
                 </Button>
