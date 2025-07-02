@@ -294,48 +294,22 @@ Respond in JSON format:
 }
 `;
 
-      let response;
-      try {
-        response = await openai.chat.completions.create({
-          model: "gpt-3.5-turbo", // Use cheaper model to avoid quota issues
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert copywriter specializing in What3Words app advertising. Create compelling 20-second voiceover scripts (45-50 words max).
-
-REQUIREMENTS:
-- Each script must be exactly 45-50 words for 20-second audio
-- Write "what three words" not "what3words" 
-- Include hook, benefit, and call-to-action
-- Target app downloads and location sharing
-
-Structure: Hook (8-12 words) + Benefit (25-30 words) + CTA (8-12 words) = 45-50 words total`,
-            },
-            {
-              role: "user",
-              content: `Generate ${scriptCount} unique What3Words app advertising scripts. Each must be 45-50 words for 20-second voiceover.
-
-Respond in JSON format:
-{
-  "suggestions": [
-    {
-      "title": "Script name",
-      "content": "Complete script text (45-50 words)",
-      "reasoning": "Why this works",
-      "targetMetrics": ["app_installs"]
-    }
-  ]
-}`,
-            },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.7,
-          max_tokens: 1000,
-        });
-      } catch (quotaError: any) {
-        // Re-throw the error without fallbacks as user requested
-        throw quotaError;
-      }
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-2025-04-14",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert marketing creative analyst who excels at identifying winning creative patterns and generating high-performing video scripts.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
 

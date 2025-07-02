@@ -51,12 +51,6 @@ export default function Unified() {
   const [result, setResult] = useState<UnifiedResult | null>(null);
   const [selectedScripts, setSelectedScripts] = useState<Set<number>>(new Set());
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-  const [backgroundVideos, setBackgroundVideos] = useState<string[]>([]);
-  const [showDriveVideos, setShowDriveVideos] = useState(false);
-  const [driveVideos, setDriveVideos] = useState<any[]>([]);
-  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
-  const [isDriveConfigured, setIsDriveConfigured] = useState(false);
 
   const { toast } = useToast();
 
@@ -138,127 +132,6 @@ export default function Unified() {
     }
   };
   const { isAuthenticated, logout, login } = useMetaAuth();
-
-  // Fetch background videos on component mount
-  React.useEffect(() => {
-    fetchBackgroundVideos();
-  }, []);
-
-  const fetchBackgroundVideos = async () => {
-    try {
-      const response = await fetch('/api/video/status');
-      if (response.ok) {
-        const data = await response.json();
-        setBackgroundVideos(data.backgroundVideos || []);
-        setIsDriveConfigured(data.driveConfigured || false);
-      }
-    } catch (error) {
-      console.error('Failed to fetch background videos:', error);
-    }
-  };
-
-  const fetchDriveVideos = async () => {
-    setIsLoadingDrive(true);
-    try {
-      const response = await fetch('/api/drive/videos');
-      if (response.ok) {
-        const data = await response.json();
-        setDriveVideos(data.videos || []);
-      } else {
-        const errorData = await response.json();
-        const isApiNotEnabled = errorData.details?.includes('Google Drive API') || errorData.error?.includes('not enabled');
-        
-        toast({
-          title: "Drive Setup Required",
-          description: isApiNotEnabled 
-            ? "Google Drive API needs to be enabled in your Google Cloud Console. Check the console for the setup link."
-            : errorData.message || "Unable to access Google Drive",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Drive Error",
-        description: "Failed to load Google Drive videos",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingDrive(false);
-    }
-  };
-
-  const handleDriveVideoDownload = async (fileId: string, fileName: string) => {
-    setIsUploadingVideo(true);
-    try {
-      const response = await fetch('/api/drive/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId, fileName })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast({
-          title: "Video Downloaded!",
-          description: `"${fileName}" is now available as a background video`,
-        });
-        await fetchBackgroundVideos();
-        setShowDriveVideos(false);
-      } else {
-        throw new Error(result.error || 'Download failed');
-      }
-    } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: error instanceof Error ? error.message : "Failed to download video",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingVideo(false);
-    }
-  };
-
-  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('video', file);
-
-    setIsUploadingVideo(true);
-    try {
-      const response = await fetch('/api/video/upload-background', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload video');
-      }
-
-      const result = await response.json();
-      
-      toast({
-        title: "Video Uploaded!",
-        description: `Background video "${result.filename}" uploaded successfully`,
-      });
-
-      // Refresh the background videos list
-      await fetchBackgroundVideos();
-      
-      // Clear the input
-      event.target.value = '';
-    } catch (error) {
-      toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload video",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingVideo(false);
-    }
-  };
   
   // Use campaigns hook directly like other pages
   const { 
@@ -379,13 +252,20 @@ export default function Unified() {
         <div className="flex items-center justify-center gap-2 mb-4">
           <Zap className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Script, Audio and Video Generation
+            Script and Audio Generation
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
           Generate performance reports and AI script suggestions in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
         </p>
-
+        <div className="flex justify-center gap-2 mt-4">
+          <Link href="/">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Video Upload Mode
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Configuration Form */}
@@ -529,115 +409,6 @@ export default function Unified() {
             </div>
           </div>
 
-          {/* Background Video Upload */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-center space-x-3">
-              <Label htmlFor="video-upload" className="text-sm font-medium">
-                Background Videos ({backgroundVideos.length}):
-              </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="video-upload"
-                  type="file"
-                  accept=".mp4,.mov,.avi,.mkv"
-                  onChange={handleVideoUpload}
-                  disabled={isUploadingVideo}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={() => document.getElementById('video-upload')?.click()}
-                  disabled={isUploadingVideo}
-                  className="bg-black text-white hover:bg-gray-800"
-                >
-                  {isUploadingVideo ? (
-                    <>
-                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                      UPLOADING...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-3 w-3" />
-                      UPLOAD VIDEO
-                    </>
-                  )}
-                </Button>
-                {isDriveConfigured && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowDriveVideos(!showDriveVideos);
-                      if (!showDriveVideos) {
-                        fetchDriveVideos();
-                      }
-                    }}
-                    disabled={isLoadingDrive}
-                  >
-                    {isLoadingDrive ? (
-                      <>
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <Calendar className="mr-2 h-3 w-3" />
-                        Google Drive
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-            <p className="text-center text-xs text-gray-500">
-              {backgroundVideos.length > 0 
-                ? `Available: ${backgroundVideos.join(', ')}. Videos will be automatically created when audio is generated.`
-                : "Upload background videos (.mp4, .mov, .avi, .mkv) to automatically create complete video assets."
-              }
-              {isDriveConfigured && " You can also import videos from Google Drive (requires Drive API to be enabled)."}
-            </p>
-
-            {/* Google Drive Video Browser */}
-            {showDriveVideos && (
-              <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-                <h4 className="font-medium mb-3">Google Drive Videos</h4>
-                {isLoadingDrive ? (
-                  <div className="text-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Loading videos from Google Drive...</p>
-                  </div>
-                ) : driveVideos.length === 0 ? (
-                  <p className="text-sm text-gray-600 text-center py-4">No videos found in Google Drive</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-                    {driveVideos.map((video) => (
-                      <div key={video.id} className="flex items-center justify-between p-3 bg-white rounded border">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{video.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {video.formattedSize} • {video.mimeType?.split('/')[1]?.toUpperCase()}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDriveVideoDownload(video.id, video.name)}
-                          disabled={isUploadingVideo}
-                          className="ml-2"
-                        >
-                          Download
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* Audio Generation Toggle */}
           <div className="space-y-4">
             <div className="flex items-center justify-center space-x-3">
@@ -650,12 +421,12 @@ export default function Unified() {
                 onCheckedChange={setWithAudio}
               />
               <Label htmlFor="audio-toggle" className="text-sm font-medium">
-                With audio{backgroundVideos.length > 0 ? ' + video' : ''}
+                With audio
               </Label>
             </div>
             <p className="text-center text-sm text-gray-500">
               {withAudio 
-                ? `Will generate ${scriptCount} scripts with professional voice recordings${backgroundVideos.length > 0 ? ' and complete video assets' : ''} using Ella AI` 
+                ? `Will generate ${scriptCount} scripts with professional voice recordings using Ella AI` 
                 : `Will generate ${scriptCount} scripts without audio recordings`
               }
             </p>
