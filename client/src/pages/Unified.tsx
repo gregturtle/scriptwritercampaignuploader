@@ -332,7 +332,7 @@ export default function Unified() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
-          tabName: 'Cleansed with BEAP',
+          tabName: 'Raw Data',
           generateAudio: withAudio,
           scriptCount: scriptCount
         })
@@ -383,7 +383,7 @@ export default function Unified() {
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Generate performance reports and AI script suggestions in one streamlined workflow. By default, this will analyze all your campaign data for the best AI insights. Optionally filter by specific campaigns or date ranges.
+          AI script suggestions and record them automatically. By default, this will analyze all your campaign data. Optionally filter by specific campaigns or date ranges.
         </p>
 
       </div>
