@@ -1,5 +1,18 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
+
+// Configure FFmpeg paths
+if (ffmpegStatic) {
+  ffmpeg.setFfmpegPath(ffmpegStatic);
+}
+
+// Try to set ffprobe path (usually in same directory as ffmpeg)
+const ffprobePath = ffmpegStatic ? ffmpegStatic.replace('ffmpeg', 'ffprobe') : 'ffprobe';
+try {
+  ffmpeg.setFfprobePath(ffprobePath);
+} catch (error) {
+  console.log('Could not set ffprobe path, trying system path');
+}
 import path from 'path';
 import fs from 'fs';
 
