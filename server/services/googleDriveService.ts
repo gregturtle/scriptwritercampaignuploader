@@ -76,8 +76,14 @@ class GoogleDriveService {
       });
 
       return response.data.files || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error listing video files from Google Drive:', error);
+      
+      // Handle specific API not enabled error
+      if (error.code === 403 && error.errors?.[0]?.reason === 'accessNotConfigured') {
+        throw new Error('Google Drive API is not enabled. Please enable it in your Google Cloud Console at https://console.developers.google.com/apis/api/drive.googleapis.com/overview');
+      }
+      
       throw new Error(`Failed to list video files: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

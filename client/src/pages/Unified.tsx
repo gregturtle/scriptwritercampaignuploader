@@ -166,9 +166,13 @@ export default function Unified() {
         setDriveVideos(data.videos || []);
       } else {
         const errorData = await response.json();
+        const isApiNotEnabled = errorData.details?.includes('Google Drive API') || errorData.error?.includes('not enabled');
+        
         toast({
-          title: "Drive Access Failed",
-          description: errorData.message || "Unable to access Google Drive",
+          title: "Drive Setup Required",
+          description: isApiNotEnabled 
+            ? "Google Drive API needs to be enabled in your Google Cloud Console. Check the console for the setup link."
+            : errorData.message || "Unable to access Google Drive",
           variant: "destructive",
         });
       }
@@ -593,7 +597,7 @@ export default function Unified() {
                 ? `Available: ${backgroundVideos.join(', ')}. Videos will be automatically created when audio is generated.`
                 : "Upload background videos (.mp4, .mov, .avi, .mkv) to automatically create complete video assets."
               }
-              {isDriveConfigured && " You can also import videos from Google Drive."}
+              {isDriveConfigured && " You can also import videos from Google Drive (requires Drive API to be enabled)."}
             </p>
 
             {/* Google Drive Video Browser */}
