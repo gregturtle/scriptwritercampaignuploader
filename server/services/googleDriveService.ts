@@ -222,6 +222,49 @@ class GoogleDriveService {
   }
 
   /**
+   * Upload a video file to a specific Google Drive folder
+   */
+  async uploadVideoToFolder(filePath: string, fileName: string, folderId: string): Promise<{ id: string; webViewLink: string }> {
+    if (!this.isConfigured()) {
+      throw new Error('Google Drive service not configured');
+    }
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    try {
+      console.log(`Uploading ${fileName} to Google Drive folder ${folderId}`);
+
+      const fileMetadata = {
+        name: fileName,
+        parents: [folderId]
+      };
+
+      const media = {
+        mimeType: 'video/mp4',
+        body: fs.createReadStream(filePath)
+      };
+
+      const response = await this.drive.files.create({
+        requestBody: fileMetadata,
+        media: media,
+        fields: 'id,webViewLink'
+      });
+
+      console.log(`Successfully uploaded ${fileName} to Google Drive. File ID: ${response.data.id}`);
+
+      return {
+        id: response.data.id!,
+        webViewLink: response.data.webViewLink!
+      };
+    } catch (error) {
+      console.error('Error uploading video to Google Drive:', error);
+      throw new Error(`Failed to upload video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Check account access and quota
    */
   async getStorageInfo(): Promise<any> {

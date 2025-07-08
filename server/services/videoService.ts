@@ -26,6 +26,8 @@ interface VideoCreationResult {
   outputUrl?: string;
   duration?: number;
   error?: string;
+  driveId?: string;
+  driveLink?: string;
 }
 
 class VideoService {
@@ -197,13 +199,41 @@ class VideoService {
 
       console.log(`Creating video: ${outputFileName}`);
 
-      return await this.overlayAudioOnVideo({
+      const result = await this.overlayAudioOnVideo({
         backgroundVideoPath,
         audioPath,
         outputPath,
         fadeInDuration: 0.3,
         fadeOutDuration: 0.5
       });
+
+      // Auto-upload to Google Drive if successful
+      if (result.success && result.outputPath) {
+        try {
+          const { googleDriveService } = await import('./googleDriveService');
+          const targetFolderId = '1GlWDeMkIKUN3i5njHHOYTT82FwDItyP6'; // User's specified folder
+          
+          const driveResult = await googleDriveService.uploadVideoToFolder(
+            result.outputPath,
+            outputFileName,
+            targetFolderId
+          );
+          
+          console.log(`Video automatically uploaded to Google Drive: ${driveResult.webViewLink}`);
+          
+          // Add Drive link to result
+          return {
+            ...result,
+            driveId: driveResult.id,
+            driveLink: driveResult.webViewLink
+          };
+        } catch (driveError) {
+          console.warn('Failed to auto-upload to Google Drive:', driveError);
+          // Continue without failing the video creation
+        }
+      }
+
+      return result;
 
     } catch (error) {
       console.error('Error creating video for script:', error);
