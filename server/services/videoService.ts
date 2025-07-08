@@ -212,10 +212,10 @@ class VideoService {
         try {
           const { googleDriveService } = await import('./googleDriveService');
           
-          const driveResult = await googleDriveService.uploadVideoToFolder(
+          const driveResult = await googleDriveService.uploadVideoToSpecificFolder(
             result.outputPath,
             outputFileName,
-            'Meta Campaign Videos' // Will create this folder automatically
+            '1GlWDeMkIKUN3i5njHHOYTT82FwDItyP6' // User's specific folder ID
           );
           
           console.log(`Video automatically uploaded to Google Drive: ${driveResult.webViewLink}`);
