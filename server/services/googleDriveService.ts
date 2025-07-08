@@ -222,9 +222,45 @@ class GoogleDriveService {
   }
 
   /**
-   * Upload a video file to a specific Google Drive folder
+   * Create a new folder for video uploads or use existing one
    */
-  async uploadVideoToFolder(filePath: string, fileName: string, folderId: string): Promise<{ id: string; webViewLink: string }> {
+  async createOrGetVideoFolder(folderName: string = 'AI Generated Videos'): Promise<string> {
+    try {
+      // First, search for existing folder
+      const searchResponse = await this.drive.files.list({
+        q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id, name)'
+      });
+
+      if (searchResponse.data.files && searchResponse.data.files.length > 0) {
+        console.log(`Found existing folder: ${folderName}`);
+        return searchResponse.data.files[0].id!;
+      }
+
+      // Create new folder if it doesn't exist
+      console.log(`Creating new folder: ${folderName}`);
+      const folderMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder'
+      };
+
+      const folderResponse = await this.drive.files.create({
+        requestBody: folderMetadata,
+        fields: 'id'
+      });
+
+      console.log(`Created new folder with ID: ${folderResponse.data.id}`);
+      return folderResponse.data.id!;
+    } catch (error) {
+      console.error('Error creating/finding folder:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload a video file to Google Drive (creates folder if needed)
+   */
+  async uploadVideoToFolder(filePath: string, fileName: string, folderName?: string): Promise<{ id: string; webViewLink: string }> {
     if (!this.isConfigured()) {
       throw new Error('Google Drive service not configured');
     }
@@ -234,6 +270,9 @@ class GoogleDriveService {
     }
 
     try {
+      // Get or create the folder
+      const folderId = await this.createOrGetVideoFolder(folderName || 'AI Generated Videos');
+      
       console.log(`Uploading ${fileName} to Google Drive folder ${folderId}`);
 
       const fileMetadata = {
