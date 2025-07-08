@@ -207,42 +207,8 @@ class VideoService {
         fadeOutDuration: 0.5
       });
 
-      // Auto-upload to Google Drive if successful
-      if (result.success && result.outputPath) {
-        try {
-          const { googleDriveService } = await import('./googleDriveService');
-          
-          // Try uploading to user's Shared Drive, fallback if no access
-          let driveResult;
-          try {
-            driveResult = await googleDriveService.uploadVideoToSpecificFolder(
-              result.outputPath,
-              outputFileName,
-              '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh' // User's Shared Drive folder ID
-            );
-            console.log(`Video uploaded to user's Shared Drive: ${driveResult.webViewLink}`);
-          } catch (sharedDriveError) {
-            console.warn('Cannot access Shared Drive (permissions needed), using service account folder:', sharedDriveError.message);
-            // Fallback to service account's own folder
-            driveResult = await googleDriveService.uploadVideoToFolder(
-              result.outputPath,
-              outputFileName,
-              'Meta Campaign Videos'
-            );
-            console.log(`Video uploaded to service account folder: ${driveResult.webViewLink}`);
-          }
-          
-          // Add Drive link to result
-          return {
-            ...result,
-            driveId: driveResult.id,
-            driveLink: driveResult.webViewLink
-          };
-        } catch (driveError) {
-          console.warn('Failed to auto-upload to Google Drive:', driveError);
-          // Continue without failing the video creation
-        }
-      }
+      // Note: Google Drive auto-upload disabled due to service account limitations
+      // Videos are saved locally and can be manually uploaded via the interface
 
       return result;
 

@@ -1062,6 +1062,52 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Video download endpoint - for accessing locally created videos
+  app.get('/api/videos/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const videoPath = path.join(process.cwd(), 'uploads', 'videos', filename);
+    
+    if (fs.existsSync(videoPath)) {
+      res.download(videoPath, filename);
+    } else {
+      res.status(404).json({ error: 'Video file not found' });
+    }
+  });
+
+  // Get list of local videos - for download interface
+  app.get('/api/local-videos', (req, res) => {
+    try {
+      const videosDir = path.join(process.cwd(), 'uploads', 'videos');
+      
+      if (!fs.existsSync(videosDir)) {
+        return res.json({ videos: [], message: 'No videos found' });
+      }
+
+      const files = fs.readdirSync(videosDir).filter(file => file.endsWith('.mp4'));
+      
+      const videos = files.map(file => {
+        const filePath = path.join(videosDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          downloadUrl: `/api/videos/${file}`,
+          size: stats.size,
+          created: stats.mtime,
+          sizeFormatted: (stats.size / (1024 * 1024)).toFixed(2) + ' MB'
+        };
+      });
+
+      res.json({ videos, count: videos.length });
+
+    } catch (error) {
+      console.error('Error getting local videos:', error);
+      res.status(500).json({ 
+        error: 'Failed to get local videos',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
