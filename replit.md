@@ -117,7 +117,6 @@ Changelog:
 - June 27, 2025. Added ElevenLabs integration for AI voice generation - scripts now automatically converted to professional voice recordings
 - July 02, 2025. Added fluent-ffmpeg integration for automatic video overlay - AI voiceovers now automatically merged with background videos to create complete Meta-ready video assets
 - July 08, 2025. Fixed AI script generation to create proper 18-20 second scripts (80-90 words) and corrected data handling to prevent overwriting existing spreadsheet data. AI now reads from "Cleansed with BEAP" tab with historical scored data while new exports append to "Raw Data" tab
-- July 08, 2025. Google Drive auto-upload disabled due to service account storage quota limitations. Added manual video download system - users can download generated videos and manually upload to Google Drive. System creates perfect 22-25 second audio scripts that fill 20-second video duration.
 
 ## User Preferences
 
