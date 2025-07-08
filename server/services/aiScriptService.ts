@@ -38,7 +38,7 @@ class AIScriptService {
    */
   async readPerformanceData(
     spreadsheetId: string,
-    tabName: string = "Raw Data",
+    tabName: string = "Cleansed with BEAP",
   ): Promise<PerformanceData[]> {
     try {
       const cleanSpreadsheetId =
@@ -119,7 +119,7 @@ class AIScriptService {
     message: string;
     voiceGenerated?: boolean;
   }> {
-    const { tabName = "Raw Data", voiceId, includeVoice = false, scriptCount = 5 } = options;
+    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false, scriptCount = 5 } = options;
     try {
       // Read the performance data
       const performanceData = await this.readPerformanceData(

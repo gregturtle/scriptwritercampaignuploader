@@ -332,7 +332,7 @@ export default function Unified() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
-          tabName: 'Raw Data',
+          tabName: 'Cleansed with BEAP',
           generateAudio: withAudio,
           scriptCount: scriptCount
         })
