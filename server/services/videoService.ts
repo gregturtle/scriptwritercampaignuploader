@@ -4,20 +4,10 @@ import path from 'path';
 import fs from 'fs';
 
 // Configure FFmpeg to use system binaries
-try {
-  // Try to use ffmpeg-static first, fallback to system paths
-  if (ffmpegStatic) {
-    ffmpeg.setFfmpegPath(ffmpegStatic);
-  } else {
-    // Use dynamic path detection for Nix environment
-    ffmpeg.setFfmpegPath('ffmpeg');
-    ffmpeg.setFfprobePath('ffprobe');
-  }
-  console.log('FFmpeg configured successfully');
-} catch (error) {
-  console.warn('FFmpeg configuration warning:', error);
-  // Continue without setting paths - let ffmpeg auto-detect
-}
+ffmpeg.setFfmpegPath('/nix/store/jfybfbnknyiwggcrhi4v9rsx5g4hksvf-ffmpeg-full-6.1.1-bin/bin/ffmpeg');
+ffmpeg.setFfprobePath('/nix/store/jfybfbnknyiwggcrhi4v9rsx5g4hksvf-ffmpeg-full-6.1.1-bin/bin/ffprobe');
+
+console.log('FFmpeg configured with system paths');
 
 
 
