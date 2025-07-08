@@ -752,10 +752,11 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         scriptResult: aiResult
       });
     } catch (error: any) {
-      console.error('Error in unified generation:', error);
+      console.error('Error in unified generation:', error?.message || error);
+      console.error('Error stack:', error?.stack);
       res.status(500).json({ 
         error: 'Failed to generate unified report and scripts',
-        details: error.message 
+        details: error?.message || 'Unknown error occurred'
       });
     }
   });
