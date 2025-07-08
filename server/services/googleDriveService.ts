@@ -261,7 +261,7 @@ class GoogleDriveService {
   }
 
   /**
-   * Upload a video file to a specific Google Drive folder by ID
+   * Upload a video file to a specific Google Drive folder by ID using resumable upload
    */
   async uploadVideoToSpecificFolder(filePath: string, fileName: string, folderId: string): Promise<{ id: string; webViewLink: string }> {
     if (!this.isConfigured()) {
@@ -273,7 +273,11 @@ class GoogleDriveService {
     }
 
     try {
-      console.log(`Uploading ${fileName} to Google Drive folder ${folderId}`);
+      console.log(`Uploading ${fileName} to Google Drive folder ${folderId} using resumable upload`);
+
+      const fileStats = fs.statSync(filePath);
+      const fileSizeInBytes = fileStats.size;
+      console.log(`File size: ${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB`);
 
       const fileMetadata = {
         name: fileName,
@@ -285,11 +289,19 @@ class GoogleDriveService {
         body: fs.createReadStream(filePath)
       };
 
-      const response = await this.drive.files.create({
+      // Use resumable upload for large files (> 5MB)
+      const uploadOptions: any = {
         requestBody: fileMetadata,
         media: media,
         fields: 'id,webViewLink'
-      });
+      };
+
+      if (fileSizeInBytes > 5 * 1024 * 1024) { // 5MB threshold
+        uploadOptions.uploadType = 'resumable';
+        console.log('Using resumable upload for large file');
+      }
+
+      const response = await this.drive.files.create(uploadOptions);
 
       console.log(`Successfully uploaded ${fileName} to Google Drive. File ID: ${response.data.id}`);
 
@@ -326,16 +338,28 @@ class GoogleDriveService {
         parents: [folderId]
       };
 
+      const fileStats = fs.statSync(filePath);
+      const fileSizeInBytes = fileStats.size;
+      console.log(`File size: ${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB`);
+
       const media = {
         mimeType: 'video/mp4',
         body: fs.createReadStream(filePath)
       };
 
-      const response = await this.drive.files.create({
+      // Use resumable upload for large files
+      const uploadOptions: any = {
         requestBody: fileMetadata,
         media: media,
         fields: 'id,webViewLink'
-      });
+      };
+
+      if (fileSizeInBytes > 5 * 1024 * 1024) { // 5MB threshold
+        uploadOptions.uploadType = 'resumable';
+        console.log('Using resumable upload for large file');
+      }
+
+      const response = await this.drive.files.create(uploadOptions);
 
       console.log(`Successfully uploaded ${fileName} to Google Drive. File ID: ${response.data.id}`);
 
