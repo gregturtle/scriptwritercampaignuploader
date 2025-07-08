@@ -289,19 +289,16 @@ class GoogleDriveService {
         body: fs.createReadStream(filePath)
       };
 
-      // Use resumable upload for large files (> 5MB)
-      const uploadOptions: any = {
+      // Use resumable upload with Shared Drive support
+      const response = await this.drive.files.create({
         requestBody: fileMetadata,
         media: media,
-        fields: 'id,webViewLink'
-      };
+        fields: 'id,webViewLink',
+        uploadType: 'resumable',        // Critical for large files
+        supportsAllDrives: true         // Required for Shared Drives
+      });
 
-      if (fileSizeInBytes > 5 * 1024 * 1024) { // 5MB threshold
-        uploadOptions.uploadType = 'resumable';
-        console.log('Using resumable upload for large file');
-      }
-
-      const response = await this.drive.files.create(uploadOptions);
+      console.log('Using resumable upload with Shared Drive support');
 
       console.log(`Successfully uploaded ${fileName} to Google Drive. File ID: ${response.data.id}`);
 
@@ -347,19 +344,16 @@ class GoogleDriveService {
         body: fs.createReadStream(filePath)
       };
 
-      // Use resumable upload for large files
-      const uploadOptions: any = {
+      // Use resumable upload for all video files
+      const response = await this.drive.files.create({
         requestBody: fileMetadata,
         media: media,
-        fields: 'id,webViewLink'
-      };
+        fields: 'id,webViewLink',
+        uploadType: 'resumable',        // Critical for large files
+        supportsAllDrives: true         // Required for Shared Drives
+      });
 
-      if (fileSizeInBytes > 5 * 1024 * 1024) { // 5MB threshold
-        uploadOptions.uploadType = 'resumable';
-        console.log('Using resumable upload for large file');
-      }
-
-      const response = await this.drive.files.create(uploadOptions);
+      console.log('Using resumable upload for video file');
 
       console.log(`Successfully uploaded ${fileName} to Google Drive. File ID: ${response.data.id}`);
 

@@ -1,0 +1,77 @@
+Switch to a resumable upload
+In your Drive API call, add
+
+ts
+Copy
+Edit
+uploadType: 'resumable',
+supportsAllDrives: true,    // if you’re using Shared Drives
+That tells Google to chunk the file and retry if any part fails.
+
+Complete example in Node.js / TypeScript
+
+ts
+Copy
+Edit
+import fs from 'fs';
+import path from 'path';
+import { google } from 'googleapis';
+
+const creds = JSON.parse(process.env.GDRIVE_CREDS!);
+const auth = new google.auth.JWT({
+  email: creds.client_email,
+  key: creds.private_key,
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
+});
+const drive = google.drive({ version: 'v3', auth });
+
+export async function uploadLargeVideo(
+  localPath: string,
+  mimeType = 'video/mp4'
+) {
+  const fileName = path.basename(localPath);
+  const folderId = process.env.GDRIVE_FOLDER_ID!;
+
+  try {
+    const res = await drive.files.create({
+      requestBody: {
+        name: fileName,
+        parents: [folderId],
+      },
+      media: {
+        mimeType,
+        body: fs.createReadStream(localPath),
+      },
+      fields: 'id, webViewLink',
+      supportsAllDrives: true,     // if you need Shared Drive support
+      uploadType: 'resumable',      // <— critical for >5 MB
+    });
+
+    console.log(`✅ Uploaded ${fileName}:`, res.data.webViewLink);
+    return res.data;
+  } catch (e: any) {
+    console.error('❌ Upload error:', e.errors || e.message || e);
+    throw e;
+  }
+}
+uploadType: 'resumable' breaks the file into chunks so large files succeed.
+
+supportsAllDrives: true lets you write into Shared Drives if that’s your target.
+
+How it works under the hood
+
+Initiate: your app sends a “start upload” request.
+
+Receive: Drive returns an upload URL.
+
+Chunk & retry: your client streams the file in parts, automatically resending failed chunks until the whole file is in Drive.
+
+Extra tips
+
+Monitor progress: you can listen for the on('progress') event on the resumable upload to log percent-done.
+
+Error handling: resumable uploads will automatically retry on transient errors (timeouts, network blips).
+
+Quota: large uploads count against your Drive API quota, so make sure you’re within limits.
+
+With just those two options added—supportsAllDrives: true and uploadType: 'resumable'—your service account will reliably drop even multi-hundred-megabyte videos into your shared Drive folder.
