@@ -212,13 +212,25 @@ class VideoService {
         try {
           const { googleDriveService } = await import('./googleDriveService');
           
-          const driveResult = await googleDriveService.uploadVideoToSpecificFolder(
-            result.outputPath,
-            outputFileName,
-            '1GlWDeMkIKUN3i5njHHOYTT82FwDItyP6' // User's specific folder ID
-          );
-          
-          console.log(`Video automatically uploaded to Google Drive: ${driveResult.webViewLink}`);
+          // Try uploading to user's specific folder first
+          let driveResult;
+          try {
+            driveResult = await googleDriveService.uploadVideoToSpecificFolder(
+              result.outputPath,
+              outputFileName,
+              '1GlWDeMkIKUN3i5njHHOYTT82FwDItyP6' // User's specific folder ID
+            );
+            console.log(`Video uploaded to user's folder: ${driveResult.webViewLink}`);
+          } catch (specificFolderError) {
+            console.warn('Cannot upload to user folder (service account limitation), using service account folder:', specificFolderError.message);
+            // Fallback to service account's own folder
+            driveResult = await googleDriveService.uploadVideoToFolder(
+              result.outputPath,
+              outputFileName,
+              'Meta Campaign Videos'
+            );
+            console.log(`Video uploaded to service account folder: ${driveResult.webViewLink}`);
+          }
           
           // Add Drive link to result
           return {
