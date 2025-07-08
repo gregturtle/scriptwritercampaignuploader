@@ -233,8 +233,10 @@ class GoogleDriveService {
       });
 
       if (searchResponse.data.files && searchResponse.data.files.length > 0) {
+        const folderId = searchResponse.data.files[0].id!;
         console.log(`Found existing folder: ${folderName}`);
-        return searchResponse.data.files[0].id!;
+        console.log(`Folder link: https://drive.google.com/drive/folders/${folderId}`);
+        return folderId;
       }
 
       // Create new folder if it doesn't exist
@@ -246,10 +248,11 @@ class GoogleDriveService {
 
       const folderResponse = await this.drive.files.create({
         requestBody: folderMetadata,
-        fields: 'id'
+        fields: 'id,webViewLink'
       });
 
       console.log(`Created new folder with ID: ${folderResponse.data.id}`);
+      console.log(`Folder link: https://drive.google.com/drive/folders/${folderResponse.data.id}`);
       return folderResponse.data.id!;
     } catch (error) {
       console.error('Error creating/finding folder:', error);
