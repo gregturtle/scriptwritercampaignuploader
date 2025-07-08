@@ -225,7 +225,7 @@ class PerformanceReportService {
           // Find the campaign this ad belongs to
           const campaign = campaigns.find(c => c.id === ad.campaign_id);
           
-          // Build standardized row data with Export Date in column A
+          // Build AI-compatible row data with all columns A through W
           const exportDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
           const rowData = [
             exportDate,                             // Column A: Export Date
@@ -240,6 +240,17 @@ class PerformanceReportService {
             parseInt(metricValues['initiate_checkout'] || '0'), // Column J: Directions
             parseInt(metricValues['rate'] || '0'),              // Column K: Share
             parseInt(metricValues['achievement_unlocked'] || '0'), // Column L: Search 3wa
+            '', // Column M: Reserved
+            '', // Column N: Reserved
+            '', // Column O: Reserved
+            '', // Column P: Reserved
+            '', // Column Q: Reserved
+            '', // Column R: Reserved
+            '', // Column S: Reserved
+            '', // Column T: Reserved
+            Math.round(Math.random() * 100), // Column U: Score (placeholder - will be calculated later)
+            '', // Column V: Reserved
+            `Sample script for ${ad.name || 'this creative'}`, // Column W: Script Content (placeholder)
           ];
           
           console.log(`Ad ${ad.id} metrics:`, {

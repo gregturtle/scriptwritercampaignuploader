@@ -403,7 +403,7 @@ class MetaApiService {
         throw new Error('META_AD_ACCOUNT_ID not configured');
       }
 
-      const url = `https://graph.facebook.com/v18.0/act_${adAccountId}/insights`;
+      const url = `${FB_GRAPH_API}/act_${adAccountId}/insights`;
       const params = new URLSearchParams({
         access_token: accessToken,
         fields: [
