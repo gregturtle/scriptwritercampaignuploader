@@ -212,13 +212,25 @@ class VideoService {
         try {
           const { googleDriveService } = await import('./googleDriveService');
           
-          // Upload to user's Shared Drive folder
-          const driveResult = await googleDriveService.uploadVideoToSpecificFolder(
-            result.outputPath,
-            outputFileName,
-            '0AJv-n4tGtSmhUk9PVA' // User's Shared Drive folder ID
-          );
-          console.log(`Video uploaded to user's Shared Drive: ${driveResult.webViewLink}`);
+          // Try uploading to user's Shared Drive, fallback if no access
+          let driveResult;
+          try {
+            driveResult = await googleDriveService.uploadVideoToSpecificFolder(
+              result.outputPath,
+              outputFileName,
+              '0AJv-n4tGtSmhUk9PVA' // User's Shared Drive folder ID
+            );
+            console.log(`Video uploaded to user's Shared Drive: ${driveResult.webViewLink}`);
+          } catch (sharedDriveError) {
+            console.warn('Cannot access Shared Drive (permissions needed), using service account folder:', sharedDriveError.message);
+            // Fallback to service account's own folder
+            driveResult = await googleDriveService.uploadVideoToFolder(
+              result.outputPath,
+              outputFileName,
+              'Meta Campaign Videos'
+            );
+            console.log(`Video uploaded to service account folder: ${driveResult.webViewLink}`);
+          }
           
           // Add Drive link to result
           return {
