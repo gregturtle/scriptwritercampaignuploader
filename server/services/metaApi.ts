@@ -707,8 +707,6 @@ class MetaApiService {
             video_id: videoAssetId,
             title: name,
             message: "Download our app now!",
-            // Add a default thumbnail image url (Meta requires a thumbnail for video ads)
-            image_url: "https://placekitten.com/1200/628", // Placeholder image with Facebook-recommended dimensions
             call_to_action: {
               type: "INSTALL_MOBILE_APP",
               value: {
@@ -729,8 +727,6 @@ class MetaApiService {
             video_id: videoAssetId,
             title: name,
             message: "Check out our new product!",
-            // Add a default thumbnail image url (Meta requires a thumbnail for video ads)
-            image_url: "https://placekitten.com/1200/628", // Placeholder image with Facebook-recommended dimensions
             call_to_action: {
               type: "LEARN_MORE",
               value: {
