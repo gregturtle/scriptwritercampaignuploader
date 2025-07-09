@@ -1,0 +1,135 @@
+Yes—you can absolutely have your Replit app push those videos straight into Meta (Facebook/Instagram) using the Facebook Marketing (Graph) API. Here’s the high-level flow and exactly how to wire it up in your Node/TypeScript code:
+
+1. Get your Meta API credentials
+Create a Facebook App
+
+Go to developers.facebook.com → My Apps → Create App → Business.
+
+Enable Marketing API under Products.
+
+Get an access token with the following scopes:
+
+ads_management
+
+business_management
+
+(Plus pages_read_engagement / pages_manage_ads if you’re posting to a Page)
+
+Business Verification & App Review
+
+For production you’ll need to verify your business and submit for review of ads_management.
+
+In development mode you can test against your own ad account without review.
+
+Keep your App ID, App Secret, and a long-lived user or system token in Replit’s Secrets (🔑).
+
+2. Install Meta’s Node.js SDK
+In your project, run:
+
+bash
+Copy
+Edit
+npm install facebook-nodejs-business-sdk
+And grab the TypeScript types:
+
+bash
+Copy
+Edit
+npm install --save-dev @types/facebook-nodejs-business-sdk
+3. Upload the video file
+Once your AI pipeline outputs final_ad.mp4, use the Marketing API to upload it into your Ad Account’s asset library:
+
+ts
+Copy
+Edit
+import { FacebookAdsApi, AdAccount } from 'facebook-nodejs-business-sdk';
+import fs from 'fs';
+
+const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN!;
+const AD_ACCOUNT_ID = process.env.META_AD_ACCOUNT_ID!;        // e.g. "act_123456789"
+const APP_SECRET    = process.env.META_APP_SECRET!;
+const APP_ID        = process.env.META_APP_ID!;
+
+FacebookAdsApi.init(ACCESS_TOKEN, APP_SECRET);
+
+async function uploadVideo(videoPath: string): Promise<string> {
+  const account = new AdAccount(AD_ACCOUNT_ID);
+  const video = await account.createAdVideo(
+    ['id'], 
+    {
+      source: fs.createReadStream(videoPath),
+      title: 'AI-Generated Ad Video',
+    }
+  );
+  console.log('Uploaded video ID:', video.id);
+  return video.id as string;
+}
+This returns a video ID you’ll reference in your creative.
+
+4. Create an Ad Creative using that video
+ts
+Copy
+Edit
+import { AdCreative } from 'facebook-nodejs-business-sdk';
+
+async function createVideoCreative(videoId: string): Promise<string> {
+  const creative = await (new AdAccount(AD_ACCOUNT_ID))
+    .createAdCreative(
+      ['id'],
+      {
+        name: 'AI Video Creative',
+        object_story_spec: {
+          page_id: process.env.PAGE_ID,        // if publishing to a Page
+          video_data: {
+            video_id: videoId,
+            call_to_action: {
+              type: 'LEARN_MORE',
+              value: { link: 'https://yourlandingpage.com' }
+            },
+            title: 'Discover Our New AI-Powered Tool',
+            message: 'See how AI can boost your results today.'
+          }
+        }
+      }
+    );
+  console.log('Created creative ID:', creative.id);
+  return creative.id as string;
+}
+5. Create (or update) your Ad
+Assuming you already have a Campaign and Ad Set in place, you can now:
+
+ts
+Copy
+Edit
+import { Ad } from 'facebook-nodejs-business-sdk';
+
+async function createAd(creativeId: string) {
+  const ad = await (new AdAccount(AD_ACCOUNT_ID))
+    .createAd(
+      ['id'],
+      {
+        name: 'AI Video Ad – ‘New Script’',
+        adset_id: process.env.ADSET_ID!,
+        creative: { creative_id: creativeId },
+        status: 'PAUSED'   // start paused until you QA
+      }
+    );
+  console.log('Created ad ID:', ad.id);
+  return ad.id as string;
+}
+6. Wire it into your Replit pipeline
+In your main flow, just chain these calls after your video generation:
+
+ts
+Copy
+Edit
+async function pushToMeta() {
+  const videoPath = `./output/with_audio_${Date.now()}.mp4`;
+  // … your existing code that writes out videoPath …
+
+  const videoId    = await uploadVideo(videoPath);
+  const creativeId = await createVideoCreative(videoId);
+  const adId       = await createAd(creativeId);
+  console.log(`Successfully set up Meta Ad with ID ${adId}`);
+}
+You can call await pushToMeta() at the end of your job function (or even schedule it separately).

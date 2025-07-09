@@ -1,4 +1,7 @@
 import fetch from "node-fetch";
+import fs from "fs";
+import FormData from "form-data";
+import { FacebookAdsApi, AdAccount, AdCreative, Ad } from 'facebook-nodejs-business-sdk';
 
 // Facebook Graph API base URL
 const FB_API_VERSION = "v23.0";
@@ -564,7 +567,220 @@ class MetaApiService {
   }
 
   /**
-   * Create an ad creative in Meta
+   * Upload video using Facebook SDK
+   */
+  async uploadVideoWithSDK(accessToken: string, videoPath: string, title: string): Promise<string> {
+    // Initialize Facebook Ads API
+    FacebookAdsApi.init(accessToken, META_APP_SECRET);
+    
+    console.log(`Uploading video using Facebook SDK: ${title}`);
+    
+    try {
+      const account = new AdAccount(META_AD_ACCOUNT_ID.startsWith('act_') ? META_AD_ACCOUNT_ID : `act_${META_AD_ACCOUNT_ID}`);
+      
+      const video = await account.createAdVideo(
+        ['id'], 
+        {
+          source: fs.createReadStream(videoPath),
+          title: title,
+        }
+      );
+      
+      console.log('Uploaded video ID via SDK:', video.id);
+      return video.id as string;
+    } catch (error) {
+      console.error('Error uploading video with SDK:', error);
+      throw new Error(`Failed to upload video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create ad creative using Facebook SDK
+   */
+  async createAdCreativeWithSDK(
+    accessToken: string,
+    campaignId: string,
+    videoId: string,
+    name: string
+  ): Promise<string> {
+    // Initialize Facebook Ads API
+    FacebookAdsApi.init(accessToken, META_APP_SECRET);
+    
+    console.log(`Creating ad creative using Facebook SDK for video ${videoId} in campaign ${campaignId}`);
+    
+    try {
+      // Get campaign details to determine type
+      const campaignDetailsResponse = await fetch(
+        `${FB_GRAPH_API}/${campaignId}?fields=objective&access_token=${accessToken}`,
+        { method: "GET" }
+      );
+      
+      const campaignDetails = await campaignDetailsResponse.json() as any;
+      const isAppInstallCampaign = campaignDetails.objective === 'APP_INSTALLS' || 
+                                   campaignDetails.objective === 'OUTCOME_APP_PROMOTION';
+      
+      // Get page ID from existing ads in the campaign
+      let pageId;
+      try {
+        const adsResponse = await fetch(
+          `${FB_GRAPH_API}/${campaignId}/ads?fields=creative{object_story_spec}&limit=1&access_token=${accessToken}`,
+          { method: "GET" }
+        );
+        
+        if (adsResponse.ok) {
+          const adsData = await adsResponse.json() as any;
+          if (adsData.data && adsData.data.length > 0) {
+            const existingAd = adsData.data[0];
+            const objectStorySpec = existingAd.creative?.object_story_spec;
+            if (objectStorySpec?.page_id) {
+              pageId = objectStorySpec.page_id;
+              console.log(`Found page ID from existing ad: ${pageId}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.log(`Could not get page ID from existing ads: ${error}`);
+      }
+      
+      // Fallback to account pages if needed
+      if (!pageId) {
+        const pages = await this.getPages(accessToken);
+        if (pages && pages.length > 0) {
+          pageId = pages[0].id;
+          console.log(`Using account page: ${pages[0].name} (ID: ${pageId})`);
+        } else {
+          throw new Error("No pages found for ad creative");
+        }
+      }
+      
+      const account = new AdAccount(META_AD_ACCOUNT_ID.startsWith('act_') ? META_AD_ACCOUNT_ID : `act_${META_AD_ACCOUNT_ID}`);
+      
+      // Create the creative data structure
+      let creativeData: any = {
+        name: `AI Video Creative - ${name}`,
+        object_story_spec: {
+          page_id: pageId,
+          video_data: {
+            video_id: videoId,
+            title: name,
+            message: isAppInstallCampaign ? "Download our app now!" : "Check out our new feature!",
+          }
+        }
+      };
+      
+      // Add call-to-action based on campaign type
+      if (isAppInstallCampaign) {
+        creativeData.object_story_spec.video_data.call_to_action = {
+          type: 'INSTALL_MOBILE_APP',
+          value: {
+            application: META_APP_ID,
+          }
+        };
+      } else {
+        creativeData.object_story_spec.video_data.call_to_action = {
+          type: 'LEARN_MORE',
+          value: {
+            link: 'https://what3words.com',
+          }
+        };
+      }
+      
+      console.log('Creating creative with data:', JSON.stringify(creativeData, null, 2));
+      
+      const creative = await account.createAdCreative(
+        ['id'],
+        creativeData
+      );
+      
+      console.log('Created creative ID via SDK:', creative.id);
+      return creative.id as string;
+    } catch (error) {
+      console.error('Error creating ad creative with SDK:', error);
+      throw new Error(`Failed to create ad creative: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create ad using Facebook SDK
+   */
+  async createAdWithSDK(
+    accessToken: string,
+    campaignId: string,
+    creativeId: string,
+    name: string
+  ): Promise<string> {
+    // Initialize Facebook Ads API
+    FacebookAdsApi.init(accessToken, META_APP_SECRET);
+    
+    console.log(`Creating ad using Facebook SDK for creative ${creativeId} in campaign ${campaignId}`);
+    
+    try {
+      // Get ad set from campaign
+      const campaignResponse = await fetch(
+        `${FB_GRAPH_API}/${campaignId}/adsets?fields=id&access_token=${accessToken}`,
+        { method: "GET" }
+      );
+      
+      const adSetsData = await campaignResponse.json() as any;
+      if (!adSetsData.data || adSetsData.data.length === 0) {
+        throw new Error(`No ad sets found for campaign ${campaignId}`);
+      }
+      
+      const adSetId = adSetsData.data[0].id;
+      console.log(`Using ad set ID: ${adSetId}`);
+      
+      const account = new AdAccount(META_AD_ACCOUNT_ID.startsWith('act_') ? META_AD_ACCOUNT_ID : `act_${META_AD_ACCOUNT_ID}`);
+      
+      const ad = await account.createAd(
+        ['id'],
+        {
+          name: `AI Video Ad - ${name}`,
+          adset_id: adSetId,
+          creative: { creative_id: creativeId },
+          status: 'ACTIVE' // Start active for immediate deployment
+        }
+      );
+      
+      console.log('Created ad ID via SDK:', ad.id);
+      return ad.id as string;
+    } catch (error) {
+      console.error('Error creating ad with SDK:', error);
+      throw new Error(`Failed to create ad: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Complete Meta upload pipeline using Facebook SDK
+   */
+  async uploadAndCreateAdWithSDK(
+    accessToken: string,
+    campaignId: string,
+    videoPath: string,
+    name: string
+  ): Promise<{ adId: string; creativeId: string; videoId: string }> {
+    console.log(`Starting complete Meta upload pipeline with SDK for: ${name}`);
+    
+    try {
+      // Step 1: Upload video
+      const videoId = await this.uploadVideoWithSDK(accessToken, videoPath, name);
+      
+      // Step 2: Create creative
+      const creativeId = await this.createAdCreativeWithSDK(accessToken, campaignId, videoId, name);
+      
+      // Step 3: Create ad
+      const adId = await this.createAdWithSDK(accessToken, campaignId, creativeId, name);
+      
+      console.log(`Successfully created complete Meta ad: Video ${videoId} → Creative ${creativeId} → Ad ${adId}`);
+      
+      return { adId, creativeId, videoId };
+    } catch (error) {
+      console.error('Error in complete Meta upload pipeline:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create an ad creative in Meta (DEPRECATED - keeping for backward compatibility)
    */
   async createAdCreative(
     accessToken: string,

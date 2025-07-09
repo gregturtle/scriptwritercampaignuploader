@@ -446,45 +446,42 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             }
             
             try {
-              // Upload file to Meta
-              console.log(`Uploading file "${fileName}" (${filePath}) to Meta`);
-              const uploadResult = await fileService.uploadFileToMeta(accessToken, filePath);
-              console.log(`Upload to Meta successful, received asset ID: ${uploadResult.id}`);
+              // Use the new SDK-based approach for complete Meta upload pipeline
+              console.log(`Starting complete Meta upload pipeline for "${fileName}" (${filePath}) to campaign ${campaignId}`);
               
-              // Create ad creative in Meta
-              console.log(`Creating ad creative for campaign ${campaignId}`);
-              const creativeResult = await metaApiService.createAdCreative(
+              const result = await metaApiService.uploadAndCreateAdWithSDK(
                 accessToken,
                 campaignId,
-                uploadResult.id,
+                filePath,
                 fileName
               );
-              console.log(`Creative created in Meta with ID: ${creativeResult.id}`);
+              
+              console.log(`Complete Meta upload successful: Video ${result.videoId} → Creative ${result.creativeId} → Ad ${result.adId}`);
               
               // For Google Drive files, we don't have a database entry, so we create a minimal creative record
               if (file.id.startsWith('gdrive-')) {
                 // Log success for Google Drive files
                 await appStorage.createActivityLog({
                   type: "success",
-                  message: `Creative "${fileName}" (from Google Drive) launched to campaign "${campaignId}"`,
+                  message: `Ad "${fileName}" (from Google Drive) launched to campaign "${campaignId}" - Ad ID: ${result.adId}`,
                   timestamp: new Date(),
                 });
                 console.log(`Created success activity log entry for Google Drive file`);
                 
-                return { id: creativeResult.id, source: 'google-drive' };
+                return { id: result.adId, source: 'google-drive' };
               } else {
                 // Handle regular database files
                 // Update file with Meta asset ID
                 await appStorage.updateFile(dbFile.id, {
-                  metaAssetId: uploadResult.id,
+                  metaAssetId: result.videoId,
                 });
-                console.log(`Updated file ${dbFile.id} with Meta asset ID ${uploadResult.id}`);
+                console.log(`Updated file ${dbFile.id} with Meta asset ID ${result.videoId}`);
                 
                 // Save creative to database
                 const creative = await appStorage.createCreative({
                   fileId: dbFile.id,
                   campaignId,
-                  metaCreativeId: creativeResult.id,
+                  metaCreativeId: result.creativeId,
                   status: "completed",
                 });
                 console.log(`Saved creative to database with ID: ${creative.id}`);
@@ -498,7 +495,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
                 // Log success
                 await appStorage.createActivityLog({
                   type: "success",
-                  message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
+                  message: `Ad "${dbFile.name}" launched to campaign "${campaignId}" - Ad ID: ${result.adId}`,
                   timestamp: new Date(),
                 });
                 console.log(`Created success activity log entry`);
