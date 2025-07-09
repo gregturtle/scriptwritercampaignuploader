@@ -614,10 +614,10 @@ class MetaApiService {
     const isAppInstallCampaign = campaignObjective === 'APP_INSTALLS' || 
                                  campaignObjective === 'OUTCOME_APP_PROMOTION';
     
-    // Get the ad set ID from the campaign
+    // Get the ad set ID from the campaign and try to find a page from existing ads
     console.log(`Fetching ad sets for campaign ${campaignId}...`);
     const campaignResponse = await fetch(
-      `${FB_GRAPH_API}/${campaignId}/adsets?fields=id&access_token=${accessToken}`,
+      `${FB_GRAPH_API}/${campaignId}/adsets?fields=id,promoted_object&access_token=${accessToken}`,
       {
         method: "GET",
       }
@@ -651,17 +651,44 @@ class MetaApiService {
       console.log(`Using existing ad set ID: ${adSetId}`);
     }
     
-    // Get pages associated with this account
-    console.log("Fetching pages to use with ad creative...");
-    const pages = await this.getPages(accessToken);
+    // Try to find page ID from existing ads in this campaign
+    let pageId;
+    console.log(`Trying to find page ID from existing ads in campaign ${campaignId}...`);
     
-    if (!pages || pages.length === 0) {
-      throw new Error("No pages found associated with this account. A Facebook Page is required to create ads.");
+    try {
+      const adsResponse = await fetch(
+        `${FB_GRAPH_API}/${campaignId}/ads?fields=creative{object_story_spec}&limit=1&access_token=${accessToken}`,
+        { method: "GET" }
+      );
+      
+      if (adsResponse.ok) {
+        const adsData = await adsResponse.json() as any;
+        if (adsData.data && adsData.data.length > 0) {
+          const existingAd = adsData.data[0];
+          const objectStorySpec = existingAd.creative?.object_story_spec;
+          if (objectStorySpec?.page_id) {
+            pageId = objectStorySpec.page_id;
+            console.log(`Found page ID from existing ad: ${pageId}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.log(`Could not get page ID from existing ads: ${error}`);
     }
     
-    // Use the first page for the ad
-    const pageId = pages[0].id;
-    console.log(`Using page: ${pages[0].name} (ID: ${pageId})`);
+    // If we couldn't find a page from existing ads, use account pages as fallback
+    if (!pageId) {
+      console.log("Getting pages from account as fallback...");
+      const pages = await this.getPages(accessToken);
+      
+      if (!pages || pages.length === 0) {
+        throw new Error("No pages found associated with this account. A Facebook Page is required to create ads.");
+      }
+      
+      // Use the first page for the ad
+      pageId = pages[0].id;
+      console.log(`Using account page: ${pages[0].name} (ID: ${pageId})`);
+    }
     
     // Create ad data based on campaign type
     let adData: any = {
