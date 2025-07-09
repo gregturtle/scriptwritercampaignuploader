@@ -418,7 +418,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
               const downloadResult = await googleDriveService.downloadVideoFile(googleDriveFileId, fileName);
               
               if (!downloadResult.success || !downloadResult.filePath) {
-                throw new Error(`Failed to download Google Drive file: ${downloadResult.error || 'Unknown error'}`);
+                // Provide a helpful error message about permissions
+                const errorMessage = downloadResult.error || 'Unknown error';
+                if (errorMessage.includes('PERMISSION ISSUE')) {
+                  throw new Error(`${errorMessage} - SOLUTION: Right-click each video file in Google Drive → Share → Add ${googleDriveService.getServiceAccountEmail()} as Editor`);
+                }
+                throw new Error(`Failed to download Google Drive file: ${errorMessage}`);
               }
               
               filePath = downloadResult.filePath;
@@ -1054,10 +1059,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
 
       const storageInfo = await googleDriveService.getStorageInfo();
+      const serviceAccountEmail = googleDriveService.getServiceAccountEmail();
       
       res.json({
         configured: true,
         storageInfo,
+        serviceAccountEmail,
         message: 'Google Drive access configured'
       });
     } catch (error: any) {

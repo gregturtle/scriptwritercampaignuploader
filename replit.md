@@ -118,6 +118,7 @@ Changelog:
 - July 02, 2025. Added fluent-ffmpeg integration for automatic video overlay - AI voiceovers now automatically merged with background videos to create complete Meta-ready video assets
 - July 08, 2025. Fixed AI script generation to create proper 18-20 second scripts (80-90 words) and corrected data handling to prevent overwriting existing spreadsheet data. AI now reads from "Cleansed with BEAP" tab with historical scored data while new exports append to "Raw Data" tab
 - July 08, 2025. Implemented Google Drive auto-upload with resumable uploads and Shared Drive support. Fixed script length to 60-70 words (max 18 seconds) to prevent audio extending beyond 20-second video duration
+- July 09, 2025. Added "Load AI Videos" button to upload tab for importing AI-generated videos from Google Drive (folder: 1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh). Fixed Google Drive permissions issue - service account email: replit-paid-ads-sheets-writer@wide-river-461409-c5.iam.gserviceaccount.com needs Editor access to individual video files for Meta campaign upload
 
 ## User Preferences
 

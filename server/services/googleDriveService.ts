@@ -40,7 +40,7 @@ class GoogleDriveService {
       this.auth = new google.auth.GoogleAuth({
         credentials,
         scopes: [
-          'https://www.googleapis.com/auth/drive.readonly',
+          'https://www.googleapis.com/auth/drive',
           'https://www.googleapis.com/auth/drive.file'
         ],
       });
@@ -167,11 +167,45 @@ class GoogleDriveService {
     }
 
     try {
-      // Get file metadata first
-      const fileMetadata = await this.drive.files.get({
-        fileId,
-        fields: 'name, size, mimeType'
-      });
+      console.log(`Attempting to download file ${fileId} with name ${fileName}`);
+      
+      // First try to get file metadata to check if we have access
+      let fileMetadata;
+      try {
+        fileMetadata = await this.drive.files.get({
+          fileId,
+          fields: 'name, size, mimeType, parents',
+          supportsAllDrives: true
+        });
+        console.log(`File metadata retrieved: ${JSON.stringify(fileMetadata.data)}`);
+      } catch (metaError) {
+        console.error('Error getting file metadata:', metaError);
+        
+        // If we can't get metadata, it's likely a permissions issue
+        // Try to find the file in the folder listing to see if it exists
+        try {
+          const folderFiles = await this.listVideosFromFolder('1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh');
+          const foundFile = folderFiles.find(f => f.id === fileId);
+          
+          if (foundFile) {
+            const serviceAccountEmail = this.getServiceAccountEmail();
+            return {
+              success: false,
+              error: `PERMISSION ISSUE: File exists but service account doesn't have download permissions. Please share each AI-generated video file directly with the service account email: ${serviceAccountEmail}`
+            };
+          } else {
+            return {
+              success: false,
+              error: 'File not found in the specified folder'
+            };
+          }
+        } catch (searchError) {
+          return {
+            success: false,
+            error: `Cannot access file: ${metaError instanceof Error ? metaError.message : 'Unknown error'}`
+          };
+        }
+      }
 
       if (!fileMetadata.data.mimeType?.includes('video/')) {
         return {
@@ -180,20 +214,22 @@ class GoogleDriveService {
         };
       }
 
-      // Create backgrounds directory if it doesn't exist
-      const backgroundsDir = path.join(process.cwd(), 'uploads', 'backgrounds');
-      if (!fs.existsSync(backgroundsDir)) {
-        fs.mkdirSync(backgroundsDir, { recursive: true });
+      // Create uploads directory if it doesn't exist
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
       // Generate safe filename
       const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const filePath = path.join(backgroundsDir, safeFileName);
+      const filePath = path.join(uploadsDir, safeFileName);
 
-      // Download the file
+      // Download the file with Shared Drive support
+      console.log(`Downloading file content for ${fileId}`);
       const response = await this.drive.files.get({
         fileId,
-        alt: 'media'
+        alt: 'media',
+        supportsAllDrives: true
       }, {
         responseType: 'stream'
       });
@@ -204,7 +240,7 @@ class GoogleDriveService {
       return new Promise((resolve) => {
         response.data.pipe(writeStream)
           .on('finish', () => {
-            console.log(`Downloaded video file: ${safeFileName}`);
+            console.log(`Downloaded video file: ${safeFileName} to ${filePath}`);
             resolve({
               success: true,
               filePath
@@ -239,7 +275,8 @@ class GoogleDriveService {
     try {
       const response = await this.drive.files.get({
         fileId,
-        fields: 'id, name, size, mimeType, webViewLink, thumbnailLink, modifiedTime'
+        fields: 'id, name, size, mimeType, webViewLink, thumbnailLink, modifiedTime',
+        supportsAllDrives: true
       });
 
       return response.data;
@@ -426,6 +463,22 @@ class GoogleDriveService {
     } catch (error) {
       console.error('Error getting Google Drive storage info:', error);
       throw new Error(`Failed to get storage info: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get the service account email for permission sharing
+   */
+  getServiceAccountEmail(): string {
+    if (!this.isConfigured()) {
+      return 'Service account not configured';
+    }
+
+    try {
+      const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
+      return credentials.client_email || 'Email not found';
+    } catch (error) {
+      return 'Error reading service account email';
     }
   }
 }
