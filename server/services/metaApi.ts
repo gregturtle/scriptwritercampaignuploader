@@ -592,7 +592,9 @@ class MetaApiService {
     
     // Use direct API approach which has been more reliable
     console.log('Using direct Meta API for video upload...');
-    return await this.uploadFileToMeta(accessToken, videoPath);
+    const { fileService } = await import('./fileService');
+    const result = await fileService.uploadFileToMeta(accessToken, videoPath);
+    return result.id;
   }
 
   /**
