@@ -714,7 +714,6 @@ class MetaApiService {
               value: {
                 // The application ID should be the Meta App ID
                 application: process.env.META_APP_ID,
-                link_title: name,
               },
             },
           },
