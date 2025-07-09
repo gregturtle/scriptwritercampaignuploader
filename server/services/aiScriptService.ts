@@ -208,9 +208,9 @@ class AIScriptService {
       }
 
       // Generate suggestions using OpenAI
-      // Force 80-90 word scripts regardless of existing data
-      const targetWordCount = "80-90";
-      console.log(`Targeting ${targetWordCount} words for 18-20 second scripts`);
+      // Force 70-80 word scripts for maximum 19 seconds
+      const targetWordCount = "70-80";
+      console.log(`Targeting ${targetWordCount} words for maximum 19 second scripts`);
 
       const prompt = `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
@@ -221,7 +221,7 @@ CONTEXT:
 - What3Words assigns unique 3-word addresses to every 3x3 meter location globally
 - These are voiceover scripts for video ads encouraging app downloads
 - The background visuals are constant - you only write the spoken narration
-- MANDATORY: Each script must be EXACTLY 80-90 words (18-20 seconds when spoken)
+- MANDATORY: Each script must be EXACTLY 70-80 words (maximum 19 seconds when spoken)
 - "Score" represents overall performance (higher = better performing voiceovers)
 
 HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
@@ -264,7 +264,7 @@ Based on your analysis of BOTH success and failure patterns above, write ${scrip
 - Incorporate proven successful elements from high-scoring data
 - Actively avoid patterns that led to poor performance in low-scoring data
 - Are ONLY spoken narration (no visual descriptions)
-- Must be EXACTLY 80-90 words (18-20 seconds when spoken naturally)
+- Must be EXACTLY 70-80 words (maximum 19 seconds when spoken naturally)
 - Focus on encouraging What Three Words app downloads
 - Always write "what three words" instead of "what3words" for proper voice pronunciation
 
