@@ -11,11 +11,13 @@ import { useMetaAuth } from "@/hooks/useMetaAuth";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { FileUpload, Campaign, FrontendActivityLog } from "@shared/schema";
+import { Button } from "@/components/ui/button";
+import { CloudDownload } from "lucide-react";
 
 export default function Home() {
   const { toast } = useToast();
   const { isAuthenticated, logout, login } = useMetaAuth();
-  const { uploadedFiles, uploadFiles, removeFile, uploadProgress } = useFileUpload();
+  const { uploadedFiles, uploadFiles, removeFile, uploadProgress, addGoogleDriveFiles } = useFileUpload();
   const { 
     campaigns, 
     isLoading: campaignsLoading, 
@@ -27,6 +29,7 @@ export default function Home() {
   } = useCampaigns();
 
   const [activityLogs, setActivityLogs] = useState<FrontendActivityLog[]>([]);
+  const [loadingGoogleDriveVideos, setLoadingGoogleDriveVideos] = useState(false);
 
   // Calculate status summary
   const statusSummary = {
@@ -45,6 +48,55 @@ export default function Home() {
         variant: log.type === 'error' ? 'destructive' : 'default',
       });
     });
+  };
+
+  // Load AI-generated videos from Google Drive
+  const handleLoadGoogleDriveVideos = async () => {
+    setLoadingGoogleDriveVideos(true);
+    try {
+      // Use the hardcoded folder ID from user's Shared Drive
+      const folderId = '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh';
+      const response = await fetch(`/api/drive/folder/${folderId}/videos`);
+      const data = await response.json();
+      
+      if (data.success && data.videos) {
+        // Add Google Drive videos to the upload list
+        addGoogleDriveFiles(data.videos);
+        
+        const logEntry: FrontendActivityLog = {
+          id: Date.now().toString(),
+          type: 'success',
+          message: `Loaded ${data.videos.length} AI-generated videos from Google Drive`,
+          timestamp: new Date().toISOString()
+        };
+        setActivityLogs(prev => [logEntry, ...prev]);
+        
+        toast({
+          title: "Success",
+          description: `Loaded ${data.videos.length} AI-generated videos from Google Drive`,
+        });
+      } else {
+        throw new Error(data.message || 'Failed to load videos');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load Google Drive videos';
+      
+      const logEntry: FrontendActivityLog = {
+        id: Date.now().toString(),
+        type: 'error',
+        message: errorMessage,
+        timestamp: new Date().toISOString()
+      };
+      setActivityLogs(prev => [logEntry, ...prev]);
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingGoogleDriveVideos(false);
+    }
   };
 
   // Handle creative launch
@@ -170,7 +222,19 @@ export default function Home() {
             {/* Left Column (2/3 on desktop) */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4">Upload Ad Creative</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Upload Ad Creative</h2>
+                  <Button 
+                    onClick={handleLoadGoogleDriveVideos}
+                    disabled={loadingGoogleDriveVideos}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <CloudDownload className="h-4 w-4" />
+                    {loadingGoogleDriveVideos ? 'Loading...' : 'Load AI Videos'}
+                  </Button>
+                </div>
                 <FileUploader onFilesSelected={handleFilesSelected} />
                 <UploadList 
                   files={uploadedFiles} 

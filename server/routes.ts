@@ -406,27 +406,45 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           campaignIds.map(async (campaignId) => {
             console.log(`Processing file ID ${file.id} for campaign ${campaignId}`);
             
-            // Get file from database
-            const dbFile = await appStorage.getFileById(parseInt(file.id));
+            let filePath = file.path;
+            let fileName = file.name;
             
-            if (!dbFile) {
-              console.error(`File with ID ${file.id} not found in database`);
-              throw new Error(`File with ID ${file.id} not found`);
+            // Handle Google Drive files - download temporarily for Meta upload
+            if (file.path.startsWith('gdrive://')) {
+              console.log(`File is from Google Drive: ${file.path}`);
+              const googleDriveFileId = file.path.replace('gdrive://', '');
+              
+              console.log(`Downloading Google Drive file for Meta upload: ${fileName} (${googleDriveFileId})`);
+              const downloadResult = await googleDriveService.downloadVideoFile(googleDriveFileId, fileName);
+              
+              if (!downloadResult.success || !downloadResult.filePath) {
+                throw new Error(`Failed to download Google Drive file: ${downloadResult.error || 'Unknown error'}`);
+              }
+              
+              filePath = downloadResult.filePath;
+              console.log(`Google Drive file downloaded to: ${filePath}`);
             }
             
-            console.log(`Retrieved file from database: ${JSON.stringify(dbFile)}`);
+            // Get file from database for local files
+            let dbFile = null;
+            if (!file.id.startsWith('gdrive-')) {
+              dbFile = await appStorage.getFileById(parseInt(file.id));
+              
+              if (!dbFile) {
+                console.error(`File with ID ${file.id} not found in database`);
+                throw new Error(`File with ID ${file.id} not found`);
+              }
+              
+              console.log(`Retrieved file from database: ${JSON.stringify(dbFile)}`);
+              filePath = dbFile.path;
+              fileName = dbFile.name;
+            }
             
             try {
               // Upload file to Meta
-              console.log(`Uploading file "${dbFile.name}" (${dbFile.path}) to Meta`);
-              const uploadResult = await fileService.uploadFileToMeta(accessToken, dbFile.path);
+              console.log(`Uploading file "${fileName}" (${filePath}) to Meta`);
+              const uploadResult = await fileService.uploadFileToMeta(accessToken, filePath);
               console.log(`Upload to Meta successful, received asset ID: ${uploadResult.id}`);
-              
-              // Update file with Meta asset ID
-              await appStorage.updateFile(dbFile.id, {
-                metaAssetId: uploadResult.id,
-              });
-              console.log(`Updated file ${dbFile.id} with Meta asset ID ${uploadResult.id}`);
               
               // Create ad creative in Meta
               console.log(`Creating ad creative for campaign ${campaignId}`);
@@ -434,36 +452,57 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
                 accessToken,
                 campaignId,
                 uploadResult.id,
-                dbFile.name
+                fileName
               );
               console.log(`Creative created in Meta with ID: ${creativeResult.id}`);
               
-              // Save creative to database
-              const creative = await appStorage.createCreative({
-                fileId: dbFile.id,
-                campaignId,
-                metaCreativeId: creativeResult.id,
-                status: "completed",
-              });
-              console.log(`Saved creative to database with ID: ${creative.id}`);
-              
-              // Update file status
-              await appStorage.updateFile(dbFile.id, {
-                status: "completed",
-              });
-              console.log(`Updated file status to "completed"`);
-              
-              // Log success
-              await appStorage.createActivityLog({
-                type: "success",
-                message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
-                timestamp: new Date(),
-              });
-              console.log(`Created success activity log entry`);
-              
-              return creative;
+              // For Google Drive files, we don't have a database entry, so we create a minimal creative record
+              if (file.id.startsWith('gdrive-')) {
+                // Log success for Google Drive files
+                await appStorage.createActivityLog({
+                  type: "success",
+                  message: `Creative "${fileName}" (from Google Drive) launched to campaign "${campaignId}"`,
+                  timestamp: new Date(),
+                });
+                console.log(`Created success activity log entry for Google Drive file`);
+                
+                return { id: creativeResult.id, source: 'google-drive' };
+              } else {
+                // Handle regular database files
+                // Update file with Meta asset ID
+                await appStorage.updateFile(dbFile.id, {
+                  metaAssetId: uploadResult.id,
+                });
+                console.log(`Updated file ${dbFile.id} with Meta asset ID ${uploadResult.id}`);
+                
+                // Save creative to database
+                const creative = await appStorage.createCreative({
+                  fileId: dbFile.id,
+                  campaignId,
+                  metaCreativeId: creativeResult.id,
+                  status: "completed",
+                });
+                console.log(`Saved creative to database with ID: ${creative.id}`);
+                
+                // Update file status
+                await appStorage.updateFile(dbFile.id, {
+                  status: "completed",
+                });
+                console.log(`Updated file status to "completed"`);
+                
+                // Log success
+                await appStorage.createActivityLog({
+                  type: "success",
+                  message: `Creative "${dbFile.name}" launched to campaign "${campaignId}"`,
+                  timestamp: new Date(),
+                });
+                console.log(`Created success activity log entry`);
+                
+                return creative;
+              }
             } catch (error) {
-              console.error(`Error processing file ${dbFile.id} for campaign ${campaignId}:`, error);
+              const fileIdentifier = dbFile ? dbFile.id : file.id;
+              console.error(`Error processing file ${fileIdentifier} for campaign ${campaignId}:`, error);
               throw error; // Re-throw to be caught by Promise.allSettled
             }
           })
@@ -966,6 +1005,41 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         success: false,
         error: 'Failed to download video from Google Drive',
         details: error.message
+      });
+    }
+  });
+
+  // List videos from specific Google Drive folder (AI-generated videos)
+  app.get("/api/drive/folder/:folderId/videos", async (req, res) => {
+    try {
+      const { folderId } = req.params;
+      
+      if (!folderId) {
+        return res.status(400).json({ message: "Folder ID is required" });
+      }
+      
+      console.log(`Listing videos from Google Drive folder: ${folderId}`);
+      const videos = await googleDriveService.listVideosFromFolder(folderId);
+      
+      res.json({ 
+        success: true, 
+        videos: videos.map(video => ({
+          id: `gdrive-${video.id}`, // Prefix to distinguish from local files
+          name: video.name,
+          size: parseInt(video.size || '0'),
+          type: 'video/mp4',
+          status: 'ready',
+          path: `gdrive://${video.id}`, // Special path to indicate Google Drive file
+          createdAt: video.modifiedTime || new Date().toISOString(),
+          webViewLink: video.webViewLink,
+          source: 'google-drive'
+        }))
+      });
+    } catch (error) {
+      console.error("Error listing videos from Google Drive folder:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error instanceof Error ? error.message : "Unknown error" 
       });
     }
   });

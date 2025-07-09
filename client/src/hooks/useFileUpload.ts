@@ -164,11 +164,27 @@ export function useFileUpload() {
     });
   };
 
+  // Add Google Drive files to the upload list
+  const addGoogleDriveFiles = (driveFiles: any[]) => {
+    const newFiles: FileUpload[] = driveFiles.map(file => ({
+      id: file.id,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      status: 'ready' as const,
+      path: file.path,
+      createdAt: file.createdAt
+    }));
+    
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+  };
+
   return {
     uploadedFiles,
     uploadProgress,
     uploadFiles,
     removeFile,
+    addGoogleDriveFiles,
     isUploading: uploadMutation.isPending
   };
 }

@@ -60,6 +60,48 @@ class GoogleDriveService {
   }
 
   /**
+   * List video files from the specified Google Drive folder
+   */
+  async listVideosFromFolder(folderId: string): Promise<{
+    id: string;
+    name: string;
+    size?: string;
+    modifiedTime?: string;
+    webViewLink?: string;
+  }[]> {
+    if (!this.isConfigured()) {
+      throw new Error('Google Drive service is not properly configured');
+    }
+
+    try {
+      console.log(`Listing videos from Google Drive folder: ${folderId}`);
+      
+      const response = await this.drive.files.list({
+        q: `'${folderId}' in parents and mimeType contains 'video/' and trashed=false`,
+        fields: 'files(id,name,size,modifiedTime,webViewLink)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        orderBy: 'modifiedTime desc'
+      });
+
+      const files = response.data.files || [];
+      console.log(`Found ${files.length} video files in Google Drive folder`);
+      
+      return files.map(file => ({
+        id: file.id!,
+        name: file.name!,
+        size: file.size,
+        modifiedTime: file.modifiedTime,
+        webViewLink: file.webViewLink
+      }));
+      
+    } catch (error) {
+      console.error('Error listing videos from Google Drive folder:', error);
+      throw new Error(`Failed to list videos from Google Drive: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * List video files from Google Drive
    */
   async listVideoFiles(pageSize: number = 50): Promise<DriveFile[]> {
