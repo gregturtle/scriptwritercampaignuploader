@@ -859,8 +859,7 @@ class MetaApiService {
                 // The application ID should be the Meta App ID
                 application: process.env.META_APP_ID,
               },
-            },
-            image_url: "https://via.placeholder.com/1200x630/000000/FFFFFF?text=Video+Thumbnail" // Required thumbnail
+            }
           },
           page_id: pageId,
         },
@@ -879,8 +878,7 @@ class MetaApiService {
               value: {
                 link: "https://what3words.com",
               },
-            },
-            image_url: "https://via.placeholder.com/1200x630/000000/FFFFFF?text=Video+Thumbnail" // Required thumbnail
+            }
           },
           page_id: pageId,
         },
