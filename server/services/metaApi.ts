@@ -570,28 +570,29 @@ class MetaApiService {
    * Upload video using Facebook SDK
    */
   async uploadVideoWithSDK(accessToken: string, videoPath: string, title: string): Promise<string> {
-    // Initialize Facebook Ads API
-    FacebookAdsApi.init(accessToken, META_APP_SECRET);
+    console.log(`Uploading video: ${title}`);
+    console.log(`Video file path: ${videoPath}`);
     
-    console.log(`Uploading video using Facebook SDK: ${title}`);
-    
+    // Check if file exists and get stats
     try {
-      const account = new AdAccount(META_AD_ACCOUNT_ID.startsWith('act_') ? META_AD_ACCOUNT_ID : `act_${META_AD_ACCOUNT_ID}`);
+      const stats = fs.statSync(videoPath);
+      console.log(`Video file size: ${stats.size} bytes`);
       
-      const video = await account.createAdVideo(
-        ['id'], 
-        {
-          source: fs.createReadStream(videoPath),
-          title: title,
-        }
-      );
+      if (stats.size === 0) {
+        throw new Error('Video file is empty');
+      }
       
-      console.log('Uploaded video ID via SDK:', video.id);
-      return video.id as string;
-    } catch (error) {
-      console.error('Error uploading video with SDK:', error);
-      throw new Error(`Failed to upload video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (stats.size > 100 * 1024 * 1024) { // 100MB limit
+        throw new Error('Video file is too large (max 100MB)');
+      }
+    } catch (fsError) {
+      console.error('Error checking video file:', fsError);
+      throw new Error(`Video file not accessible: ${fsError instanceof Error ? fsError.message : 'Unknown error'}`);
     }
+    
+    // Use direct API approach which has been more reliable
+    console.log('Using direct Meta API for video upload...');
+    return await this.uploadFileToMeta(accessToken, videoPath);
   }
 
   /**
@@ -603,101 +604,12 @@ class MetaApiService {
     videoId: string,
     name: string
   ): Promise<string> {
-    // Initialize Facebook Ads API
-    FacebookAdsApi.init(accessToken, META_APP_SECRET);
+    console.log(`Creating ad creative for video ${videoId} in campaign ${campaignId}`);
     
-    console.log(`Creating ad creative using Facebook SDK for video ${videoId} in campaign ${campaignId}`);
-    
-    try {
-      // Get campaign details to determine type
-      const campaignDetailsResponse = await fetch(
-        `${FB_GRAPH_API}/${campaignId}?fields=objective&access_token=${accessToken}`,
-        { method: "GET" }
-      );
-      
-      const campaignDetails = await campaignDetailsResponse.json() as any;
-      const isAppInstallCampaign = campaignDetails.objective === 'APP_INSTALLS' || 
-                                   campaignDetails.objective === 'OUTCOME_APP_PROMOTION';
-      
-      // Get page ID from existing ads in the campaign
-      let pageId;
-      try {
-        const adsResponse = await fetch(
-          `${FB_GRAPH_API}/${campaignId}/ads?fields=creative{object_story_spec}&limit=1&access_token=${accessToken}`,
-          { method: "GET" }
-        );
-        
-        if (adsResponse.ok) {
-          const adsData = await adsResponse.json() as any;
-          if (adsData.data && adsData.data.length > 0) {
-            const existingAd = adsData.data[0];
-            const objectStorySpec = existingAd.creative?.object_story_spec;
-            if (objectStorySpec?.page_id) {
-              pageId = objectStorySpec.page_id;
-              console.log(`Found page ID from existing ad: ${pageId}`);
-            }
-          }
-        }
-      } catch (error) {
-        console.log(`Could not get page ID from existing ads: ${error}`);
-      }
-      
-      // Fallback to account pages if needed
-      if (!pageId) {
-        const pages = await this.getPages(accessToken);
-        if (pages && pages.length > 0) {
-          pageId = pages[0].id;
-          console.log(`Using account page: ${pages[0].name} (ID: ${pageId})`);
-        } else {
-          throw new Error("No pages found for ad creative");
-        }
-      }
-      
-      const account = new AdAccount(META_AD_ACCOUNT_ID.startsWith('act_') ? META_AD_ACCOUNT_ID : `act_${META_AD_ACCOUNT_ID}`);
-      
-      // Create the creative data structure
-      let creativeData: any = {
-        name: `AI Video Creative - ${name}`,
-        object_story_spec: {
-          page_id: pageId,
-          video_data: {
-            video_id: videoId,
-            title: name,
-            message: isAppInstallCampaign ? "Download our app now!" : "Check out our new feature!",
-          }
-        }
-      };
-      
-      // Add call-to-action based on campaign type
-      if (isAppInstallCampaign) {
-        creativeData.object_story_spec.video_data.call_to_action = {
-          type: 'INSTALL_MOBILE_APP',
-          value: {
-            application: META_APP_ID,
-          }
-        };
-      } else {
-        creativeData.object_story_spec.video_data.call_to_action = {
-          type: 'LEARN_MORE',
-          value: {
-            link: 'https://what3words.com',
-          }
-        };
-      }
-      
-      console.log('Creating creative with data:', JSON.stringify(creativeData, null, 2));
-      
-      const creative = await account.createAdCreative(
-        ['id'],
-        creativeData
-      );
-      
-      console.log('Created creative ID via SDK:', creative.id);
-      return creative.id as string;
-    } catch (error) {
-      console.error('Error creating ad creative with SDK:', error);
-      throw new Error(`Failed to create ad creative: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    // Use the existing, working createAdCreative method for now
+    console.log('Using direct API approach for creative creation...');
+    const creative = await this.createAdCreative(accessToken, campaignId, videoId, name);
+    return creative.id;
   }
 
   /**
@@ -709,10 +621,7 @@ class MetaApiService {
     creativeId: string,
     name: string
   ): Promise<string> {
-    // Initialize Facebook Ads API
-    FacebookAdsApi.init(accessToken, META_APP_SECRET);
-    
-    console.log(`Creating ad using Facebook SDK for creative ${creativeId} in campaign ${campaignId}`);
+    console.log(`Creating ad for creative ${creativeId} in campaign ${campaignId}`);
     
     try {
       // Get ad set from campaign
@@ -729,22 +638,41 @@ class MetaApiService {
       const adSetId = adSetsData.data[0].id;
       console.log(`Using ad set ID: ${adSetId}`);
       
-      const account = new AdAccount(META_AD_ACCOUNT_ID.startsWith('act_') ? META_AD_ACCOUNT_ID : `act_${META_AD_ACCOUNT_ID}`);
+      // Create ad using direct API
+      const adData = {
+        name: `AI Video Ad - ${name}`,
+        adset_id: adSetId,
+        creative: { creative_id: creativeId },
+        status: 'ACTIVE'
+      };
       
-      const ad = await account.createAd(
-        ['id'],
+      console.log('Creating ad with data:', JSON.stringify(adData, null, 2));
+      
+      const response = await fetch(
+        `${FB_GRAPH_API}/${META_AD_ACCOUNT_ID.startsWith('act_') ? META_AD_ACCOUNT_ID : `act_${META_AD_ACCOUNT_ID}`}/ads?access_token=${accessToken}`,
         {
-          name: `AI Video Ad - ${name}`,
-          adset_id: adSetId,
-          creative: { creative_id: creativeId },
-          status: 'ACTIVE' // Start active for immediate deployment
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(adData),
         }
       );
       
-      console.log('Created ad ID via SDK:', ad.id);
-      return ad.id as string;
+      console.log(`Ad creation response status: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Error creating ad: ${errorText}`);
+        throw new Error(`Failed to create ad: ${errorText}`);
+      }
+      
+      const result = await response.json() as any;
+      console.log(`Ad creation successful: ${JSON.stringify(result)}`);
+      
+      return result.id as string;
     } catch (error) {
-      console.error('Error creating ad with SDK:', error);
+      console.error('Error creating ad:', error);
       throw new Error(`Failed to create ad: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
