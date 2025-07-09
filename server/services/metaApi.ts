@@ -860,6 +860,7 @@ class MetaApiService {
                 application: process.env.META_APP_ID,
               },
             },
+            image_url: "https://via.placeholder.com/1200x630/000000/FFFFFF?text=Video+Thumbnail" // Required thumbnail
           },
           page_id: pageId,
         },
@@ -876,9 +877,10 @@ class MetaApiService {
             call_to_action: {
               type: "LEARN_MORE",
               value: {
-                link: "https://example.com",
+                link: "https://what3words.com",
               },
             },
+            image_url: "https://via.placeholder.com/1200x630/000000/FFFFFF?text=Video+Thumbnail" // Required thumbnail
           },
           page_id: pageId,
         },
