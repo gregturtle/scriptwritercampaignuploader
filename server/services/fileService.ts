@@ -82,94 +82,64 @@ class FileService {
    * Upload an image to Meta's ad images library
    */
   async uploadImageToMeta(accessToken: string, imagePath: string): Promise<{hash: string}> {
-    try {
-      console.log(`Starting Meta image upload for: ${imagePath}`);
-      
-      // Check if file exists
-      if (!fs.existsSync(imagePath)) {
-        throw new Error(`Image file does not exist at path: ${imagePath}`);
-      }
-      
-      const fileStats = fs.statSync(imagePath);
-      console.log(`Image size: ${fileStats.size} bytes, Last modified: ${fileStats.mtime}`);
-      
-      // Validate image format and size
-      const fileExtension = path.extname(imagePath).toLowerCase();
-      if (!['.jpg', '.jpeg', '.png'].includes(fileExtension)) {
-        throw new Error(`Invalid image format. Only JPEG and PNG are supported. Got: ${fileExtension}`);
-      }
-      
-      // Check file size (8MB limit)
-      const maxSize = 8 * 1024 * 1024; // 8MB in bytes
-      if (fileStats.size > maxSize) {
-        throw new Error(`Image file too large. Maximum size is 8MB. Got: ${Math.round(fileStats.size / 1024 / 1024)}MB`);
-      }
-      
-      // Use the ad account ID from environment variable if available
-      let adAccountId = META_AD_ACCOUNT_ID;
-      console.log(`Using ad account ID: ${adAccountId}`);
-      
-      // Fallback to fetching accounts if no environment variable is set
-      if (!adAccountId) {
-        console.log("No ad account ID in environment, fetching from API...");
-        const adAccounts = await this.getAdAccounts(accessToken);
-        if (adAccounts.length === 0) {
-          throw new Error("No ad accounts found for this user");
-        }
-        adAccountId = adAccounts[0];
-        console.log(`Fetched ad account ID: ${adAccountId}`);
-      }
-      
-      // Make sure adAccountId format is correct (should start with 'act_')
-      if (!adAccountId.startsWith('act_')) {
-        adAccountId = `act_${adAccountId}`;
-        console.log(`Formatted ad account ID: ${adAccountId}`);
-      }
-      
-      // Read the image file as bytes
-      console.log("Creating read stream for image bytes...");
-      const fileStream = fs.createReadStream(imagePath);
-      const formData = new FormData();
-      
-      formData.append("access_token", accessToken);
-      formData.append("bytes", fileStream); // Use 'bytes' field as expected by Meta API
-      
-      console.log(`Sending image request to: ${FB_GRAPH_API}/${adAccountId}/adimages`);
-      const response = await fetch(`${FB_GRAPH_API}/${adAccountId}/adimages`, {
-        method: "POST",
-        body: formData as any,
-      });
-
-      console.log(`Image upload response status: ${response.status} ${response.statusText}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Image upload error response: ${errorText}`);
-        throw new Error(`Failed to upload image to Meta: ${errorText}`);
-      }
-
-      const data = await response.json() as any;
-      console.log(`Image upload successful. Full response:`, JSON.stringify(data));
-      
-      // Parse the correct image hash from the response
-      // Meta API returns the hash in the 'images' object or directly as 'hash'
-      let imageHash: string;
-      if (data.images && Object.keys(data.images).length > 0) {
-        // Response format: { "images": { "image_hash": {...} } }
-        imageHash = Object.keys(data.images)[0];
-      } else if (data.hash) {
-        // Response format: { "hash": "image_hash" }
-        imageHash = data.hash;
-      } else {
-        throw new Error(`Invalid response format from Meta API: ${JSON.stringify(data)}`);
-      }
-      
-      console.log(`Image upload successful. Received hash: ${imageHash}`);
-      return { hash: imageHash };
-    } catch (error) {
-      console.error("Error uploading image to Meta:", error);
-      throw error;
+    console.log(`Starting Meta image upload for: ${imagePath}`);
+    
+    if (!fs.existsSync(imagePath)) {
+      throw new Error(`Thumbnail not found: ${imagePath}`);
     }
+    
+    const stats = fs.statSync(imagePath);
+    if (stats.size > 8 * 1024 * 1024) {
+      throw new Error(`Thumbnail too large (${(stats.size/1e6).toFixed(1)}MB); must be ≤8MB`);
+    }
+
+    // Build form-data exactly as the API expects:
+    const formData = new FormData();
+    formData.append('access_token', accessToken);
+    formData.append(
+      'bytes',
+      fs.createReadStream(imagePath),
+      {
+        filename: path.basename(imagePath),
+        contentType: imagePath.endsWith('.png') 
+                     ? 'image/png' 
+                     : 'image/jpeg'
+      }
+    );
+
+    // Ensure we target the right ad_account:
+    let accountId = META_AD_ACCOUNT_ID || '';
+    if (!accountId.startsWith('act_')) accountId = 'act_' + accountId;
+ 
+    console.log(`Sending image request to: ${FB_GRAPH_API}/${accountId}/adimages`);
+    
+    // Fetch with the form-data's own headers:
+    const res = await fetch(
+      `${FB_GRAPH_API}/${accountId}/adimages`,
+      {
+        method: 'POST',
+        body: formData as any,
+        headers: formData.getHeaders()
+      }
+    );
+    
+    console.log(`Image upload response status: ${res.status} ${res.statusText}`);
+    
+    const json = await res.json();
+    if (!res.ok) {
+      console.error(`Image upload error response:`, JSON.stringify(json));
+      throw new Error(`Failed to upload image to Meta: ${JSON.stringify(json)}`);
+    }
+
+    console.log(`Image upload successful. Full response:`, JSON.stringify(json));
+
+    // Extract the first image's hash:
+    const images = json.images;
+    const first = Object.values(images)[0] as any;
+    const imageHash = first.hash;
+    
+    console.log(`Image upload successful. Received hash: ${imageHash}`);
+    return { hash: imageHash };
   }
   
   /**

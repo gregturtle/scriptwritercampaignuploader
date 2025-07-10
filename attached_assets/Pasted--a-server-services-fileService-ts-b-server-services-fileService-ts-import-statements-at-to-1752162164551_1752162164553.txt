@@ -1,0 +1,67 @@
+--- a/server/services/fileService.ts
++++ b/server/services/fileService.ts
+@@ import statements at top
+ import fs from 'fs';
+ import path from 'path';
++import FormData from 'form-data';
++import fetch from 'node-fetch';
+
+ export class FileService {
+   // … your other methods …
+
+   /** Upload a local image as a thumbnail and return its image_hash */
+-  async uploadImageToMeta(accessToken: string, imagePath: string): Promise<{ hash: string }> {
+-    const fileStream = fs.createReadStream(imagePath);
+-    const formData = new FormData();
+-    formData.append('access_token', accessToken);
+-    formData.append('file', fileStream);
++  async uploadImageToMeta(accessToken: string, imagePath: string): Promise<{ hash: string }> {
++    if (!fs.existsSync(imagePath)) {
++      throw new Error(`Thumbnail not found: ${imagePath}`);
++    }
++    const stats = fs.statSync(imagePath);
++    if (stats.size > 8 * 1024 * 1024) {
++      throw new Error(`Thumbnail too large (${(stats.size/1e6).toFixed(1)}MB); must be ≤8MB`);
++    }
++
++    // Build form-data exactly as the API expects:
++    const formData = new FormData();
++    formData.append('access_token', accessToken);
++    formData.append(
++      'bytes',
++      fs.createReadStream(imagePath),
++      {
++        filename: path.basename(imagePath),
++        contentType: imagePath.endsWith('.png') 
++                     ? 'image/png' 
++                     : 'image/jpeg'
++      }
++    );
+
+     // Ensure we target the right ad_account:
+     let accountId = process.env.META_AD_ACCOUNT_ID || '';
+     if (!accountId.startsWith('act_')) accountId = 'act_' + accountId;
+ 
+-    const res = await fetch(`${FB_GRAPH_API}/${accountId}/adimages`, {
+-      method: 'POST',
+-      body: formData as any
++    // Fetch with the form-data’s own headers:
++    const res = await fetch(
++      `${FB_GRAPH_API}/${accountId}/adimages`,
++      {
++        method: 'POST',
++        body: formData as any,
++        headers: formData.getHeaders()
++      }
+     );
+     const json = await res.json();
+     if (!res.ok) {
+       throw new Error(`Failed to upload image to Meta: ${JSON.stringify(json)}`);
+     }
+ 
+     // Extract the first image’s hash:
+     const images = json.images;
+     const first = Object.values(images)[0] as any;
+     return { hash: first.hash };
+   }
+ }
