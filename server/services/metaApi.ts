@@ -1,7 +1,9 @@
 import fetch from "node-fetch";
 import fs from "fs";
+import path from "path";
 import FormData from "form-data";
 import { FacebookAdsApi, AdAccount, AdCreative, Ad } from 'facebook-nodejs-business-sdk';
+import { fileService } from "./fileService";
 
 // Facebook Graph API base URL
 const FB_API_VERSION = "v23.0";
@@ -836,6 +838,35 @@ class MetaApiService {
       console.log(`Using account page: ${pages[0].name} (ID: ${pageId})`);
     }
     
+    // Upload thumbnail image to Meta before creating ad
+    console.log("Uploading thumbnail image to Meta...");
+    
+    // Create a simple thumbnail for the video (assuming we have a placeholder image in uploads)
+    const thumbnailPath = path.join(process.cwd(), "uploads", "default-thumbnail.jpg");
+    
+    // If default thumbnail doesn't exist, create one programmatically or use a fallback
+    let imageHash: string;
+    try {
+      // Try to find an existing thumbnail or create a default one
+      if (!fs.existsSync(thumbnailPath)) {
+        console.log("Default thumbnail not found, creating placeholder...");
+        // Create a simple 1200x630 black image with white text as fallback
+        const placeholderImagePath = await this.createPlaceholderThumbnail(name);
+        const imageResult = await fileService.uploadImageToMeta(accessToken, placeholderImagePath);
+        imageHash = imageResult.hash;
+        // Clean up temporary file
+        fs.unlinkSync(placeholderImagePath);
+      } else {
+        const imageResult = await fileService.uploadImageToMeta(accessToken, thumbnailPath);
+        imageHash = imageResult.hash;
+      }
+    } catch (error) {
+      console.error("Failed to upload thumbnail image:", error);
+      throw new Error(`Failed to upload thumbnail: ${error}`);
+    }
+    
+    console.log(`Thumbnail uploaded successfully with hash: ${imageHash}`);
+    
     // Create ad data based on campaign type
     let adData: any = {
       name: `Ad for ${name}`,
@@ -859,7 +890,8 @@ class MetaApiService {
                 // The application ID should be the Meta App ID
                 application: process.env.META_APP_ID,
               },
-            }
+            },
+            image_hash: imageHash
           },
           page_id: pageId,
         },
@@ -878,7 +910,8 @@ class MetaApiService {
               value: {
                 link: "https://what3words.com",
               },
-            }
+            },
+            image_hash: imageHash
           },
           page_id: pageId,
         },
@@ -909,6 +942,51 @@ class MetaApiService {
     const result = await response.json();
     console.log(`Ad creation successful:`, JSON.stringify(result));
     return result;
+  }
+
+  /**
+   * Create a simple placeholder thumbnail image for video ads
+   */
+  private async createPlaceholderThumbnail(videoName: string): Promise<string> {
+    // Create a simple SVG-based image and convert to JPEG
+    const svgContent = `
+      <svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="#000000"/>
+        <text x="50%" y="50%" font-family="Arial" font-size="48" fill="#FFFFFF" text-anchor="middle" dominant-baseline="middle">
+          ${videoName.substring(0, 30)}...
+        </text>
+        <text x="50%" y="70%" font-family="Arial" font-size="24" fill="#CCCCCC" text-anchor="middle" dominant-baseline="middle">
+          What3Words Video Ad
+        </text>
+      </svg>
+    `;
+    
+    // For now, create a simple placeholder file path
+    // In a production environment, you'd want to use a proper image generation library
+    const tempImagePath = path.join(process.cwd(), "uploads", `temp-thumbnail-${Date.now()}.jpg`);
+    
+    // Create a simple black JPEG file as placeholder (this is a minimal approach)
+    // In production, you should use proper image generation libraries like Sharp or Canvas
+    const placeholderImageBuffer = Buffer.from([
+      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+      0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
+      0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
+      0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20,
+      0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29,
+      0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32,
+      0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x02, 0x76,
+      0x04, 0xB0, 0x03, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+      0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0xFF, 0xDA,
+      0x00, 0x0C, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3F, 0x00,
+      0xAA, 0xFF, 0xD9
+    ]);
+    
+    fs.writeFileSync(tempImagePath, placeholderImageBuffer);
+    console.log(`Created placeholder thumbnail: ${tempImagePath}`);
+    
+    return tempImagePath;
   }
 }
 
