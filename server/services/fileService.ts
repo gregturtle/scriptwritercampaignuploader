@@ -93,6 +93,18 @@ class FileService {
       const fileStats = fs.statSync(imagePath);
       console.log(`Image size: ${fileStats.size} bytes, Last modified: ${fileStats.mtime}`);
       
+      // Validate image format and size
+      const fileExtension = path.extname(imagePath).toLowerCase();
+      if (!['.jpg', '.jpeg', '.png'].includes(fileExtension)) {
+        throw new Error(`Invalid image format. Only JPEG and PNG are supported. Got: ${fileExtension}`);
+      }
+      
+      // Check file size (8MB limit)
+      const maxSize = 8 * 1024 * 1024; // 8MB in bytes
+      if (fileStats.size > maxSize) {
+        throw new Error(`Image file too large. Maximum size is 8MB. Got: ${Math.round(fileStats.size / 1024 / 1024)}MB`);
+      }
+      
       // Use the ad account ID from environment variable if available
       let adAccountId = META_AD_ACCOUNT_ID;
       console.log(`Using ad account ID: ${adAccountId}`);
@@ -114,13 +126,13 @@ class FileService {
         console.log(`Formatted ad account ID: ${adAccountId}`);
       }
       
-      // Read the image file
-      console.log("Creating read stream for image...");
+      // Read the image file as bytes
+      console.log("Creating read stream for image bytes...");
       const fileStream = fs.createReadStream(imagePath);
       const formData = new FormData();
       
       formData.append("access_token", accessToken);
-      formData.append("file", fileStream);
+      formData.append("bytes", fileStream); // Use 'bytes' field as expected by Meta API
       
       console.log(`Sending image request to: ${FB_GRAPH_API}/${adAccountId}/adimages`);
       const response = await fetch(`${FB_GRAPH_API}/${adAccountId}/adimages`, {
@@ -137,8 +149,23 @@ class FileService {
       }
 
       const data = await response.json() as any;
-      console.log(`Image upload successful. Received hash: ${data.hash}`);
-      return { hash: data.hash };
+      console.log(`Image upload successful. Full response:`, JSON.stringify(data));
+      
+      // Parse the correct image hash from the response
+      // Meta API returns the hash in the 'images' object or directly as 'hash'
+      let imageHash: string;
+      if (data.images && Object.keys(data.images).length > 0) {
+        // Response format: { "images": { "image_hash": {...} } }
+        imageHash = Object.keys(data.images)[0];
+      } else if (data.hash) {
+        // Response format: { "hash": "image_hash" }
+        imageHash = data.hash;
+      } else {
+        throw new Error(`Invalid response format from Meta API: ${JSON.stringify(data)}`);
+      }
+      
+      console.log(`Image upload successful. Received hash: ${imageHash}`);
+      return { hash: imageHash };
     } catch (error) {
       console.error("Error uploading image to Meta:", error);
       throw error;
