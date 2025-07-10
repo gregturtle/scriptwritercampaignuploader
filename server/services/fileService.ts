@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import fetch from "node-fetch";
 import FormData from "form-data";
+import { AdAccount, FacebookAdsApi } from 'facebook-nodejs-business-sdk';
 
 // Facebook Graph API base URL
 const FB_API_VERSION = "v18.0";
@@ -9,6 +10,9 @@ const FB_GRAPH_API = `https://graph.facebook.com/${FB_API_VERSION}`;
 
 // Get ad account ID from environment variable
 const META_AD_ACCOUNT_ID = process.env.META_AD_ACCOUNT_ID || "";
+
+// Initialize Facebook SDK
+FacebookAdsApi.init(process.env.META_ACCESS_TOKEN!, process.env.META_APP_SECRET!);
 
 class FileService {
   /**
@@ -79,13 +83,14 @@ class FileService {
   }
 
   /**
-   * Upload an image to Meta's ad images library
+   * Uploads a local JPEG/PNG to Meta and returns the image_hash.
+   * Uses the official SDK so we don't have to wrestle with FormData ourselves.
    */
   async uploadImageToMeta(accessToken: string, imagePath: string): Promise<{hash: string}> {
     console.log(`Starting Meta image upload for: ${imagePath}`);
     
     if (!fs.existsSync(imagePath)) {
-      throw new Error(`Thumbnail not found: ${imagePath}`);
+      throw new Error(`Thumbnail file not found: ${imagePath}`);
     }
     
     const stats = fs.statSync(imagePath);
@@ -93,65 +98,33 @@ class FileService {
       throw new Error(`Thumbnail too large (${(stats.size/1e6).toFixed(1)}MB); must be ≤8MB`);
     }
 
-    // Build form-data exactly as the API expects:
-    const formData = new FormData();
-    formData.append('access_token', accessToken);
-
-    // Facebook also wants the 'filename' field
-    const fileName = path.basename(imagePath);
-    formData.append('filename', fileName);
-
-    // Try uploading under 'bytes' (official)…
-    formData.append(
-      'bytes',
-      fs.createReadStream(imagePath),
-      {
-        filename: fileName,
-        contentType: fileName.toLowerCase().endsWith('.png') 
-                     ? 'image/png' 
-                     : 'image/jpeg'
-      }
-    );
-
-    console.log('Uploading thumbnail with fields:', {
-      filename: fileName,
-      size: stats.size,
-      contentType: formData.getHeaders()['content-type']
-    });
-
-    // Ensure we target the right ad_account:
-    let accountId = META_AD_ACCOUNT_ID || '';
-    if (!accountId.startsWith('act_')) accountId = 'act_' + accountId;
- 
-    console.log(`Sending image request to: ${FB_GRAPH_API}/${accountId}/adimages`);
+    const accountId = META_AD_ACCOUNT_ID.startsWith('act_')
+      ? META_AD_ACCOUNT_ID
+      : `act_${META_AD_ACCOUNT_ID}`;
     
-    // Fetch with the form-data's own headers:
-    const res = await fetch(
-      `${FB_GRAPH_API}/${accountId}/adimages`,
-      {
-        method: 'POST',
-        body: formData as any,
-        headers: formData.getHeaders()
-      }
-    );
-    
-    console.log(`Image upload response status: ${res.status} ${res.statusText}`);
-    
-    const json = await res.json();
-    if (!res.ok) {
-      console.error(`Image upload error response:`, JSON.stringify(json));
-      throw new Error(`Failed to upload image to Meta: ${JSON.stringify(json)}`);
+    console.log(`Using ad account: ${accountId}`);
+    const account = new AdAccount(accountId);
+
+    try {
+      // The SDK will POST to /{ad_account_id}/adimages with the right form-data
+      console.log(`Uploading image using SDK...`);
+      const imagesResponse = await account.createAdImage(
+        ['images{hash,url}'],
+        {
+          bytes: fs.createReadStream(imagePath)
+        }
+      );
+
+      const images = (imagesResponse as any).images;
+      const firstKey = Object.keys(images)[0];
+      const hash = images[firstKey].hash;
+      
+      console.log(`✅ Uploaded thumbnail; image_hash = ${hash}`);
+      return { hash };
+    } catch (error) {
+      console.error('SDK image upload failed:', error);
+      throw new Error(`Failed to upload image to Meta: ${error}`);
     }
-
-    console.log(`Image upload successful. Full response:`, JSON.stringify(json));
-
-    // Extract the first image's hash:
-    const images = json.images;
-    const first = Object.values(images)[0] as any;
-    const imageHash = first.hash;
-    
-    console.log(`Image upload successful. Received hash: ${imageHash}`);
-    return { hash: imageHash };
   }
   
   /**
