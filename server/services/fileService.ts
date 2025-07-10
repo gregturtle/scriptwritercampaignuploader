@@ -96,16 +96,28 @@ class FileService {
     // Build form-data exactly as the API expects:
     const formData = new FormData();
     formData.append('access_token', accessToken);
+
+    // Facebook also wants the 'filename' field
+    const fileName = path.basename(imagePath);
+    formData.append('filename', fileName);
+
+    // Try uploading under 'bytes' (official)…
     formData.append(
       'bytes',
       fs.createReadStream(imagePath),
       {
-        filename: path.basename(imagePath),
-        contentType: imagePath.endsWith('.png') 
+        filename: fileName,
+        contentType: fileName.toLowerCase().endsWith('.png') 
                      ? 'image/png' 
                      : 'image/jpeg'
       }
     );
+
+    console.log('Uploading thumbnail with fields:', {
+      filename: fileName,
+      size: stats.size,
+      contentType: formData.getHeaders()['content-type']
+    });
 
     // Ensure we target the right ad_account:
     let accountId = META_AD_ACCOUNT_ID || '';

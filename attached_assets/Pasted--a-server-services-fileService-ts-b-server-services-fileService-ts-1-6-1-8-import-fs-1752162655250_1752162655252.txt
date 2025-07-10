@@ -1,0 +1,80 @@
+--- a/server/services/fileService.ts
++++ b/server/services/fileService.ts
+@@ -1,6 +1,8 @@
+ import fs from 'fs';
+ import path from 'path';
++import FormData from 'form-data';
++import fetch from 'node-fetch';
+
+ export class FileService {
+   // … other methods …
+
+@@ -30,21 +32,44 @@ export class FileService {
+   /** Upload a local image as a thumbnail and return its image_hash */
+-  async uploadImageToMeta(accessToken: string, imagePath: string): Promise<{ hash: string }> {
++  async uploadImageToMeta(accessToken: string, imagePath: string): Promise<{ hash: string }> {
+     if (!fs.existsSync(imagePath)) {
+       throw new Error(`Thumbnail not found: ${imagePath}`);
+     }
+     const stats = fs.statSync(imagePath);
+     if (stats.size > 8 * 1024 * 1024) {
+       throw new Error(`Thumbnail too large (${(stats.size/1e6).toFixed(1)}MB); must be ≤8MB`);
+     }
+
+-    // Build form-data exactly as the API expects:
+-    const formData = new FormData();
+-    formData.append('access_token', accessToken);
+-    formData.append(
+-      'bytes',
+-      fs.createReadStream(imagePath),
+-      {
+-        filename: path.basename(imagePath),
+-        contentType: imagePath.endsWith('.png') 
+-                     ? 'image/png' 
+-                     : 'image/jpeg'
+-      }
+-    );
++    // Build form-data exactly as the API expects:
++    const formData = new FormData();
++    formData.append('access_token', accessToken);
++
++    // Facebook also wants the 'filename' field
++    const fileName = path.basename(imagePath);
++    formData.append('filename', fileName);
++
++    // Try uploading under 'bytes' (official)…
++    formData.append(
++      'bytes',
++      fs.createReadStream(imagePath),
++      {
++        filename: fileName,
++        contentType: fileName.toLowerCase().endsWith('.png') 
++                     ? 'image/png' 
++                     : 'image/jpeg'
++      }
++    );
++
++    // …but if bytes doesn’t work, you can also try 'file' as a fallback:
++    // formData.append('file', fs.createReadStream(imagePath), { filename: fileName });
++
++    console.log('👍 Uploading thumbnail with fields:', {
++      filename: fileName,
++      size: stats.size,
++      contentType: formData.getHeaders()['content-type']
++    });
+
+     // Ensure we target the right ad_account:
+     let accountId = process.env.META_AD_ACCOUNT_ID || '';
+@@ -52,7 +77,11 @@ export class FileService {
+     // Fetch with the form-data’s own headers:
+     const res = await fetch(
+       `${FB_GRAPH_API}/${accountId}/adimages`,
+-      { method: 'POST', body: formData as any, headers: formData.getHeaders() }
++      {
++        method: 'POST',
++        body: formData as any,
++        headers: formData.getHeaders()
++      }
+     );
+     const json = await res.json();
+     if (!res.ok) {
