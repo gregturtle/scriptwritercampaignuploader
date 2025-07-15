@@ -84,42 +84,52 @@ class FileService {
 
   /**
    * Uploads a local JPEG/PNG to Meta and returns the image_hash.
-   * Uses the official SDK so we don't have to wrestle with FormData ourselves.
+   * Uses the official SDK with Buffer instead of ReadStream for better compatibility.
    */
   async uploadImageToMeta(accessToken: string, imagePath: string): Promise<{hash: string}> {
     console.log(`Starting Meta image upload for: ${imagePath}`);
     
+    // 1) sanity‐checks
     if (!fs.existsSync(imagePath)) {
       throw new Error(`Thumbnail file not found: ${imagePath}`);
     }
-    
     const stats = fs.statSync(imagePath);
     if (stats.size > 8 * 1024 * 1024) {
-      throw new Error(`Thumbnail too large (${(stats.size/1e6).toFixed(1)}MB); must be ≤8MB`);
+      throw new Error(
+        `Thumbnail too large (${(stats.size/1e6).toFixed(1)} MB); must be ≤ 8MB`
+      );
     }
 
-    const accountId = META_AD_ACCOUNT_ID.startsWith('act_')
-      ? META_AD_ACCOUNT_ID
-      : `act_${META_AD_ACCOUNT_ID}`;
-    
-    console.log(`Using ad account: ${accountId}`);
+    // 2) load into a Buffer (SDK often prefers this over streams)
+    const fileName = path.basename(imagePath);
+    const imageBuffer = fs.readFileSync(imagePath);
+
+    // 3) ensure the AdAccount ID is prefixed correctly
+    let accountId = META_AD_ACCOUNT_ID;
+    if (!accountId.startsWith('act_')) accountId = 'act_' + accountId;
     const account = new AdAccount(accountId);
 
     try {
-      // The SDK will POST to /{ad_account_id}/adimages with the right form-data
-      console.log(`Uploading image using SDK...`);
-      const imagesResponse = await account.createAdImage(
+      console.log(`Uploading image using SDK with Buffer...`);
+      
+      // 4) call the SDK with a Buffer under `bytes`
+      //    and explicitly give it a filename+contentType
+      const response = await account.createAdImage(
         ['images{hash,url}'],
         {
-          bytes: fs.createReadStream(imagePath)
+          bytes: imageBuffer,
+          filename: fileName,
+          contentType: fileName.toLowerCase().endsWith('.png')
+            ? 'image/png'
+            : 'image/jpeg'
         }
       );
 
-      const images = (imagesResponse as any).images;
+      // 5) extract & return the hash
+      const images = (response as any).images;
       const firstKey = Object.keys(images)[0];
       const hash = images[firstKey].hash;
-      
-      console.log(`✅ Uploaded thumbnail; image_hash = ${hash}`);
+      console.log(`✅ Thumbnail uploaded, image_hash=${hash}`);
       return { hash };
     } catch (error) {
       console.error('SDK image upload failed:', error);
