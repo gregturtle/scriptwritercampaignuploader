@@ -838,34 +838,9 @@ class MetaApiService {
       console.log(`Using account page: ${pages[0].name} (ID: ${pageId})`);
     }
     
-    // Upload thumbnail image to Meta before creating ad
-    console.log("Uploading thumbnail image to Meta...");
-    
-    // Create a simple thumbnail for the video (assuming we have a placeholder image in uploads)
-    const thumbnailPath = path.join(process.cwd(), "uploads", "default-thumbnail.jpg");
-    
-    // If default thumbnail doesn't exist, create one programmatically or use a fallback
-    let imageHash: string;
-    try {
-      // Try to find an existing thumbnail or create a default one
-      if (!fs.existsSync(thumbnailPath)) {
-        console.log("Default thumbnail not found, creating placeholder...");
-        // Create a simple 1200x630 black image with white text as fallback
-        const placeholderImagePath = await this.createPlaceholderThumbnail(name);
-        const imageResult = await fileService.uploadImageToMeta(accessToken, placeholderImagePath);
-        imageHash = imageResult.hash;
-        // Clean up temporary file
-        fs.unlinkSync(placeholderImagePath);
-      } else {
-        const imageResult = await fileService.uploadImageToMeta(accessToken, thumbnailPath);
-        imageHash = imageResult.hash;
-      }
-    } catch (error) {
-      console.error("Failed to upload thumbnail image:", error);
-      throw new Error(`Failed to upload thumbnail: ${error}`);
-    }
-    
-    console.log(`Thumbnail uploaded successfully with hash: ${imageHash}`);
+    // Skip thumbnail upload - Meta can auto-generate thumbnails from video
+    console.log("Skipping thumbnail upload - Meta will auto-generate from video");
+    let imageHash: string | undefined;
     
     // Create ad data based on campaign type
     let adData: any = {
@@ -878,41 +853,53 @@ class MetaApiService {
       console.log("Creating App Install ad creative");
       
       // For app install ads, we need different configuration
+      const videoData: any = {
+        video_id: videoAssetId,
+        title: name,
+        message: "Download our app now!",
+        call_to_action: {
+          type: "INSTALL_MOBILE_APP",
+          value: {
+            // The application ID should be the Meta App ID
+            application: process.env.META_APP_ID,
+          },
+        },
+      };
+      
+      // Only add image_hash if we have one
+      if (imageHash) {
+        videoData.image_hash = imageHash;
+      }
+      
       adData.creative = {
         object_story_spec: {
-          video_data: {
-            video_id: videoAssetId,
-            title: name,
-            message: "Download our app now!",
-            call_to_action: {
-              type: "INSTALL_MOBILE_APP",
-              value: {
-                // The application ID should be the Meta App ID
-                application: process.env.META_APP_ID,
-              },
-            },
-            image_hash: imageHash
-          },
+          video_data: videoData,
           page_id: pageId,
         },
       };
     } else {
       // Default ad creative for other campaign types
       console.log("Creating standard ad creative");
+      const videoData: any = {
+        video_id: videoAssetId,
+        title: name,
+        message: "Check out our new product!",
+        call_to_action: {
+          type: "LEARN_MORE",
+          value: {
+            link: "https://what3words.com",
+          },
+        },
+      };
+      
+      // Only add image_hash if we have one
+      if (imageHash) {
+        videoData.image_hash = imageHash;
+      }
+      
       adData.creative = {
         object_story_spec: {
-          video_data: {
-            video_id: videoAssetId,
-            title: name,
-            message: "Check out our new product!",
-            call_to_action: {
-              type: "LEARN_MORE",
-              value: {
-                link: "https://what3words.com",
-              },
-            },
-            image_hash: imageHash
-          },
+          video_data: videoData,
           page_id: pageId,
         },
       };
