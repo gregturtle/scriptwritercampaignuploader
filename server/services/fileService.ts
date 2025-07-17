@@ -76,45 +76,59 @@ class FileService {
       const accountInfo = await testResponse.json();
       console.log(`Ad account accessible:`, accountInfo);
       
-      // Try different video upload endpoints based on Meta API documentation
-      console.log('Attempting video upload with different endpoint approaches...');
+      // Check file size and add timeout for large files
+      const stats = fs.statSync(filePath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      console.log(`File size: ${fileSizeMB.toFixed(2)} MB`);
       
-      // First try: Standard advideos endpoint
-      let response = await fetch(`${FB_GRAPH_API}/${adAccountId}/advideos`, {
-        method: "POST",
-        body: formData as any,
-      });
+      // Calculate timeout based on file size (minimum 60s, +30s per 10MB)
+      const timeoutMs = Math.max(60000, 60000 + Math.ceil(fileSizeMB / 10) * 30000);
+      console.log(`Setting upload timeout to: ${timeoutMs / 1000}s`);
       
-      // If that fails, try the me/advideos endpoint
-      if (!response.ok) {
-        console.log('Standard endpoint failed, trying me/advideos...');
-        response = await fetch(`${FB_GRAPH_API}/me/advideos`, {
+      // Add timeout control
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      try {
+        console.log('Attempting video upload with optimized settings...');
+        
+        // Use the most reliable endpoint with proper headers
+        const response = await fetch(`${FB_GRAPH_API}/${adAccountId}/advideos`, {
           method: "POST",
           body: formData as any,
+          signal: controller.signal,
+          headers: {
+            'Connection': 'keep-alive',
+          }
         });
-      }
-      
-      // If that also fails, try with ad_account_id parameter
-      if (!response.ok) {
-        console.log('me/advideos failed, trying with ad_account_id parameter...');
-        formData.append('ad_account_id', adAccountId);
-        response = await fetch(`${FB_GRAPH_API}/me/advideos`, {
-          method: "POST",
-          body: formData as any,
-        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Upload error response: ${errorText}`);
+          throw new Error(`Failed to upload file to Meta: ${errorText}`);
+        }
+        
+        const data = await response.json() as any;
+        console.log(`Upload successful. Received ID: ${data.id}`);
+        return { id: data.id };
+        
+      } catch (uploadError: any) {
+        clearTimeout(timeoutId);
+        
+        if (uploadError.name === 'AbortError') {
+          throw new Error(`Upload timeout after ${timeoutMs / 1000}s - file may be too large (${fileSizeMB.toFixed(2)} MB)`);
+        }
+        
+        if (uploadError.code === 'ECONNRESET' || uploadError.message.includes('socket hang up')) {
+          throw new Error(`Network connection lost during upload - try again or check file size (${fileSizeMB.toFixed(2)} MB)`);
+        }
+        
+        throw uploadError;
       }
 
-      console.log(`Response status: ${response.status} ${response.statusText}`);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Upload error response: ${errorText}`);
-        throw new Error(`Failed to upload file to Meta: ${errorText}`);
-      }
 
-      const data = await response.json() as any;
-      console.log(`Upload successful. Received ID: ${data.id}`);
-      return { id: data.id };
     } catch (error) {
       console.error("Error uploading file to Meta:", error);
       throw error;
