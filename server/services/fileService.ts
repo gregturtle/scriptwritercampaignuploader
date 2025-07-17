@@ -125,6 +125,11 @@ class FileService {
           throw new Error(`Network connection lost during upload - try again or check file size (${fileSizeMB.toFixed(2)} MB)`);
         }
         
+        // Check for transient Meta API errors that should be retried
+        if (uploadError.message && uploadError.message.includes('Service temporarily unavailable')) {
+          throw new Error(`Meta API temporarily unavailable - this is a transient error, please try again in a few minutes`);
+        }
+        
         throw uploadError;
       }
 
