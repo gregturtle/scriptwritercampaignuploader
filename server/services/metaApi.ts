@@ -597,6 +597,11 @@ class MetaApiService {
     console.log('Using direct Meta API for video upload...');
     const { fileService } = await import('./fileService');
     const result = await fileService.uploadFileToMeta(accessToken, videoPath);
+    
+    // Wait for video to finish processing before returning
+    console.log(`Video uploaded with ID: ${result.id}. Waiting for processing to complete...`);
+    await this.waitForVideoReady(result.id, accessToken);
+    
     return result.id;
   }
 
@@ -1048,6 +1053,65 @@ class MetaApiService {
       console.log(`Using fallback thumbnail URL: ${fallbackUrl}`);
       return fallbackUrl;
     }
+  }
+
+  /**
+   * Wait for video to finish processing before using in ads
+   */
+  private async waitForVideoReady(videoId: string, accessToken: string, timeoutMs = 30000): Promise<void> {
+    const pollInterval = 3000; // Check every 3 seconds
+    const deadline = Date.now() + timeoutMs;
+    let attempts = 0;
+    
+    console.log(`Polling video ${videoId} status every ${pollInterval/1000}s (timeout: ${timeoutMs/1000}s)`);
+
+    while (Date.now() < deadline) {
+      attempts++;
+      try {
+        console.log(`📹 Checking video status (attempt ${attempts})...`);
+        
+        // Check video status using Meta Graph API
+        const response = await fetch(
+          `${FB_GRAPH_API}/${videoId}?fields=status&access_token=${accessToken}`,
+          { method: "GET" }
+        );
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error checking video status: ${errorText}`);
+          throw new Error(`Failed to check video status: ${errorText}`);
+        }
+        
+        const video = await response.json() as any;
+        const status = video.status;
+        
+        console.log(`⏳ Video status: ${status}`);
+        
+        if (status === 'ready') {
+          console.log('✅ Video is ready to use in ads!');
+          return;
+        }
+        
+        if (status === 'error' || status === 'failed') {
+          throw new Error(`Video processing failed with status: ${status}`);
+        }
+        
+        // Wait before next check
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+      } catch (error) {
+        console.error(`Error during video status check: ${error}`);
+        // Continue polling unless it's a critical error
+        if (attempts > 3) {
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+      }
+    }
+
+    // Timeout reached
+    console.warn(`⚠️ Video processing timeout reached (${timeoutMs/1000}s). Proceeding anyway...`);
+    // Don't throw error, proceed with ad creation (Meta might still accept it)
   }
 
 }
