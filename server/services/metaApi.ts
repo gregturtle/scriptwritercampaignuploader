@@ -839,19 +839,18 @@ class MetaApiService {
       console.log(`Using account page: ${pages[0].name} (ID: ${pageId})`);
     }
     
-    // Create placeholder thumbnail (Meta requires image_hash for video ads)
-    console.log("Creating placeholder thumbnail for video ad...");
+    // Create and upload thumbnail to public hosting (Meta requires image_url for video ads)
+    console.log("Creating and uploading thumbnail to public hosting...");
     
-    let imageHash: string | null = null;
+    let imageUrl: string | null = null;
     try {
       const placeholderImagePath = await this.createPlaceholderThumbnail(name);
-      const imageResult = await fileService.uploadImageToMeta(accessToken, placeholderImagePath);
-      imageHash = imageResult.hash;
-      console.log(`Thumbnail uploaded successfully with hash: ${imageHash}`);
+      imageUrl = await this.uploadThumbnailToPublicHost(placeholderImagePath);
+      console.log(`Thumbnail uploaded successfully to public URL: ${imageUrl}`);
       // Clean up temporary file
       fs.unlinkSync(placeholderImagePath);
     } catch (error) {
-      console.error("Failed to upload thumbnail image:", error);
+      console.error("Failed to upload thumbnail to public hosting:", error);
       // Don't throw error, proceed without thumbnail
     }
     
@@ -880,8 +879,8 @@ class MetaApiService {
       };
       
       // Add thumbnail if we have one
-      if (imageHash) {
-        videoData.image_hash = imageHash;
+      if (imageUrl) {
+        videoData.image_url = imageUrl;
       }
       
       adData.creative = {
@@ -906,8 +905,8 @@ class MetaApiService {
       };
       
       // Add thumbnail if we have one
-      if (imageHash) {
-        videoData.image_hash = imageHash;
+      if (imageUrl) {
+        videoData.image_url = imageUrl;
       }
       
       adData.creative = {
@@ -978,6 +977,58 @@ class MetaApiService {
     } catch (error) {
       console.error('Failed to create thumbnail with Sharp:', error);
       throw new Error(`Failed to generate thumbnail: ${error}`);
+    }
+  }
+
+  /**
+   * Upload thumbnail to public hosting service (Imgur) and return the public URL
+   */
+  private async uploadThumbnailToPublicHost(imagePath: string): Promise<string> {
+    const FormData = require('form-data');
+    
+    try {
+      const imageBuffer = fs.readFileSync(imagePath);
+      const form = new FormData();
+      form.append('image', imageBuffer);
+      
+      // Use Imgur's anonymous upload API
+      const response = await fetch('https://api.imgur.com/3/image', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Client-ID 546c25a59c58ad7', // Anonymous Imgur client ID
+          ...form.getHeaders()
+        },
+        body: form
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Imgur upload failed:', errorText);
+        throw new Error(`Imgur upload failed: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json() as any;
+      
+      if (!result.success || !result.data?.link) {
+        throw new Error('Imgur upload did not return a valid link');
+      }
+      
+      console.log(`Successfully uploaded thumbnail to Imgur: ${result.data.link}`);
+      return result.data.link;
+      
+    } catch (error) {
+      console.error('Failed to upload thumbnail to Imgur:', error);
+      
+      // Fallback: try to create a simple data URL as last resort
+      try {
+        const imageBuffer = fs.readFileSync(imagePath);
+        const base64 = imageBuffer.toString('base64');
+        const dataUrl = `data:image/jpeg;base64,${base64}`;
+        console.log('Using data URL as fallback (not recommended for production)');
+        return dataUrl;
+      } catch (fallbackError) {
+        throw new Error(`Failed to upload thumbnail and fallback failed: ${error}`);
+      }
     }
   }
 
