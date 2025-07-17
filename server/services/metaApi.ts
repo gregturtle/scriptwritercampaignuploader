@@ -839,23 +839,8 @@ class MetaApiService {
       console.log(`Using account page: ${pages[0].name} (ID: ${pageId})`);
     }
     
-    // Upload thumbnail image to Meta (required for video ads)
-    console.log("Creating and uploading 1200x675 thumbnail image to Meta...");
-    
-    let imageHash: string;
-    try {
-      // Create a proper 1200x675 placeholder thumbnail
-      const placeholderImagePath = await this.createPlaceholderThumbnail(name);
-      const imageResult = await fileService.uploadImageToMeta(accessToken, placeholderImagePath);
-      imageHash = imageResult.hash;
-      // Clean up temporary file
-      fs.unlinkSync(placeholderImagePath);
-    } catch (error) {
-      console.error("Failed to upload thumbnail image:", error);
-      throw new Error(`Failed to upload thumbnail: ${error}`);
-    }
-    
-    console.log(`Thumbnail uploaded successfully with hash: ${imageHash}`);
+    // Let Meta auto-generate thumbnail from video (no manual thumbnail needed)
+    console.log("Skipping custom thumbnail - Meta will auto-generate from video");
     
     // Create ad data based on campaign type
     let adData: any = {
@@ -880,8 +865,7 @@ class MetaApiService {
                 // The application ID should be the Meta App ID
                 application: process.env.META_APP_ID,
               },
-            },
-            image_hash: imageHash
+            }
           },
           page_id: pageId,
         },
@@ -900,8 +884,7 @@ class MetaApiService {
               value: {
                 link: "https://what3words.com",
               },
-            },
-            image_hash: imageHash
+            }
           },
           page_id: pageId,
         },
@@ -934,42 +917,7 @@ class MetaApiService {
     return result;
   }
 
-  /**
-   * Create a 1200x675 placeholder thumbnail image for video ads using Sharp (Meta standard)
-   */
-  private async createPlaceholderThumbnail(videoName: string): Promise<string> {
-    const tempImagePath = path.join(process.cwd(), "uploads", `temp-thumbnail-${Date.now()}.jpg`);
-    
-    try {
-      // Create a proper 1200x675 JPEG using Sharp image processing library
-      // Use Meta's brand blue color (#1877F2) as background
-      await sharp({
-        create: {
-          width: 1200,
-          height: 675,
-          channels: 3,
-          background: { r: 24, g: 119, b: 242 } // Meta blue #1877F2
-        }
-      })
-      .jpeg({ 
-        quality: 90,
-        progressive: false,
-        mozjpeg: true
-      })
-      .toFile(tempImagePath);
-      
-      console.log(`Created 1200x675 thumbnail using Sharp: ${tempImagePath}`);
-      
-      // Verify the file was created and has reasonable size
-      const stats = fs.statSync(tempImagePath);
-      console.log(`Thumbnail file size: ${stats.size} bytes`);
-      
-      return tempImagePath;
-    } catch (error) {
-      console.error('Failed to create thumbnail with Sharp:', error);
-      throw new Error(`Failed to generate thumbnail: ${error}`);
-    }
-  }
+
 }
 
 export const metaApiService = new MetaApiService();
