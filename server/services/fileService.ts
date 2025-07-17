@@ -60,10 +60,49 @@ class FileService {
       formData.append("file", fileStream);
       
       console.log(`Sending request to: ${FB_GRAPH_API}/${adAccountId}/advideos`);
-      const response = await fetch(`${FB_GRAPH_API}/${adAccountId}/advideos`, {
+      
+      // Test ad account access first
+      console.log(`Testing ad account access for: ${adAccountId}`);
+      const testResponse = await fetch(`${FB_GRAPH_API}/${adAccountId}?fields=id,name,account_status&access_token=${accessToken}`, {
+        method: "GET"
+      });
+      
+      if (!testResponse.ok) {
+        const testError = await testResponse.text();
+        console.error(`Ad account access test failed: ${testError}`);
+        throw new Error(`Cannot access ad account ${adAccountId}: ${testError}`);
+      }
+      
+      const accountInfo = await testResponse.json();
+      console.log(`Ad account accessible:`, accountInfo);
+      
+      // Try different video upload endpoints based on Meta API documentation
+      console.log('Attempting video upload with different endpoint approaches...');
+      
+      // First try: Standard advideos endpoint
+      let response = await fetch(`${FB_GRAPH_API}/${adAccountId}/advideos`, {
         method: "POST",
         body: formData as any,
       });
+      
+      // If that fails, try the me/advideos endpoint
+      if (!response.ok) {
+        console.log('Standard endpoint failed, trying me/advideos...');
+        response = await fetch(`${FB_GRAPH_API}/me/advideos`, {
+          method: "POST",
+          body: formData as any,
+        });
+      }
+      
+      // If that also fails, try with ad_account_id parameter
+      if (!response.ok) {
+        console.log('me/advideos failed, trying with ad_account_id parameter...');
+        formData.append('ad_account_id', adAccountId);
+        response = await fetch(`${FB_GRAPH_API}/me/advideos`, {
+          method: "POST",
+          body: formData as any,
+        });
+      }
 
       console.log(`Response status: ${response.status} ${response.statusText}`);
       
