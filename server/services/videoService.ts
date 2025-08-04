@@ -118,8 +118,8 @@ class VideoService {
 
       console.log(`Video duration: ${videoDuration}s, Audio duration: ${audioDuration}s`);
 
-      // Use the shorter duration to prevent overruns
-      const targetDuration = Math.min(videoDuration, audioDuration + 1); // Add 1 second buffer
+      // Always use the full video duration to maintain original video length
+      const targetDuration = videoDuration;
 
       return new Promise((resolve, reject) => {
         const command = ffmpeg()
