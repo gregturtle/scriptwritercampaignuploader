@@ -134,7 +134,6 @@ class VideoService {
             '-c:a aac',  // Encode audio as AAC
             '-map 0:v:0', // Map video from first input
             '-map 1:a:0', // Map audio from second input
-            '-shortest', // End when shortest stream ends
             '-avoid_negative_ts make_zero',
             '-fflags +genpts'
           ])
