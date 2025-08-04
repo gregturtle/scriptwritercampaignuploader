@@ -208,9 +208,9 @@ class AIScriptService {
       }
 
       // Generate suggestions using OpenAI
-      // Force 60-70 word scripts for maximum 18 seconds
-      const targetWordCount = "60-70";
-      console.log(`Targeting ${targetWordCount} words for maximum 18 second scripts`);
+      // Force 50-60 word scripts for maximum 16-17 seconds
+      const targetWordCount = "50-60";
+      console.log(`Targeting ${targetWordCount} words for maximum 16-17 second scripts`);
 
       const prompt = `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
@@ -221,7 +221,7 @@ CONTEXT:
 - What3Words assigns unique 3-word addresses to every 3x3 meter location globally
 - These are voiceover scripts for video ads encouraging app downloads
 - The background visuals are constant - you only write the spoken narration
-- MANDATORY: Each script must be EXACTLY 60-70 words (maximum 18 seconds when spoken)
+- MANDATORY: Each script must be EXACTLY 50-60 words (maximum 16-17 seconds when spoken)
 - "Score" represents overall performance (higher = better performing voiceovers)
 
 HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
@@ -264,10 +264,10 @@ Based on your analysis of BOTH success and failure patterns above, write ${scrip
 - Incorporate proven successful elements from high-scoring data
 - Actively avoid patterns that led to poor performance in low-scoring data
 - Are ONLY spoken narration (no visual descriptions)
-- Must be EXACTLY 60-70 words (NEVER exceed 18 seconds when spoken naturally)
+- Must be EXACTLY 50-60 words (NEVER exceed 16-17 seconds when spoken naturally)
 - Focus on encouraging What Three Words app downloads
 - Always write "what three words" instead of "what3words" for proper voice pronunciation
-- CRITICAL: Count every word carefully - scripts over 70 words will be rejected
+- CRITICAL: Count every word carefully - scripts over 60 words will be rejected
 
 For each voiceover script, provide:
 1. TITLE: Brief concept description
