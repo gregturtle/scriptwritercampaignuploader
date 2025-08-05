@@ -224,6 +224,23 @@ CONTEXT:
 - MANDATORY: Each script must be EXACTLY 55-65 words (maximum 17-18 seconds when spoken)
 - "Score" represents overall performance (higher = better performing voiceovers)
 
+SCRIPT STRUCTURE REQUIREMENTS:
+Write voice-only scripts with THREE parts:
+1. OPENING: Start with an attention-grabbing or intriguing line
+2. PRODUCT EXPLANATION: Briefly and clearly explain what three words
+3. CLOSING CALL-TO-ACTION: End with a call to action that links back to the OPENING
+
+STYLE & TONE GUIDELINES:
+- Use confident, normal language
+- Keep the script universally appealing (audience flexible)
+- Add creative or random elements to ensure novelty and interest
+- Write for Meta platforms (Facebook/Instagram)
+
+IMPORTANT CONSTRAINTS:
+- what three words does NOT give directions, only provides precise locations that people navigate to
+- A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
+- Never mention or show any what three words address formatted as "///word.word.word"
+
 HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
 ${topPerformers
   .map(
@@ -268,6 +285,17 @@ Based on your analysis of BOTH success and failure patterns above, write ${scrip
 - Focus on encouraging What Three Words app downloads
 - Always write "what three words" instead of "what3words" for proper voice pronunciation
 - CRITICAL: Count every word carefully - scripts over 65 words will be rejected
+
+REFINEMENT CHECKLIST - Check each script and CORRECT if needed:
+✓ The script does NOT mention or show any what three words address formatted as "///word.word.word"
+✓ The opening is unique, fresh, or surprising
+✓ The product explanation is concise and clear
+✓ Tone is confident and engaging throughout
+✓ Closing call to action is strongly connected to the opening
+✓ Total script is no more than 65 words
+✓ The script would take no more than 17-18 seconds to say out loud at normal advertising pace
+✓ what three words does not give directions, only provides precise locations that people navigate to
+✓ A what three words location is only described as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
 
 For each voiceover script, provide:
 1. TITLE: Brief concept description
