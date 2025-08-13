@@ -190,8 +190,9 @@ class VideoService {
     backgroundVideoPath: string
   ): Promise<VideoCreationResult> {
     try {
-      // Generate unique output filename
-      const timestamp = Date.now();
+      // Generate unique output filename with readable timestamp
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').substring(0, 19); // Format: YYYY-MM-DD_HH-MM-SS
       const sanitizedTitle = scriptTitle.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
       const outputFileName = `video_${sanitizedTitle}_${timestamp}.mp4`;
       const outputPath = path.join(this.videosDir, outputFileName);

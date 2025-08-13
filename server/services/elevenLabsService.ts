@@ -184,8 +184,10 @@ class ElevenLabsService {
           }
         );
 
-        // Create filename based on suggestion title
-        const filename = `script_${i + 1}_${suggestion.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)}_${Date.now()}`;
+        // Create filename based on suggestion title with readable timestamp
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').substring(0, 19); // Format: YYYY-MM-DD_HH-MM-SS
+        const filename = `script_${i + 1}_${suggestion.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)}_${timestamp}`;
         const filePath = await this.saveAudioToFile(audioBuffer, filename);
         
         // Create URL for frontend access
