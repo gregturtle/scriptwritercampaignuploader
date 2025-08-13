@@ -5,12 +5,16 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Unified from "@/pages/Unified";
+import AIScripts from "@/pages/AIScripts";
+import Reports from "@/pages/Reports";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/unified" component={Unified} />
+      <Route path="/aiscripts" component={AIScripts} />
+      <Route path="/reports" component={Reports} />
       <Route component={NotFound} />
     </Switch>
   );
