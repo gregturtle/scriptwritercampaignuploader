@@ -76,24 +76,58 @@ class GoogleDriveService {
     try {
       console.log(`Listing batch folders from Google Drive folder: ${folderId}`);
       
-      // Search for folders that start with "Generated_" (our batch folders)
-      const response = await this.drive.files.list({
-        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and name contains 'Generated_' and trashed=false`,
+      // Also check what files and folders are in this directory
+      const allItemsResponse = await this.drive.files.list({
+        q: `'${folderId}' in parents and trashed=false`,
+        fields: 'files(id, name, mimeType, modifiedTime)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true
+      });
+      
+      const allItems = allItemsResponse.data.files || [];
+      console.log(`Found ${allItems.length} total items in folder ${folderId}:`);
+      allItems.forEach(item => {
+        const type = item.mimeType?.includes('folder') ? 'FOLDER' : 
+                    item.mimeType?.includes('video') ? 'VIDEO' : 'FILE';
+        console.log(`  - ${type}: "${item.name}" (${item.id}) - ${item.mimeType}`);
+      });
+      
+      // First, let's list ALL folders to see what's available for debugging
+      const allFoldersResponse = await this.drive.files.list({
+        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         fields: 'files(id, name, modifiedTime, webViewLink)',
-        orderBy: 'modifiedTime desc', // Most recent first
-        supportsAllDrives: true
+        orderBy: 'modifiedTime desc',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true
       });
 
-      if (!response.data.files) {
-        console.log('No batch folders found in Google Drive folder');
-        return [];
-      }
+      const allFolders = allFoldersResponse.data.files || [];
+      console.log(`Found ${allFolders.length} total folders in parent folder:`);
+      allFolders.forEach(folder => {
+        console.log(`  - "${folder.name}" (${folder.id})`);
+      });
 
-      console.log(`Found ${response.data.files.length} batch folders`);
+      // Filter for timestamped folders - be flexible with naming patterns
+      const timestampFolders = allFolders.filter(folder => {
+        const name = folder.name || '';
+        return (
+          name.includes('Generated_') ||
+          name.match(/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}/) ||
+          name.match(/\d{4}-\d{2}-\d{2}/) ||
+          name.toLowerCase().includes('batch') ||
+          name.toLowerCase().includes('video')
+        );
+      });
+
+      console.log(`Found ${timestampFolders.length} potential batch folders after filtering`);
+      
+      // If no timestamped folders found, return all folders (user might have different naming)
+      const folders = timestampFolders.length > 0 ? timestampFolders : allFolders;
+      console.log(`Using ${folders.length} folders for batch selection`);
       
       // For each folder, count the videos inside
       const foldersWithCounts = await Promise.all(
-        response.data.files.map(async (folder: any) => {
+        folders.map(async (folder: any) => {
           try {
             const videoCountResponse = await this.drive.files.list({
               q: `'${folder.id}' in parents and mimeType contains 'video/' and trashed=false`,

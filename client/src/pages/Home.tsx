@@ -82,7 +82,7 @@ export default function Home() {
       } else {
         toast({
           title: "No Video Batches Found",
-          description: "No timestamped video folders found. Generate some scripts first!",
+          description: "No timestamped batch folders found. Generate new scripts with audio to create organized video batches, or use the old Load AI Videos button if you have individual videos.",
           variant: "destructive",
         });
       }
@@ -277,16 +277,30 @@ export default function Home() {
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold">Upload Ad Creative</h2>
-                  <Button 
-                    onClick={handleLoadGoogleDriveVideos}
-                    disabled={loadingGoogleDriveVideos}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <CloudDownload className="h-4 w-4" />
-                    {loadingGoogleDriveVideos ? 'Loading...' : 'Load AI Videos'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleLoadGoogleDriveVideos}
+                      disabled={loadingGoogleDriveVideos}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <CloudDownload className="h-4 w-4" />
+                      {loadingGoogleDriveVideos ? 'Loading...' : 'Load Video Batches'}
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        // For individual videos (old system)
+                        window.open('/api/drive/videos', '_blank');
+                      }}
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      title="Load individual videos (pre-batch system)"
+                    >
+                      Individual Videos
+                    </Button>
+                  </div>
                 </div>
                 
                 {/* Batch Folder Selection Modal */}
