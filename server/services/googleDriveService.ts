@@ -301,6 +301,98 @@ class GoogleDriveService {
   }
 
   /**
+   * Create a timestamped subfolder within a parent folder
+   */
+  async createTimestampedSubfolder(parentFolderId: string, timestamp?: string): Promise<string> {
+    if (!this.isConfigured()) {
+      throw new Error('Google Drive service not configured');
+    }
+
+    try {
+      // Generate timestamp if not provided
+      const folderTimestamp = timestamp || new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').substring(0, 19);
+      const folderName = `Generated_${folderTimestamp}`;
+
+      console.log(`Creating timestamped subfolder: ${folderName} in parent folder ${parentFolderId}`);
+
+      const folderMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parentFolderId]
+      };
+
+      const folderResponse = await this.drive.files.create({
+        requestBody: folderMetadata,
+        fields: 'id,webViewLink',
+        supportsAllDrives: true
+      });
+
+      const folderId = folderResponse.data.id!;
+      console.log(`Created timestamped subfolder with ID: ${folderId}`);
+      console.log(`Subfolder link: https://drive.google.com/drive/folders/${folderId}`);
+      
+      return folderId;
+    } catch (error) {
+      console.error('Error creating timestamped subfolder:', error);
+      throw new Error(`Failed to create timestamped subfolder: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Upload video to a timestamped subfolder within the main folder
+   */
+  async uploadVideoToTimestampedFolder(filePath: string, fileName: string, parentFolderId: string, timestamp?: string): Promise<{ id: string; webViewLink: string; folderId: string; folderLink: string }> {
+    if (!this.isConfigured()) {
+      throw new Error('Google Drive service not configured');
+    }
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    try {
+      // Create timestamped subfolder
+      const subFolderId = await this.createTimestampedSubfolder(parentFolderId, timestamp);
+      
+      console.log(`Uploading ${fileName} to timestamped Google Drive subfolder ${subFolderId}`);
+
+      const fileStats = fs.statSync(filePath);
+      const fileSizeInBytes = fileStats.size;
+      console.log(`File size: ${(fileSizeInBytes / (1024 * 1024)).toFixed(2)} MB`);
+
+      const fileMetadata = {
+        name: fileName,
+        parents: [subFolderId]
+      };
+
+      const media = {
+        mimeType: 'video/mp4',
+        body: fs.createReadStream(filePath)
+      };
+
+      const response = await this.drive.files.create({
+        requestBody: fileMetadata,
+        media: media,
+        fields: 'id,webViewLink',
+        uploadType: 'resumable',
+        supportsAllDrives: true
+      });
+
+      console.log(`Successfully uploaded ${fileName} to timestamped subfolder. File ID: ${response.data.id}`);
+
+      return {
+        id: response.data.id!,
+        webViewLink: response.data.webViewLink!,
+        folderId: subFolderId,
+        folderLink: `https://drive.google.com/drive/folders/${subFolderId}`
+      };
+    } catch (error) {
+      console.error('Error uploading video to timestamped folder:', error);
+      throw new Error(`Failed to upload video to timestamped folder: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Create a new folder for video uploads or use existing one
    */
   async createOrGetVideoFolder(folderName: string = 'AI Generated Videos'): Promise<string> {

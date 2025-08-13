@@ -28,6 +28,7 @@ interface VideoCreationResult {
   error?: string;
   driveId?: string;
   driveLink?: string;
+  folderLink?: string;
 }
 
 class VideoService {
@@ -212,31 +213,34 @@ class VideoService {
         try {
           const { googleDriveService } = await import('./googleDriveService');
           
-          // Try uploading to user's Shared Drive, fallback if no access
+          // Try uploading to user's Shared Drive with timestamped subfolder
           let driveResult;
           try {
-            driveResult = await googleDriveService.uploadVideoToSpecificFolder(
+            driveResult = await googleDriveService.uploadVideoToTimestampedFolder(
               result.outputPath,
               outputFileName,
-              '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh' // User's Shared Drive folder ID
+              '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh', // User's Shared Drive folder ID
+              timestamp // Use same timestamp as filename for folder organization
             );
-            console.log(`Video uploaded to user's Shared Drive: ${driveResult.webViewLink}`);
-          } catch (sharedDriveError) {
+            console.log(`Video uploaded to timestamped subfolder: ${driveResult.webViewLink}`);
+            console.log(`Timestamped folder link: ${driveResult.folderLink}`);
+          } catch (sharedDriveError: any) {
             console.warn('Cannot access Shared Drive (permissions needed), using service account folder:', sharedDriveError.message);
-            // Fallback to service account's own folder
+            // Fallback to service account's own folder with timestamp
             driveResult = await googleDriveService.uploadVideoToFolder(
               result.outputPath,
               outputFileName,
-              'Meta Campaign Videos'
+              `Meta Campaign Videos - ${timestamp}`
             );
             console.log(`Video uploaded to service account folder: ${driveResult.webViewLink}`);
           }
           
-          // Add Drive link to result
+          // Add Drive link to result and include folder info
           return {
             ...result,
             driveId: driveResult.id,
-            driveLink: driveResult.webViewLink
+            driveLink: driveResult.webViewLink,
+            folderLink: (driveResult as any).folderLink
           };
         } catch (driveError) {
           console.warn('Failed to auto-upload to Google Drive:', driveError);
