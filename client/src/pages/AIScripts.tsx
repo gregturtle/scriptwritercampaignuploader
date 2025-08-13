@@ -48,16 +48,20 @@ export default function AIScripts() {
   useEffect(() => {
     const loadBackgroundVideos = async () => {
       setLoadingVideos(true);
+      console.log('Loading background videos...');
       try {
         const response = await fetch('/api/video/background-videos');
+        console.log('Response status:', response.status);
         if (response.ok) {
           const data = await response.json();
+          console.log('Videos loaded:', data.videos.length, data.videos);
           setBackgroundVideos(data.videos);
           if (data.videos.length > 0 && !selectedVideoPath) {
+            console.log('Auto-selecting first video:', data.videos[0].path);
             setSelectedVideoPath(data.videos[0].path); // Auto-select first video
           }
         } else {
-          console.error('Failed to load background videos');
+          console.error('Failed to load background videos, status:', response.status);
         }
       } catch (error) {
         console.error('Error loading background videos:', error);
@@ -67,7 +71,7 @@ export default function AIScripts() {
     };
 
     loadBackgroundVideos();
-  }, [selectedVideoPath]);
+  }, []); // Remove selectedVideoPath dependency to prevent infinite loop
 
   const handleGenerateScripts = async () => {
     if (!spreadsheetId.trim()) {
@@ -195,6 +199,11 @@ export default function AIScripts() {
             </Label>
             <p className="text-sm text-gray-600 mb-3">Choose which video to use as the background for your AI-generated content</p>
             
+            {/* Debug Info */}
+            <div className="text-xs bg-blue-50 p-2 rounded border">
+              Debug: Loading={loadingVideos ? 'true' : 'false'}, Videos={backgroundVideos.length}, Selected="{selectedVideoPath}"
+            </div>
+            
             {loadingVideos ? (
               <div className="flex items-center gap-2 text-sm text-gray-500 p-3 border rounded-md bg-white">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -203,22 +212,47 @@ export default function AIScripts() {
             ) : backgroundVideos.length > 0 ? (
               <div className="space-y-3">
                 <div className="bg-white p-3 rounded-md border">
-                  <div className="text-sm font-medium mb-2">Available Videos: {backgroundVideos.length}</div>
+                  <div className="text-sm font-medium mb-2">
+                    Available Videos: {backgroundVideos.length}
+                    <span className="ml-2 text-xs text-gray-500">
+                      (Selected: {selectedVideoPath ? 'Yes' : 'None'})
+                    </span>
+                  </div>
+                  {/* Primary Select Component */}
                   <Select value={selectedVideoPath} onValueChange={setSelectedVideoPath}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Choose a background video" />
+                      <SelectValue placeholder="Choose a background video">
+                        {selectedVideoPath ? backgroundVideos.find(v => v.path === selectedVideoPath)?.name : 'Choose a background video'}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {backgroundVideos.map((video) => (
                         <SelectItem key={video.path} value={video.path}>
                           <div className="flex items-center gap-2">
                             <Video className="h-4 w-4 text-purple-600" />
-                            {video.name}
+                            <span className="truncate">{video.name}</span>
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  
+                  {/* Fallback Native Select */}
+                  <div className="mt-2">
+                    <label className="text-sm font-medium">Or use native dropdown:</label>
+                    <select 
+                      value={selectedVideoPath} 
+                      onChange={(e) => setSelectedVideoPath(e.target.value)}
+                      className="w-full mt-1 p-2 border rounded-md bg-white"
+                    >
+                      <option value="">Select a background video...</option>
+                      {backgroundVideos.map((video) => (
+                        <option key={video.path} value={video.path}>
+                          {video.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {selectedVideoPath && (
                     <div className="mt-3 p-3 border rounded-md bg-gray-50">
                       <div className="text-sm font-medium mb-2">Selected: {backgroundVideos.find(v => v.path === selectedVideoPath)?.name}</div>
