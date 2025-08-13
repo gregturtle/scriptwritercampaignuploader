@@ -85,10 +85,25 @@ const upload = multer({
 export async function registerRoutes(app: express.Express): Promise<Server> {
   
   // AI Script Generation endpoints - MUST be first to avoid static file conflicts
+  // ElevenLabs voices endpoint
+  app.get('/api/elevenlabs/voices', async (req, res) => {
+    try {
+      const voices = await elevenLabsService.getVoices();
+      res.json({ voices });
+    } catch (error: any) {
+      console.error('Error fetching voices:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch voices from ElevenLabs',
+        details: error.message,
+        configured: elevenLabsService.isConfigured()
+      });
+    }
+  });
+
   app.post('/api/ai/generate-scripts', async (req, res) => {
     try {
       console.log('AI script generation request received:', req.body);
-      const { spreadsheetId, tabName, generateAudio = true, scriptCount = 5, backgroundVideoPath } = req.body;
+      const { spreadsheetId, tabName, generateAudio = true, scriptCount = 5, backgroundVideoPath, voiceId } = req.body;
       
       if (!spreadsheetId) {
         return res.status(400).json({ message: 'Spreadsheet ID is required' });
@@ -101,7 +116,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         {
           tabName: tabName || 'Cleansed with BEAP',
           includeVoice: generateAudio,
-          scriptCount: scriptCount
+          scriptCount: scriptCount,
+          voiceId: voiceId
         }
       );
 

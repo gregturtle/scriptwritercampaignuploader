@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload, Video } from 'lucide-react';
+import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload, Video, User } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
@@ -60,6 +60,9 @@ export default function Unified() {
   const [availableBackgroundVideos, setAvailableBackgroundVideos] = useState<{path: string, name: string, url: string}[]>([]);
   const [selectedBackgroundVideo, setSelectedBackgroundVideo] = useState<string>('');
   const [loadingVideos, setLoadingVideos] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState<string>('huvDR9lwwSKC0zEjZUox'); // Default to Ella AI
+  const [availableVoices, setAvailableVoices] = useState<{voice_id: string, name: string}[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(false);
 
   const { toast } = useToast();
 
@@ -84,6 +87,50 @@ export default function Unified() {
     };
     loadBackgroundVideos();
   }, [selectedBackgroundVideo]);
+
+  // Load available voices from ElevenLabs
+  useEffect(() => {
+    const loadVoices = async () => {
+      setLoadingVoices(true);
+      try {
+        const response = await fetch('/api/elevenlabs/voices');
+        if (response.ok) {
+          const data = await response.json();
+          // Filter for commonly used voices and add Samara X if available
+          const commonVoices = [
+            { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ella AI (Professional)' },
+            { voice_id: 'flq6f7yk4E4fJM5XTYuZ', name: 'Mark (Alternative)' }
+          ];
+          
+          // Find Samara X in the returned voices
+          const samaraVoice = data.voices.find((voice: any) => 
+            voice.name && voice.name.toLowerCase().includes('samara')
+          );
+          
+          if (samaraVoice) {
+            commonVoices.push({ 
+              voice_id: samaraVoice.voice_id, 
+              name: `${samaraVoice.name} (New)` 
+            });
+          }
+          
+          setAvailableVoices(commonVoices);
+          console.log('Loaded voices:', commonVoices);
+        }
+      } catch (error) {
+        console.error('Error loading voices:', error);
+        // Fallback to default voices if API fails
+        setAvailableVoices([
+          { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ella AI (Professional)' },
+          { voice_id: 'flq6f7yk4E4fJM5XTYuZ', name: 'Mark (Alternative)' }
+        ]);
+      } finally {
+        setLoadingVoices(false);
+      }
+    };
+    
+    loadVoices();
+  }, []);
 
   const handleScriptSelection = (index: number, checked: boolean) => {
     setSelectedScripts(prev => {
@@ -369,7 +416,8 @@ export default function Unified() {
           tabName: 'Cleansed with BEAP',
           generateAudio: withAudio,
           scriptCount: scriptCount,
-          backgroundVideoPath: selectedBackgroundVideo
+          backgroundVideoPath: selectedBackgroundVideo,
+          voiceId: selectedVoice
         })
       });
 
@@ -742,6 +790,66 @@ export default function Unified() {
             )}
           </div>
 
+          {/* Voice Selection */}
+          {withAudio && (
+            <div className="space-y-3 border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+              <Label className="text-lg font-semibold flex items-center gap-2">
+                <User className="h-5 w-5 text-blue-600" />
+                Voice Selection
+              </Label>
+              <p className="text-sm text-gray-600">Choose the ElevenLabs voice for AI-generated audio</p>
+              
+              <div className="bg-white p-3 rounded-md border space-y-3">
+                {loadingVoices ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 p-3 border rounded-md">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading voices from ElevenLabs...
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-sm font-medium">Available Voices: {availableVoices.length}</div>
+                    <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose a voice">
+                          {availableVoices.find(v => v.voice_id === selectedVoice)?.name || 'Select voice'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableVoices.map((voice) => (
+                          <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-blue-600" />
+                              <span>{voice.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Native dropdown fallback */}
+                    <select 
+                      value={selectedVoice} 
+                      onChange={(e) => setSelectedVoice(e.target.value)}
+                      className="w-full p-2 border rounded-md bg-white text-sm"
+                    >
+                      {availableVoices.map((voice) => (
+                        <option key={voice.voice_id} value={voice.voice_id}>
+                          {voice.name}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <div className="text-xs text-gray-500">
+                      <strong>Selected:</strong> {availableVoices.find(v => v.voice_id === selectedVoice)?.name || 'Unknown voice'}
+                      <br />
+                      <strong>Voice ID:</strong> {selectedVoice}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Audio Generation Toggle */}
           <div className="space-y-4">
             <div className="flex items-center justify-center space-x-3">
@@ -759,7 +867,7 @@ export default function Unified() {
             </div>
             <p className="text-center text-sm text-gray-500">
               {withAudio 
-                ? `Will generate ${scriptCount} scripts with professional voice recordings${availableBackgroundVideos.length > 0 && selectedBackgroundVideo ? ' and complete video assets' : ''} using Ella AI` 
+                ? `Will generate ${scriptCount} scripts with professional voice recordings${availableBackgroundVideos.length > 0 && selectedBackgroundVideo ? ' and complete video assets' : ''}` 
                 : `Will generate ${scriptCount} scripts without audio recordings`
               }
             </p>
