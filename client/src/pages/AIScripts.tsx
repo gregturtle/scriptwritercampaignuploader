@@ -188,46 +188,54 @@ export default function AIScripts() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="background-video">Background Video *</Label>
+          <div className="space-y-2 border-2 border-purple-200 rounded-lg p-4 bg-purple-50">
+            <Label htmlFor="background-video" className="text-lg font-semibold flex items-center gap-2">
+              <Video className="h-5 w-5 text-purple-600" />
+              Background Video Selection *
+            </Label>
+            <p className="text-sm text-gray-600 mb-3">Choose which video to use as the background for your AI-generated content</p>
+            
             {loadingVideos ? (
-              <div className="flex items-center gap-2 text-sm text-gray-500 p-3 border rounded-md">
+              <div className="flex items-center gap-2 text-sm text-gray-500 p-3 border rounded-md bg-white">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading videos...
+                Loading available videos...
               </div>
             ) : backgroundVideos.length > 0 ? (
               <div className="space-y-3">
-                <Select value={selectedVideoPath} onValueChange={setSelectedVideoPath}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a background video" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {backgroundVideos.map((video) => (
-                      <SelectItem key={video.path} value={video.path}>
-                        <div className="flex items-center gap-2">
-                          <Video className="h-4 w-4" />
-                          {video.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedVideoPath && (
-                  <div className="border rounded-md p-3">
-                    <div className="text-sm font-medium mb-2">Preview:</div>
-                    <video 
-                      src={backgroundVideos.find(v => v.path === selectedVideoPath)?.url} 
-                      className="w-full max-w-md rounded-md"
-                      controls
-                      muted
-                    />
-                  </div>
-                )}
+                <div className="bg-white p-3 rounded-md border">
+                  <div className="text-sm font-medium mb-2">Available Videos: {backgroundVideos.length}</div>
+                  <Select value={selectedVideoPath} onValueChange={setSelectedVideoPath}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a background video" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {backgroundVideos.map((video) => (
+                        <SelectItem key={video.path} value={video.path}>
+                          <div className="flex items-center gap-2">
+                            <Video className="h-4 w-4 text-purple-600" />
+                            {video.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedVideoPath && (
+                    <div className="mt-3 p-3 border rounded-md bg-gray-50">
+                      <div className="text-sm font-medium mb-2">Selected: {backgroundVideos.find(v => v.path === selectedVideoPath)?.name}</div>
+                      <video 
+                        src={backgroundVideos.find(v => v.path === selectedVideoPath)?.url} 
+                        className="w-full max-w-md rounded-md border"
+                        controls
+                        muted
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
-              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
-                <div className="flex items-center gap-2 mb-1">
-                  <Video className="h-4 w-4" />
+              <div className="text-sm text-amber-700 bg-amber-100 p-4 rounded-md border border-amber-300">
+                <div className="flex items-center gap-2 mb-2">
+                  <Video className="h-5 w-5" />
                   <strong>No background videos found</strong>
                 </div>
                 <p>Upload videos to the uploads/backgrounds folder first to generate videos with your scripts.</p>
