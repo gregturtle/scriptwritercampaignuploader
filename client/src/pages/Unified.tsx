@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from "@/components/Header";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload } from 'lucide-react';
+import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload, Video } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
@@ -57,8 +57,33 @@ export default function Unified() {
   const [driveVideos, setDriveVideos] = useState<any[]>([]);
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
   const [isDriveConfigured, setIsDriveConfigured] = useState(false);
+  const [availableBackgroundVideos, setAvailableBackgroundVideos] = useState<{path: string, name: string, url: string}[]>([]);
+  const [selectedBackgroundVideo, setSelectedBackgroundVideo] = useState<string>('');
+  const [loadingVideos, setLoadingVideos] = useState(false);
 
   const { toast } = useToast();
+
+  // Load available background videos
+  useEffect(() => {
+    const loadBackgroundVideos = async () => {
+      setLoadingVideos(true);
+      try {
+        const response = await fetch('/api/video/background-videos');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableBackgroundVideos(data.videos);
+          if (data.videos.length > 0 && !selectedBackgroundVideo) {
+            setSelectedBackgroundVideo(data.videos[0].path);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading background videos:', error);
+      } finally {
+        setLoadingVideos(false);
+      }
+    };
+    loadBackgroundVideos();
+  }, [selectedBackgroundVideo]);
 
   const handleScriptSelection = (index: number, checked: boolean) => {
     setSelectedScripts(prev => {
@@ -298,6 +323,15 @@ export default function Unified() {
       return;
     }
 
+    if (withAudio && availableBackgroundVideos.length > 0 && !selectedBackgroundVideo) {
+      toast({
+        title: "Background Video Required",
+        description: "Please select a background video for video generation",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     setResult(null);
     setSelectedScripts(new Set());
@@ -334,7 +368,8 @@ export default function Unified() {
           spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
           tabName: 'Cleansed with BEAP',
           generateAudio: withAudio,
-          scriptCount: scriptCount
+          scriptCount: scriptCount,
+          backgroundVideoPath: selectedBackgroundVideo
         })
       });
 
@@ -638,6 +673,75 @@ export default function Unified() {
             )}
           </div>
 
+          {/* Background Video Selector */}
+          <div className="space-y-3 border-2 border-purple-200 rounded-lg p-4 bg-purple-50">
+            <Label className="text-lg font-semibold flex items-center gap-2">
+              <Video className="h-5 w-5 text-purple-600" />
+              Background Video Selection
+            </Label>
+            <p className="text-sm text-gray-600">Choose which video to use as background for AI-generated content</p>
+            
+            {loadingVideos ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 p-3 border rounded-md bg-white">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading videos...
+              </div>
+            ) : availableBackgroundVideos.length > 0 ? (
+              <div className="bg-white p-3 rounded-md border space-y-3">
+                <div className="text-sm font-medium">Available Videos: {availableBackgroundVideos.length}</div>
+                <Select value={selectedBackgroundVideo} onValueChange={setSelectedBackgroundVideo}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a background video">
+                      {selectedBackgroundVideo ? availableBackgroundVideos.find(v => v.path === selectedBackgroundVideo)?.name : 'Choose a background video'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableBackgroundVideos.map((video) => (
+                      <SelectItem key={video.path} value={video.path}>
+                        <div className="flex items-center gap-2">
+                          <Video className="h-4 w-4 text-purple-600" />
+                          <span className="truncate">{video.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* Native dropdown fallback */}
+                <select 
+                  value={selectedBackgroundVideo} 
+                  onChange={(e) => setSelectedBackgroundVideo(e.target.value)}
+                  className="w-full p-2 border rounded-md bg-white text-sm"
+                >
+                  <option value="">Select video...</option>
+                  {availableBackgroundVideos.map((video) => (
+                    <option key={video.path} value={video.path}>
+                      {video.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedBackgroundVideo && (
+                  <div className="border rounded-md p-2 bg-gray-50">
+                    <div className="text-xs font-medium mb-1">Preview:</div>
+                    <video 
+                      src={availableBackgroundVideos.find(v => v.path === selectedBackgroundVideo)?.url} 
+                      className="w-full max-w-sm rounded border"
+                      controls
+                      muted
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-amber-700 bg-amber-100 p-3 rounded-md border border-amber-300">
+                <div className="flex items-center gap-2 mb-1">
+                  <Video className="h-4 w-4" />
+                  <strong>No background videos found</strong>
+                </div>
+                <p>Upload videos above to generate video content with your scripts.</p>
+              </div>
+            )}
+          </div>
+
           {/* Audio Generation Toggle */}
           <div className="space-y-4">
             <div className="flex items-center justify-center space-x-3">
@@ -650,12 +754,12 @@ export default function Unified() {
                 onCheckedChange={setWithAudio}
               />
               <Label htmlFor="audio-toggle" className="text-sm font-medium">
-                With audio{backgroundVideos.length > 0 ? ' + video' : ''}
+                With audio{availableBackgroundVideos.length > 0 ? ' + video' : ''}
               </Label>
             </div>
             <p className="text-center text-sm text-gray-500">
               {withAudio 
-                ? `Will generate ${scriptCount} scripts with professional voice recordings${backgroundVideos.length > 0 ? ' and complete video assets' : ''} using Ella AI` 
+                ? `Will generate ${scriptCount} scripts with professional voice recordings${availableBackgroundVideos.length > 0 && selectedBackgroundVideo ? ' and complete video assets' : ''} using Ella AI` 
                 : `Will generate ${scriptCount} scripts without audio recordings`
               }
             </p>
