@@ -260,7 +260,77 @@ class VideoService {
   }
 
   /**
-   * Process multiple scripts and create videos for each
+   * Create video for a single script as part of a batch (uploads to existing batch folder)
+   */
+  async createVideoForScriptInBatch(
+    scriptTitle: string,
+    audioFilePath: string,
+    backgroundVideoPath: string,
+    batchTimestamp: string,
+    batchFolderId?: string | null
+  ): Promise<VideoCreationResult> {
+    try {
+      const timestamp = batchTimestamp; // Use batch timestamp for consistency
+      const safeTitle = scriptTitle.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 50);
+      const outputFileName = `video_${safeTitle}_${timestamp}.mp4`;
+      const outputPath = path.join(this.videosDir, outputFileName);
+
+      console.log(`Creating video: ${outputFileName}`);
+
+      if (!fs.existsSync(audioFilePath)) {
+        throw new Error(`Audio file not found: ${audioFilePath}`);
+      }
+
+      if (!fs.existsSync(backgroundVideoPath)) {
+        throw new Error(`Background video not found: ${backgroundVideoPath}`);
+      }
+
+      const result = await this.overlayAudioOnVideo({
+        backgroundVideoPath,
+        audioPath: audioFilePath,
+        outputPath,
+        fadeInDuration: 0.3,
+        fadeOutDuration: 0.5
+      });
+
+      // Auto-upload to Google Drive batch folder if successful
+      if (result.success && result.outputPath && batchFolderId) {
+        try {
+          const { googleDriveService } = await import('./googleDriveService');
+          
+          const driveResult = await googleDriveService.uploadVideoToSpecificFolder(
+            result.outputPath,
+            outputFileName,
+            batchFolderId
+          );
+
+          console.log(`Successfully uploaded ${outputFileName} to batch folder. File ID: ${driveResult.id}`);
+
+          return {
+            ...result,
+            driveId: driveResult.id,
+            driveLink: driveResult.webViewLink,
+            folderLink: `https://drive.google.com/drive/folders/${batchFolderId}`
+          };
+        } catch (driveError) {
+          console.warn('Failed to upload to batch folder:', driveError);
+          // Continue without failing the video creation
+        }
+      }
+
+      return result;
+
+    } catch (error) {
+      console.error('Error creating video for script in batch:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create video'
+      };
+    }
+  }
+
+  /**
+   * Process multiple scripts and create videos for each - uploads all to one timestamped batch folder
    */
   async createVideosForScripts(
     suggestions: Array<{
@@ -278,8 +348,29 @@ class VideoService {
     videoFile?: string;
     videoUrl?: string;
     videoError?: string;
+    folderLink?: string;
   }>> {
     const results = [];
+    
+    // Create one timestamped folder for the entire batch
+    const batchTimestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').substring(0, 19);
+    let batchFolderId: string | null = null;
+    let batchFolderLink: string | null = null;
+
+    // Try to create the batch folder upfront
+    try {
+      const { googleDriveService } = await import('./googleDriveService');
+      if (googleDriveService.isConfigured()) {
+        batchFolderId = await googleDriveService.createTimestampedSubfolder(
+          '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh',
+          batchTimestamp
+        );
+        batchFolderLink = `https://drive.google.com/drive/folders/${batchFolderId}`;
+        console.log(`Created batch folder for ${suggestions.length} videos: ${batchFolderLink}`);
+      }
+    } catch (error) {
+      console.warn('Could not create batch folder, will fallback to individual uploads:', error);
+    }
 
     for (let i = 0; i < suggestions.length; i++) {
       const suggestion = suggestions[i];
@@ -295,17 +386,21 @@ class VideoService {
 
       console.log(`Creating video ${i + 1}/${suggestions.length}: ${suggestion.title}`);
 
-      const videoResult = await this.createVideoForScript(
+      // Create video with the batch timestamp for consistent naming
+      const videoResult = await this.createVideoForScriptInBatch(
         suggestion.title,
         suggestion.audioFile,
-        backgroundVideoPath
+        backgroundVideoPath,
+        batchTimestamp,
+        batchFolderId
       );
 
       if (videoResult.success) {
         results.push({
           ...suggestion,
           videoFile: videoResult.outputPath,
-          videoUrl: videoResult.outputUrl
+          videoUrl: videoResult.outputUrl,
+          folderLink: batchFolderLink || undefined
         });
       } else {
         results.push({
