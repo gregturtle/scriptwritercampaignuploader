@@ -50,12 +50,65 @@ export default function Home() {
     });
   };
 
-  // Load AI-generated videos from Google Drive
+  // Load AI-generated batch folders from Google Drive
+  const [batchFolders, setBatchFolders] = useState<any[]>([]);
+  const [selectedBatchFolder, setSelectedBatchFolder] = useState<string | null>(null);
+  const [showBatchFolders, setShowBatchFolders] = useState(false);
+
   const handleLoadGoogleDriveVideos = async () => {
     setLoadingGoogleDriveVideos(true);
     try {
-      // Use the hardcoded folder ID from user's Shared Drive
+      // Use the hardcoded folder ID from user's Shared Drive to get batch folders
       const folderId = '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh';
+      const response = await fetch(`/api/drive/folder/${folderId}/batch-folders`);
+      const data = await response.json();
+      
+      if (data.folders && data.folders.length > 0) {
+        setBatchFolders(data.folders);
+        setShowBatchFolders(true);
+        
+        const logEntry: FrontendActivityLog = {
+          id: Date.now().toString(),
+          type: 'success',
+          message: `Found ${data.folders.length} video batch folders from Google Drive`,
+          timestamp: new Date().toISOString()
+        };
+        setActivityLogs(prev => [logEntry, ...prev]);
+        
+        toast({
+          title: "Batch Folders Found!",
+          description: `Select from ${data.folders.length} timestamped video batches`,
+        });
+      } else {
+        toast({
+          title: "No Video Batches Found",
+          description: "No timestamped video folders found. Generate some scripts first!",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      const logEntry: FrontendActivityLog = {
+        id: Date.now().toString(),
+        type: 'error',
+        message: 'Failed to load Google Drive batch folders',
+        timestamp: new Date().toISOString()
+      };
+      setActivityLogs(prev => [logEntry, ...prev]);
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load batch folders from Google Drive",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingGoogleDriveVideos(false);
+    }
+  };
+
+  // Load videos from a selected batch folder
+  const handleLoadVideosFromBatchFolder = async (folderId: string, folderName: string) => {
+    setLoadingGoogleDriveVideos(true);
+    try {
       const response = await fetch(`/api/drive/folder/${folderId}/videos`);
       const data = await response.json();
       
@@ -66,32 +119,32 @@ export default function Home() {
         const logEntry: FrontendActivityLog = {
           id: Date.now().toString(),
           type: 'success',
-          message: `Loaded ${data.videos.length} AI-generated videos from Google Drive`,
+          message: `Loaded ${data.videos.length} videos from batch folder: ${folderName}`,
           timestamp: new Date().toISOString()
         };
         setActivityLogs(prev => [logEntry, ...prev]);
         
         toast({
           title: "Success",
-          description: `Loaded ${data.videos.length} AI-generated videos from Google Drive`,
+          description: `Loaded ${data.videos.length} videos from ${folderName}`,
         });
+        
+        setShowBatchFolders(false);
       } else {
-        throw new Error(data.message || 'Failed to load videos');
+        throw new Error(data.message || 'No videos found in folder');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load Google Drive videos';
-      
       const logEntry: FrontendActivityLog = {
         id: Date.now().toString(),
         type: 'error',
-        message: errorMessage,
+        message: `Failed to load videos from batch folder: ${folderName}`,
         timestamp: new Date().toISOString()
       };
       setActivityLogs(prev => [logEntry, ...prev]);
       
       toast({
         title: "Error",
-        description: errorMessage,
+        description: error instanceof Error ? error.message : "Failed to load videos from batch folder",
         variant: "destructive",
       });
     } finally {
@@ -235,6 +288,45 @@ export default function Home() {
                     {loadingGoogleDriveVideos ? 'Loading...' : 'Load AI Videos'}
                   </Button>
                 </div>
+                
+                {/* Batch Folder Selection Modal */}
+                {showBatchFolders && (
+                  <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="text-sm font-semibold mb-3 text-blue-800">Select Video Batch</h3>
+                    <p className="text-xs text-blue-600 mb-3">
+                      Choose a timestamped batch folder containing AI-generated videos:
+                    </p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {batchFolders.map((folder) => (
+                        <div key={folder.id} className="flex items-center justify-between p-3 bg-white border rounded">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">{folder.name}</div>
+                            <div className="text-xs text-gray-500">
+                              {folder.videoCount} videos • Modified: {new Date(folder.modifiedTime || '').toLocaleDateString()}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleLoadVideosFromBatchFolder(folder.id, folder.name)}
+                            disabled={loadingGoogleDriveVideos}
+                          >
+                            {loadingGoogleDriveVideos ? 'Loading...' : 'Load Videos'}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowBatchFolders(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <FileUploader onFilesSelected={handleFilesSelected} />
                 <UploadList 
                   files={uploadedFiles} 

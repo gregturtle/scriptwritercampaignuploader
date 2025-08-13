@@ -60,6 +60,75 @@ class GoogleDriveService {
   }
 
   /**
+   * List timestamped batch folders from the specified Google Drive folder
+   */
+  async listBatchFoldersFromFolder(folderId: string): Promise<{
+    id: string;
+    name: string;
+    modifiedTime?: string;
+    webViewLink?: string;
+    videoCount?: number;
+  }[]> {
+    if (!this.isConfigured()) {
+      throw new Error('Google Drive service is not properly configured');
+    }
+
+    try {
+      console.log(`Listing batch folders from Google Drive folder: ${folderId}`);
+      
+      // Search for folders that start with "Generated_" (our batch folders)
+      const response = await this.drive.files.list({
+        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and name contains 'Generated_' and trashed=false`,
+        fields: 'files(id, name, modifiedTime, webViewLink)',
+        orderBy: 'modifiedTime desc', // Most recent first
+        supportsAllDrives: true
+      });
+
+      if (!response.data.files) {
+        console.log('No batch folders found in Google Drive folder');
+        return [];
+      }
+
+      console.log(`Found ${response.data.files.length} batch folders`);
+      
+      // For each folder, count the videos inside
+      const foldersWithCounts = await Promise.all(
+        response.data.files.map(async (folder: any) => {
+          try {
+            const videoCountResponse = await this.drive.files.list({
+              q: `'${folder.id}' in parents and mimeType contains 'video/' and trashed=false`,
+              fields: 'files(id)',
+              supportsAllDrives: true
+            });
+            
+            return {
+              id: folder.id!,
+              name: folder.name!,
+              modifiedTime: folder.modifiedTime,
+              webViewLink: folder.webViewLink,
+              videoCount: videoCountResponse.data.files?.length || 0
+            };
+          } catch (error: any) {
+            console.warn(`Failed to count videos in folder ${folder.name}:`, error);
+            return {
+              id: folder.id!,
+              name: folder.name!,
+              modifiedTime: folder.modifiedTime,
+              webViewLink: folder.webViewLink,
+              videoCount: 0
+            };
+          }
+        })
+      );
+
+      return foldersWithCounts;
+    } catch (error) {
+      console.error('Error listing batch folders from Google Drive:', error);
+      throw error;
+    }
+  }
+
+  /**
    * List video files from the specified Google Drive folder
    */
   async listVideosFromFolder(folderId: string): Promise<{
@@ -87,7 +156,7 @@ class GoogleDriveService {
       const files = response.data.files || [];
       console.log(`Found ${files.length} video files in Google Drive folder`);
       
-      return files.map(file => ({
+      return files.map((file: any) => ({
         id: file.id!,
         name: file.name!,
         size: file.size,

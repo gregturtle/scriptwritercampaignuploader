@@ -1087,6 +1087,29 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Get batch folders from a specific Google Drive folder
+  app.get('/api/drive/folder/:folderId/batch-folders', async (req, res) => {
+    try {
+      const { folderId } = req.params;
+      
+      if (!googleDriveService.isConfigured()) {
+        return res.status(503).json({
+          error: 'Google Drive service not configured',
+          folders: []
+        });
+      }
+
+      const folders = await googleDriveService.listBatchFoldersFromFolder(folderId);
+      res.json({ folders });
+    } catch (error: any) {
+      console.error('Error listing batch folders from Google Drive:', error);
+      res.status(500).json({
+        error: 'Failed to list batch folders from Google Drive',
+        folders: []
+      });
+    }
+  });
+
   app.get('/api/drive/status', async (req, res) => {
     try {
       if (!googleDriveService.isConfigured()) {
