@@ -88,7 +88,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.post('/api/ai/generate-scripts', async (req, res) => {
     try {
       console.log('AI script generation request received:', req.body);
-      const { spreadsheetId, tabName, generateAudio = true, scriptCount = 5 } = req.body;
+      const { spreadsheetId, tabName, generateAudio = true, scriptCount = 5, backgroundVideoPath } = req.body;
       
       if (!spreadsheetId) {
         return res.status(400).json({ message: 'Spreadsheet ID is required' });
@@ -108,13 +108,17 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Auto-generate videos if audio was generated and background videos are available
       if (generateAudio && result.suggestions.some(s => s.audioFile)) {
         const backgroundVideos = videoService.getAvailableBackgroundVideos();
-        if (backgroundVideos.length > 0) {
-          console.log(`Creating videos using background: ${backgroundVideos[0]}`);
+        const selectedBackgroundVideo = backgroundVideoPath && fs.existsSync(backgroundVideoPath) 
+          ? backgroundVideoPath 
+          : backgroundVideos[0]; // Fallback to first available
+          
+        if (selectedBackgroundVideo) {
+          console.log(`Creating videos using background: ${selectedBackgroundVideo}`);
           
           try {
             const videosResult = await videoService.createVideosForScripts(
               result.suggestions,
-              backgroundVideos[0] // Use first available background video
+              selectedBackgroundVideo
             );
             
             // Update suggestions with video information
@@ -873,7 +877,11 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       res.json({
         ffmpegAvailable,
         backgroundVideosCount: backgroundVideos.length,
-        backgroundVideos: backgroundVideos.map(path => path.split('/').pop()),
+        backgroundVideos: backgroundVideos.map(videoPath => ({
+          path: videoPath,
+          name: path.basename(videoPath),
+          url: `/uploads/backgrounds/${path.basename(videoPath)}`
+        })),
         driveConfigured,
         message: ffmpegAvailable 
           ? `Video service ready with ${backgroundVideos.length} background video${backgroundVideos.length !== 1 ? 's' : ''}${driveConfigured ? ' + Google Drive access' : ''}`
@@ -887,6 +895,23 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         error: 'Failed to check video service status',
         details: error.message
       });
+    }
+  });
+
+  // Get available background videos for selection
+  app.get("/api/video/background-videos", (req, res) => {
+    try {
+      const backgroundVideos = videoService.getAvailableBackgroundVideos();
+      res.json({
+        videos: backgroundVideos.map(videoPath => ({
+          path: videoPath,
+          name: path.basename(videoPath),
+          url: `/uploads/backgrounds/${path.basename(videoPath)}`
+        }))
+      });
+    } catch (error) {
+      console.error('Error getting background videos:', error);
+      res.status(500).json({ error: 'Failed to get background videos' });
     }
   });
 
@@ -1139,6 +1164,9 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       });
     }
   });
+
+  // Serve static files for uploads (backgrounds folder)
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   const httpServer = createServer(app);
   return httpServer;

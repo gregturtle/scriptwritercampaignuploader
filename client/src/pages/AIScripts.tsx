@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, TrendingUp, FileText, Brain, BarChart3, Upload, Mic } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Sparkles, TrendingUp, FileText, Brain, BarChart3, Upload, Mic, Video } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 
@@ -26,13 +27,47 @@ interface GenerationResponse {
   voiceGenerated?: boolean;
 }
 
+interface BackgroundVideo {
+  path: string;
+  name: string;
+  url: string;
+}
+
 export default function AIScripts() {
   const [spreadsheetId, setSpreadsheetId] = useState('');
   const [tabName, setTabName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<ScriptSuggestion[]>([]);
   const [generationComplete, setGenerationComplete] = useState(false);
+  const [backgroundVideos, setBackgroundVideos] = useState<BackgroundVideo[]>([]);
+  const [selectedVideoPath, setSelectedVideoPath] = useState<string>('');
+  const [loadingVideos, setLoadingVideos] = useState(false);
   const { toast } = useToast();
+
+  // Load available background videos on component mount
+  useEffect(() => {
+    const loadBackgroundVideos = async () => {
+      setLoadingVideos(true);
+      try {
+        const response = await fetch('/api/video/background-videos');
+        if (response.ok) {
+          const data = await response.json();
+          setBackgroundVideos(data.videos);
+          if (data.videos.length > 0 && !selectedVideoPath) {
+            setSelectedVideoPath(data.videos[0].path); // Auto-select first video
+          }
+        } else {
+          console.error('Failed to load background videos');
+        }
+      } catch (error) {
+        console.error('Error loading background videos:', error);
+      } finally {
+        setLoadingVideos(false);
+      }
+    };
+
+    loadBackgroundVideos();
+  }, [selectedVideoPath]);
 
   const handleGenerateScripts = async () => {
     if (!spreadsheetId.trim()) {
@@ -54,7 +89,8 @@ export default function AIScripts() {
         body: JSON.stringify({
           spreadsheetId: spreadsheetId.trim(),
           tabName: tabName.trim() || undefined,
-          includeVoice: true
+          generateAudio: true,
+          backgroundVideoPath: selectedVideoPath
         }),
       });
 
@@ -152,9 +188,56 @@ export default function AIScripts() {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="background-video">Background Video *</Label>
+            {loadingVideos ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 p-3 border rounded-md">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading videos...
+              </div>
+            ) : backgroundVideos.length > 0 ? (
+              <div className="space-y-3">
+                <Select value={selectedVideoPath} onValueChange={setSelectedVideoPath}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a background video" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {backgroundVideos.map((video) => (
+                      <SelectItem key={video.path} value={video.path}>
+                        <div className="flex items-center gap-2">
+                          <Video className="h-4 w-4" />
+                          {video.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedVideoPath && (
+                  <div className="border rounded-md p-3">
+                    <div className="text-sm font-medium mb-2">Preview:</div>
+                    <video 
+                      src={backgroundVideos.find(v => v.path === selectedVideoPath)?.url} 
+                      className="w-full max-w-md rounded-md"
+                      controls
+                      muted
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
+                <div className="flex items-center gap-2 mb-1">
+                  <Video className="h-4 w-4" />
+                  <strong>No background videos found</strong>
+                </div>
+                <p>Upload videos to the uploads/backgrounds folder first to generate videos with your scripts.</p>
+              </div>
+            )}
+          </div>
+
           <Button 
             onClick={handleGenerateScripts}
-            disabled={isGenerating || !spreadsheetId.trim()}
+            disabled={isGenerating || !spreadsheetId.trim() || !selectedVideoPath}
             className="w-full"
             size="lg"
           >
