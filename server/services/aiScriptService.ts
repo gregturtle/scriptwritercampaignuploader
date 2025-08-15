@@ -389,10 +389,10 @@ Respond in JSON format:
       ];
       const generatedDate = new Date().toISOString().split("T")[0];
 
-      const rows = suggestions.map((suggestion) => {
-        // Generate file title similar to how video service creates filenames
-        const safeTitle = suggestion.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 50);
-        const fileTitle = `${safeTitle}_${Date.now()}`;
+      const rows = suggestions.map((suggestion, index) => {
+        // Generate file title with script numbering and safe formatting
+        const safeTitle = suggestion.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
+        const fileTitle = `script${index + 1}_${safeTitle}_${Date.now()}`;
         
         return [
           generatedDate,

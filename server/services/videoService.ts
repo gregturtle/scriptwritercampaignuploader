@@ -267,12 +267,13 @@ class VideoService {
     audioFilePath: string,
     backgroundVideoPath: string,
     batchTimestamp: string,
-    batchFolderId?: string | null
+    batchFolderId?: string | null,
+    scriptIndex: number = 0
   ): Promise<VideoCreationResult> {
     try {
       const timestamp = batchTimestamp; // Use batch timestamp for consistency
-      const safeTitle = scriptTitle.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 50);
-      const outputFileName = `video_${safeTitle}_${timestamp}.mp4`;
+      const safeTitle = scriptTitle.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
+      const outputFileName = `script${scriptIndex + 1}_video_${safeTitle}_${timestamp}.mp4`;
       const outputPath = path.join(this.videosDir, outputFileName);
 
       console.log(`Creating video: ${outputFileName}`);
@@ -392,7 +393,8 @@ class VideoService {
         suggestion.audioFile,
         backgroundVideoPath,
         batchTimestamp,
-        batchFolderId
+        batchFolderId,
+        i
       );
 
       if (videoResult.success) {
