@@ -36,15 +36,34 @@ export class SlackService {
     batchInfo: {
       batchName: string;
       videoCount: number;
-      scripts: Array<{ title: string; content: string }>;
+      scripts: Array<{ 
+        title: string; 
+        content: string; 
+        fileName?: string;
+        videoUrl?: string;
+      }>;
       driveFolder: string;
       timestamp: string;
     }
   ): Promise<string | undefined> {
     try {
-      const scriptsList = batchInfo.scripts
-        .map((script, index) => `${index + 1}. *${script.title}*\n   "${script.content}"`)
-        .join('\n\n');
+      // Create detailed list of each ad with filename and content
+      const adsList = batchInfo.scripts
+        .map((script, index) => {
+          const scriptNumber = index + 1;
+          const fileName = script.fileName || `script${scriptNumber}`;
+          
+          let adBlock = `*🎬 AD ${scriptNumber}: ${script.title}*\n`;
+          adBlock += `📁 *File:* \`${fileName}\`\n`;
+          adBlock += `💬 *Script:* "${script.content}"\n`;
+          
+          if (script.videoUrl) {
+            adBlock += `🎥 *Video:* <${script.videoUrl}|View Video>\n`;
+          }
+          
+          return adBlock;
+        })
+        .join('\n');
 
       const message: ChatPostMessageArguments = {
         channel: process.env.SLACK_CHANNEL_ID!,
@@ -53,35 +72,14 @@ export class SlackService {
             type: 'header',
             text: {
               type: 'plain_text',
-              text: '🎬 New Video Batch Ready for Review'
+              text: `🚀 BATCH: ${batchInfo.batchName.toUpperCase()}`
             }
-          },
-          {
-            type: 'section',
-            fields: [
-              {
-                type: 'mrkdwn',
-                text: `*Batch:* ${batchInfo.batchName}`
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Videos:* ${batchInfo.videoCount}`
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Generated:* ${batchInfo.timestamp}`
-              },
-              {
-                type: 'mrkdwn',
-                text: `*Drive Folder:* <${batchInfo.driveFolder}|View Videos>`
-              }
-            ]
           },
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*Generated Scripts:*\n${scriptsList}`
+              text: `*📊 Batch Summary*\n• ${batchInfo.videoCount} videos created\n• Generated: ${batchInfo.timestamp}\n• <${batchInfo.driveFolder}|📁 View All Videos in Drive>`
             }
           },
           {
@@ -91,7 +89,17 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: '👍 React with ✅ to approve or ❌ to reject this batch'
+              text: `*🎯 AD CREATIVES*\n\n${adsList}`
+            }
+          },
+          {
+            type: 'divider'
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*📋 TEAM APPROVAL NEEDED*\n✅ React to approve this batch\n❌ React to reject this batch'
             }
           }
         ]

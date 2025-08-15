@@ -176,7 +176,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           await slackService.sendVideoBatchForApproval({
             batchName,
             videoCount,
-            scripts: result.suggestions.map(s => ({ title: s.title, content: s.content })),
+            scripts: result.suggestions.map((s, index) => ({ 
+              title: s.title, 
+              content: s.content,
+              fileName: s.fileName || `script${index + 1}`,
+              videoUrl: s.videoUrl
+            })),
             driveFolder,
             timestamp
           });
