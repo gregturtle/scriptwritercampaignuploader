@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { CircleDashed, Upload, Zap } from "lucide-react";
+import { CircleDashed, Zap, FileText, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface HeaderProps {
@@ -18,29 +18,39 @@ export default function Header({ isAuthenticated, onLogout, onLogin }: HeaderPro
           <div className="flex items-center space-x-8">
             <div className="flex items-center">
               <CircleDashed className="h-8 w-8 text-primary" />
-              <h1 className="ml-2 text-xl font-semibold text-neutral-900">Meta Campaign Manager</h1>
+              <h1 className="ml-2 text-xl font-semibold text-neutral-900">Meta Ad Creative Generator</h1>
             </div>
             
             {/* Navigation Tabs */}
             <nav className="flex space-x-1">
               <Link href="/">
                 <Button 
-                  variant={location === "/" ? "default" : "ghost"}
-                  size="sm"
-                  className="flex items-center space-x-2"
-                >
-                  <Upload className="h-4 w-4" />
-                  <span>Upload</span>
-                </Button>
-              </Link>
-              <Link href="/unified">
-                <Button 
-                  variant={location === "/unified" ? "default" : "ghost"}
+                  variant={location === "/" || location === "/unified" ? "default" : "ghost"}
                   size="sm"
                   className="flex items-center space-x-2"
                 >
                   <Zap className="h-4 w-4" />
-                  <span>Script and Audio Generation</span>
+                  <span>Video Creator</span>
+                </Button>
+              </Link>
+              <Link href="/aiscripts">
+                <Button 
+                  variant={location === "/aiscripts" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>AI Scripts</span>
+                </Button>
+              </Link>
+              <Link href="/reports">
+                <Button 
+                  variant={location === "/reports" ? "default" : "ghost"}
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Reports</span>
                 </Button>
               </Link>
             </nav>

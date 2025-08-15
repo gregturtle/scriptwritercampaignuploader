@@ -346,56 +346,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // File upload routes
-  app.post("/api/files/upload", upload.single("file"), async (req, res) => {
-    try {
-      const file = req.file;
-      
-      if (!file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-      
-      // Check if file is .mov
-      if (!file.originalname.endsWith(".mov")) {
-        return res.status(400).json({ message: "Only .mov files are allowed" });
-      }
-      
-      // Save file info to database
-      const savedFile = await appStorage.createFile({
-        name: file.originalname,
-        path: file.path,
-        size: file.size,
-        type: file.mimetype,
-        status: "ready",
-        metaAssetId: null,
-      });
-      
-      // Log success
-      await appStorage.createActivityLog({
-        type: "success",
-        message: `File "${file.originalname}" uploaded successfully`,
-        timestamp: new Date(),
-      });
-      
-      res.json({
-        fileId: savedFile.id.toString(),
-        name: savedFile.name,
-        size: savedFile.size,
-        path: savedFile.path,
-      });
-    } catch (error) {
-      console.error("File upload error:", error);
-      
-      // Log error
-      await appStorage.createActivityLog({
-        type: "error",
-        message: `File upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        timestamp: new Date(),
-      });
-      
-      res.status(500).json({ message: "Failed to upload file" });
-    }
-  });
+
 
   // Creative launch routes
   app.post("/api/creatives/launch", async (req, res) => {

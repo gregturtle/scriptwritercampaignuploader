@@ -22,24 +22,7 @@ export const getCampaigns = async () => {
   return response.json();
 };
 
-// File Upload API
-export const uploadFile = async (file: File, onProgress?: (progress: number) => void) => {
-  const formData = new FormData();
-  formData.append('file', file);
 
-  const response = await fetch('/api/files/upload', {
-    method: 'POST',
-    body: formData,
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || response.statusText);
-  }
-
-  return response.json();
-};
 
 // Creative Launch API
 export const launchCreatives = async (files: string[], campaignIds: string[]) => {

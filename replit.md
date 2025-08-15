@@ -1,8 +1,8 @@
-# Meta Campaign Manager
+# Meta Ad Creative Generator
 
 ## Overview
 
-Meta Campaign Manager is a full-stack web application built for managing Meta (Facebook) advertising campaigns, specifically designed for uploading video creatives and generating performance reports. The application uses a modern React frontend with a Node.js/Express backend, PostgreSQL database via Neon, and integrates with Meta's Marketing API for campaign management and Google Sheets for report generation.
+Meta Ad Creative Generator is a full-stack web application built for creating AI-powered video advertisements for Meta (Facebook) campaigns. The application specializes in generating AI scripts, professional voice recordings, and complete video assets for Meta advertising campaigns, with direct integration to Google Sheets for data export. The upload functionality has been removed - this app focuses solely on video ad creation and script generation.
 
 ## System Architecture
 
@@ -41,11 +41,12 @@ Meta Campaign Manager is a full-stack web application built for managing Meta (F
 - Environment variable fallback for development (`META_ACCESS_TOKEN`)
 - Session management with secure token storage
 
-### File Management
-- Video file upload (.mov format) with progress tracking
-- File validation and status management (uploading → ready → completed)
-- Integration with Meta's asset library for creative uploads
-- Local file storage with unique naming conventions
+### Video Generation System
+- AI script generation from Meta campaign performance data
+- Professional voice synthesis using ElevenLabs API
+- Automatic video creation with background videos using FFmpeg
+- Google Sheets integration for script export and organization
+- Background video management with local storage and Google Drive import
 
 ### Campaign Management
 - Real-time campaign synchronization with Meta API
@@ -62,10 +63,11 @@ Meta Campaign Manager is a full-stack web application built for managing Meta (F
 ## Data Flow
 
 1. **Authentication**: User authenticates via Meta OAuth, tokens stored securely
-2. **File Upload**: Videos uploaded to local storage, metadata saved to database
-3. **Campaign Sync**: Campaigns fetched from Meta API and cached locally
-4. **Creative Launch**: Files uploaded to Meta's asset library and linked to campaigns
-5. **Report Generation**: Performance data retrieved from Meta API and exported to Google Sheets
+2. **Campaign Analysis**: Performance data retrieved from Meta API for analysis
+3. **Script Generation**: AI analyzes campaign data to generate optimized scripts
+4. **Voice Synthesis**: Scripts converted to professional voice recordings via ElevenLabs
+5. **Video Creation**: Audio combined with background videos to create complete ad assets
+6. **Sheet Export**: Scripts and metadata exported to Google Sheets for tracking
 
 ## External Dependencies
 
@@ -122,6 +124,7 @@ Changelog:
 - August 04, 2025. Reduced AI script target length from 60-70 words to 50-60 words (16-17 seconds maximum) to ensure audio fits properly within 20-second background videos with fade effects. Fixed video duration issue - videos now maintain full 20-second length instead of being trimmed to match audio duration. Increased script length back to 60-70 words (18-19 seconds) to minimize silent gaps in full-length videos. Adjusted to 55-65 words (17-18 seconds) for optimal balance between content and timing. Enhanced OpenAI prompt with structured three-part script format (opening, product explanation, call-to-action), brand guidelines, and comprehensive refinement checklist for higher quality script generation
 - August 13, 2025. Added dynamic voice selector with ElevenLabs API integration supporting Ella AI, Mark, and Samara X voices. Updated file naming to use human-readable timestamps (YYYY-MM-DD_HH-MM-SS) instead of Unix timestamps for better tracking and organization of both audio and video assets. Implemented batch-level timestamped folder organization - all videos from one script generation session are uploaded to a single Google Drive subfolder named "Generated_YYYY-MM-DD_HH-MM-SS" for easy batch management when uploading to Meta campaigns. Each generation creates ONE folder containing ALL videos from that batch, making campaign upload selection much easier. Updated "Load AI Videos" functionality to display organized batch folders instead of individual video files, with batch folder selection UI showing video counts and creation dates for easy identification of generation sessions
 - August 15, 2025. Added "File Title" column to Google Sheets script export, positioned as the second column after "Generated Date". This column contains the safe filename format that will be used when scripts are converted to audio/video files, matching the naming convention used by the video service. Enhanced GoogleSheetsService with createTab() and appendDataToTab() methods for better sheet management. Began implementing Slack approval workflow integration with @slack/web-api package for sending video batches to team channels with tick/cross reaction voting. Implemented sequential script numbering - all files now begin with 'script1', 'script2', etc. in both Google Sheets file titles and actual audio/video filenames for consistent tracking
+- August 15, 2025. **MAJOR ARCHITECTURAL CHANGE**: Removed all upload functionality from the application. The app now focuses exclusively on AI-powered video ad creation and script generation. Removed Home page, FileUploader, UploadList, and useFileUpload components. The Unified page (Video Creator) is now the main entry point. Updated navigation to reflect video creation focus with Video Creator, AI Scripts, and Reports sections. Removed file upload API endpoints. App title changed to "Meta Ad Creative Generator" to better reflect its purpose as a video ad creation tool rather than an upload manager.
 
 ## User Preferences
 
