@@ -18,7 +18,9 @@ export default function Header({ isAuthenticated, onLogout, onLogin }: HeaderPro
           <div className="flex items-center space-x-8">
             <div className="flex items-center">
               <CircleDashed className="h-8 w-8 text-primary" />
-              <h1 className="ml-2 text-xl font-semibold text-neutral-900">Meta Ad Creative Generator</h1>
+              <h1 className="ml-2 text-xl font-semibold text-neutral-900">
+                Meta Ad Creative Generator <span className="font-bold text-primary">NEW CONCEPTS</span>
+              </h1>
             </div>
             
             {/* Navigation Tabs */}
