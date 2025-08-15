@@ -1,10 +1,4 @@
-import { WebClient } from '@slack/web-api';
-
-interface SlackMessage {
-  channel: string;
-  text?: string;
-  blocks?: any[];
-}
+import { WebClient, type ChatPostMessageArguments } from '@slack/web-api';
 
 interface BatchApprovalResult {
   success: boolean;
@@ -13,7 +7,7 @@ interface BatchApprovalResult {
 }
 
 class SlackService {
-  private client: WebClient;
+  private client!: WebClient;
   private isInitialized = false;
 
   constructor() {
@@ -58,7 +52,7 @@ class SlackService {
         })
         .join('\n');
 
-      const message: SlackMessage = {
+      const message: ChatPostMessageArguments = {
         channel,
         blocks: [
           {

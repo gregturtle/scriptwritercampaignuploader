@@ -306,6 +306,110 @@ class GoogleSheetsService {
   }
 
   /**
+   * Create a new tab/sheet in an existing spreadsheet
+   */
+  async createTab(spreadsheetId: string, tabName: string, headers: string[]) {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      
+      // Try to create the tab
+      try {
+        await this.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: cleanSpreadsheetId,
+          resource: {
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: tabName,
+                  },
+                },
+              },
+            ],
+          },
+        });
+
+        // Add headers to new tab
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId: cleanSpreadsheetId,
+          range: `${tabName}!A1:${String.fromCharCode(64 + headers.length)}1`,
+          valueInputOption: "RAW",
+          resource: {
+            values: [headers],
+          },
+        });
+      } catch (error) {
+        // Tab might already exist, just add headers
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId: cleanSpreadsheetId,
+          range: `${tabName}!A1:${String.fromCharCode(64 + headers.length)}1`,
+          valueInputOption: "RAW",
+          resource: {
+            values: [headers],
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error creating tab:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Append data to a specific tab in a spreadsheet
+   */
+  async appendDataToTab(spreadsheetId: string, tabName: string, data: any[][]) {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      
+      // Find next empty row
+      const existingDataResponse = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: cleanSpreadsheetId,
+        range: `${tabName}!A:A`,
+      });
+
+      const existingRows = existingDataResponse.data.values || [];
+      const nextRow = existingRows.length + 1;
+
+      const columnCount = Math.max(...data.map(row => row.length));
+      const endColumn = String.fromCharCode(64 + columnCount);
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: cleanSpreadsheetId,
+        range: `${tabName}!A${nextRow}:${endColumn}${nextRow + data.length - 1}`,
+        valueInputOption: "RAW",
+        resource: {
+          values: data,
+        },
+      });
+
+      console.log(`Added ${data.length} rows to tab "${tabName}"`);
+    } catch (error) {
+      console.error('Error appending data to tab:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Read data from a specific tab in a spreadsheet
+   */
+  async readTabData(spreadsheetId: string, tabName: string, range: string = "A:Z") {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: cleanSpreadsheetId,
+        range: `${tabName}!${range}`,
+      });
+
+      return response.data.values || [];
+    } catch (error) {
+      console.error('Error reading tab data:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get existing spreadsheet info
    */
   async getSpreadsheetInfo(spreadsheetId: string) {

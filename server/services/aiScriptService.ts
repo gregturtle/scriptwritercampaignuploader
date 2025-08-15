@@ -44,14 +44,7 @@ class AIScriptService {
       const cleanSpreadsheetId =
         googleSheetsService.extractSpreadsheetId(spreadsheetId);
 
-      const response = await googleSheetsService.sheets.spreadsheets.values.get(
-        {
-          spreadsheetId: cleanSpreadsheetId,
-          range: `${tabName}!A:W`, // Get data including columns U and W
-        },
-      );
-
-      const rows = response.data.values || [];
+      const rows = await googleSheetsService.readTabData(cleanSpreadsheetId, tabName, "A:W");
       if (rows.length === 0) {
         throw new Error(`No data found in the "${tabName}" tab`);
       }
@@ -62,7 +55,7 @@ class AIScriptService {
 
       // Skip header row and parse data
       const dataRows = rows.slice(1);
-      const performanceData: PerformanceData[] = dataRows.map((row, index) => {
+      const performanceData: PerformanceData[] = dataRows.map((row: any, index: number) => {
         // Column U is index 20 (U = 21st column, 0-indexed = 20)
         // Column W is index 22 (W = 23rd column, 0-indexed = 22)
         const score = row[20] ? parseFloat(row[20]) : undefined;
@@ -388,6 +381,7 @@ Respond in JSON format:
       // Prepare data for sheets
       const headers = [
         "Generated Date",
+        "File Title", 
         "Script Title",
         "Script Content",
         "AI Reasoning",
@@ -395,62 +389,26 @@ Respond in JSON format:
       ];
       const generatedDate = new Date().toISOString().split("T")[0];
 
-      const rows = suggestions.map((suggestion) => [
-        generatedDate,
-        suggestion.title,
-        suggestion.content,
-        suggestion.reasoning,
-        suggestion.targetMetrics.join(", "),
-      ]);
-
-      // Try to create the tab first (will fail silently if it exists)
-      try {
-        await googleSheetsService.sheets.spreadsheets.batchUpdate({
-          spreadsheetId: cleanSpreadsheetId,
-          resource: {
-            requests: [
-              {
-                addSheet: {
-                  properties: {
-                    title: tabName,
-                  },
-                },
-              },
-            ],
-          },
-        });
-
-        // Add headers to new sheet
-        await googleSheetsService.sheets.spreadsheets.values.update({
-          spreadsheetId: cleanSpreadsheetId,
-          range: `${tabName}!A1:E1`,
-          valueInputOption: "RAW",
-          resource: {
-            values: [headers],
-          },
-        });
-      } catch (error) {
-        // Tab might already exist, continue
-      }
-
-      // Find next empty row and add data
-      const existingDataResponse =
-        await googleSheetsService.sheets.spreadsheets.values.get({
-          spreadsheetId: cleanSpreadsheetId,
-          range: `${tabName}!A:A`,
-        });
-
-      const existingRows = existingDataResponse.data.values || [];
-      const nextRow = existingRows.length + 1;
-
-      await googleSheetsService.sheets.spreadsheets.values.update({
-        spreadsheetId: cleanSpreadsheetId,
-        range: `${tabName}!A${nextRow}:E${nextRow + rows.length - 1}`,
-        valueInputOption: "RAW",
-        resource: {
-          values: rows,
-        },
+      const rows = suggestions.map((suggestion) => {
+        // Generate file title similar to how video service creates filenames
+        const safeTitle = suggestion.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 50);
+        const fileTitle = `${safeTitle}_${Date.now()}`;
+        
+        return [
+          generatedDate,
+          fileTitle,
+          suggestion.title,
+          suggestion.content,
+          suggestion.reasoning,
+          suggestion.targetMetrics.join(", "),
+        ];
       });
+
+      // Create the tab and add headers
+      await googleSheetsService.createTab(cleanSpreadsheetId, tabName, headers);
+
+      // Add data to the tab
+      await googleSheetsService.appendDataToTab(cleanSpreadsheetId, tabName, rows);
 
       console.log(
         `Saved ${suggestions.length} suggestions to sheet tab "${tabName}"`,
