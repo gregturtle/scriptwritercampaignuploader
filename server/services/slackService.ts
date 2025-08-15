@@ -82,6 +82,9 @@ export class SlackService {
 
       await this.sendMessage(headerMessage);
 
+      // Track message timestamps for batch monitoring
+      const messageTimestamps: string[] = [];
+
       // Send individual messages for each ad with reactions
       for (let i = 0; i < batchInfo.scripts.length; i++) {
         const script = batchInfo.scripts[i];
@@ -120,9 +123,15 @@ export class SlackService {
         
         // Add individual reactions for this ad
         if (messageTs) {
+          messageTimestamps.push(messageTs);
           await this.addReactions(messageTs, ['white_check_mark', 'x']);
         }
       }
+
+      // Start monitoring the batch for completion (check every 30 seconds)
+      setTimeout(() => {
+        this.monitorBatchCompletion(batchInfo.batchName, messageTimestamps, batchInfo.scripts.length);
+      }, 30000);
 
       return 'batch-sent';
     } catch (error) {
@@ -150,14 +159,41 @@ export class SlackService {
   }
 
   /**
+   * Monitors batch completion with periodic checks
+   */
+  private async monitorBatchCompletion(
+    batchName: string,
+    messageTimestamps: string[],
+    totalAds: number,
+    attempts: number = 0
+  ): Promise<void> {
+    const maxAttempts = 20; // Check for 10 minutes (20 * 30 seconds)
+    
+    try {
+      const isComplete = await this.checkBatchCompletion(batchName, messageTimestamps, totalAds);
+      
+      if (!isComplete && attempts < maxAttempts) {
+        // Continue monitoring every 30 seconds
+        setTimeout(() => {
+          this.monitorBatchCompletion(batchName, messageTimestamps, totalAds, attempts + 1);
+        }, 30000);
+      }
+    } catch (error) {
+      console.error('Error monitoring batch completion:', error);
+    }
+  }
+
+  /**
    * Checks if all ads in a batch have been reviewed and sends summary
    */
   async checkBatchCompletion(
     batchName: string,
     messageTimestamps: string[],
     totalAds: number
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
+      console.log(`[SLACK MONITOR] Checking batch completion for ${batchName} - ${messageTimestamps.length} messages, ${totalAds} total ads`);
+      
       let approvedCount = 0;
       let rejectedCount = 0;
       let reviewedCount = 0;
@@ -167,6 +203,8 @@ export class SlackService {
           channel: process.env.SLACK_CHANNEL_ID!,
           timestamp: messageTs,
         });
+
+        console.log(`[SLACK MONITOR] Message ${messageTs} reactions:`, reactions.message?.reactions);
 
         if (reactions.message?.reactions) {
           let hasApproval = false;
@@ -185,8 +223,16 @@ export class SlackService {
             reviewedCount++;
             if (hasApproval) approvedCount++;
             if (hasRejection) rejectedCount++;
+            console.log(`[SLACK MONITOR] Message ${messageTs} reviewed - approved: ${hasApproval}, rejected: ${hasRejection}`);
           }
         }
+      }
+
+      console.log(`[SLACK MONITOR] Batch status - Reviewed: ${reviewedCount}/${totalAds}, Approved: ${approvedCount}, Rejected: ${rejectedCount}`);
+
+      // Check if we have permission to read reactions
+      if (reviewedCount === 0 && messageTimestamps.length > 0) {
+        console.log(`[SLACK MONITOR] WARNING: No reactions found. Bot may need 'reactions:read' permission.`);
       }
 
       // Send summary if all ads are reviewed
@@ -213,10 +259,14 @@ export class SlackService {
         };
 
         await this.sendMessage(summaryMessage);
+        return true; // Batch is complete
       }
+      
+      return false; // Batch is not complete yet
     } catch (error) {
       console.error('Error checking batch completion:', error);
       // Don't throw here as this is a monitoring function
+      return false;
     }
   }
 
