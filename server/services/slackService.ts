@@ -41,32 +41,17 @@ export class SlackService {
         content: string; 
         fileName?: string;
         videoUrl?: string;
+        videoFileId?: string;
       }>;
       driveFolder: string;
       timestamp: string;
     }
   ): Promise<string | undefined> {
     try {
-      // Create detailed list of each ad with filename and content
-      const adsList = batchInfo.scripts
-        .map((script, index) => {
-          const scriptNumber = index + 1;
-          const fileName = script.fileName || `script${scriptNumber}`;
-          
-          let adBlock = `*🎬 AD ${scriptNumber}: ${script.title}*\n`;
-          adBlock += `📁 *File:* \`${fileName}\`\n`;
-          adBlock += `💬 *Script:* "${script.content}"\n`;
-          
-          if (script.videoUrl) {
-            adBlock += `🎥 *Video:* <${script.videoUrl}|View Video>\n`;
-          }
-          
-          return adBlock;
-        })
-        .join('\n');
-
-      const message: ChatPostMessageArguments = {
+      // Send batch header message
+      const headerMessage: ChatPostMessageArguments = {
         channel: process.env.SLACK_CHANNEL_ID!,
+        text: `New video batch: ${batchInfo.batchName}`,
         blocks: [
           {
             type: 'header',
@@ -84,14 +69,59 @@ export class SlackService {
           },
           {
             type: 'divider'
-          },
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: `*🎯 AD CREATIVES*\n\n${adsList}`
+          }
+        ]
+      };
+
+      await this.sendMessage(headerMessage);
+
+      // Send individual messages for each ad with reactions
+      for (let i = 0; i < batchInfo.scripts.length; i++) {
+        const script = batchInfo.scripts[i];
+        const scriptNumber = i + 1;
+        const fileName = script.fileName || `script${scriptNumber}`;
+        
+        // Create direct Google Drive file link if we have the file ID
+        let videoLink = script.videoUrl;
+        if (script.videoFileId) {
+          videoLink = `https://drive.google.com/file/d/${script.videoFileId}/view`;
+        }
+        
+        let adText = `*🎬 AD ${scriptNumber}: ${script.title}*\n`;
+        adText += `📁 *File:* \`${fileName}\`\n`;
+        adText += `💬 *Script:* "${script.content}"\n`;
+        
+        if (videoLink) {
+          adText += `🎥 *Video:* <${videoLink}|▶️ Watch Video>`;
+        }
+
+        const adMessage: ChatPostMessageArguments = {
+          channel: process.env.SLACK_CHANNEL_ID!,
+          text: `Ad ${scriptNumber}: ${script.title}`,
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: adText
+              }
             }
-          },
+          ]
+        };
+
+        const messageTs = await this.sendMessage(adMessage);
+        
+        // Add individual reactions for this ad
+        if (messageTs) {
+          await this.addReactions(messageTs, ['white_check_mark', 'x']);
+        }
+      }
+
+      // Send final instruction message
+      const footerMessage: ChatPostMessageArguments = {
+        channel: process.env.SLACK_CHANNEL_ID!,
+        text: 'Team approval needed',
+        blocks: [
           {
             type: 'divider'
           },
@@ -99,20 +129,15 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: '*📋 TEAM APPROVAL NEEDED*\n✅ React to approve this batch\n❌ React to reject this batch'
+              text: '*📋 APPROVAL INSTRUCTIONS*\nReact with ✅ to approve or ❌ to reject each individual ad above'
             }
           }
         ]
       };
 
-      const messageTs = await this.sendMessage(message);
+      await this.sendMessage(footerMessage);
 
-      // Add reactions to the message for voting
-      if (messageTs) {
-        await this.addReactions(messageTs, ['white_check_mark', 'x']);
-      }
-
-      return messageTs;
+      return 'batch-sent';
     } catch (error) {
       console.error('Error sending video batch for approval:', error);
       throw error;

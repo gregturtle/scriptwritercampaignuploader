@@ -180,7 +180,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
               title: s.title, 
               content: s.content,
               fileName: s.fileName || `script${index + 1}`,
-              videoUrl: s.videoUrl
+              videoUrl: s.videoUrl,
+              videoFileId: s.videoFileId
             })),
             driveFolder,
             timestamp
