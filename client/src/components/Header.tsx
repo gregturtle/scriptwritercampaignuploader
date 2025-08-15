@@ -25,32 +25,12 @@ export default function Header({ isAuthenticated, onLogout, onLogin }: HeaderPro
             <nav className="flex space-x-1">
               <Link href="/">
                 <Button 
-                  variant={location === "/" || location === "/unified" ? "default" : "ghost"}
+                  variant="default"
                   size="sm"
                   className="flex items-center space-x-2"
                 >
                   <Zap className="h-4 w-4" />
                   <span>Video Creator</span>
-                </Button>
-              </Link>
-              <Link href="/aiscripts">
-                <Button 
-                  variant={location === "/aiscripts" ? "default" : "ghost"}
-                  size="sm"
-                  className="flex items-center space-x-2"
-                >
-                  <FileText className="h-4 w-4" />
-                  <span>AI Scripts</span>
-                </Button>
-              </Link>
-              <Link href="/reports">
-                <Button 
-                  variant={location === "/reports" ? "default" : "ghost"}
-                  size="sm"
-                  className="flex items-center space-x-2"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Reports</span>
                 </Button>
               </Link>
             </nav>
