@@ -153,6 +153,41 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Save suggestions to "New Scripts" tab
       await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
+      // Send to Slack for approval if videos were created
+      if (result.suggestions.some(s => s.videoUrl)) {
+        try {
+          const timestamp = new Date().toLocaleString('en-CA', { 
+            timeZone: 'UTC',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          }).replace(',', '');
+
+          const batchName = `Generated_${timestamp}`;
+          const videoCount = result.suggestions.filter(s => s.videoUrl).length;
+          
+          // Find the Google Drive folder URL from the first video
+          const driveFolder = result.suggestions.find(s => s.videoUrl)?.videoUrl || 'Google Drive folder';
+          
+          await slackService.sendVideoBatchForApproval({
+            batchName,
+            videoCount,
+            scripts: result.suggestions.map(s => ({ title: s.title, content: s.content })),
+            driveFolder,
+            timestamp
+          });
+
+          console.log(`Sent video batch to Slack for approval: ${batchName}`);
+        } catch (slackError) {
+          console.error('Failed to send Slack notification:', slackError);
+          // Continue without failing the entire request
+        }
+      }
+
       res.json({
         suggestions: result.suggestions,
         message: `Generated ${result.suggestions.length} script suggestions based on performance data analysis`,
@@ -625,6 +660,31 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
       
       res.status(500).json({ message: "Failed to fetch campaign insights" });
+    }
+  });
+
+  // Slack integration routes
+  app.post("/api/slack/test", async (req, res) => {
+    try {
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const messageTs = await slackService.sendNotification(message);
+      
+      res.json({ 
+        success: true, 
+        message: "Slack message sent successfully",
+        messageTs 
+      });
+    } catch (error) {
+      console.error("Error sending Slack message:", error);
+      res.status(500).json({ 
+        message: "Failed to send Slack message", 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
