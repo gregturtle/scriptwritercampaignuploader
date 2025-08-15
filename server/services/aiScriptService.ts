@@ -378,6 +378,20 @@ Respond in JSON format:
       const cleanSpreadsheetId =
         googleSheetsService.extractSpreadsheetId(spreadsheetId);
 
+      // Create timestamped tab name
+      const now = new Date();
+      const timestamp = now.toLocaleString('en-CA', { 
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).replace(',', '');
+      const timestampedTabName = `${tabName} ${timestamp}`;
+
       // Prepare data for sheets
       const headers = [
         "Generated Date",
@@ -405,13 +419,13 @@ Respond in JSON format:
       });
 
       // Create the tab and add headers
-      await googleSheetsService.createTab(cleanSpreadsheetId, tabName, headers);
+      await googleSheetsService.createTab(cleanSpreadsheetId, timestampedTabName, headers);
 
       // Add data to the tab
-      await googleSheetsService.appendDataToTab(cleanSpreadsheetId, tabName, rows);
+      await googleSheetsService.appendDataToTab(cleanSpreadsheetId, timestampedTabName, rows);
 
       console.log(
-        `Saved ${suggestions.length} suggestions to sheet tab "${tabName}"`,
+        `Saved ${suggestions.length} suggestions to sheet tab "${timestampedTabName}"`,
       );
     } catch (error) {
       console.error("Error saving suggestions to Google Sheets:", error);
