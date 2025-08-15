@@ -68,6 +68,13 @@ export class SlackService {
             }
           },
           {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n**ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE**\n\n*Instructions:*\n• Each ad needs **ONE PERSON** to react with ✅ (approve) or ❌ (reject)\n• Watch the video by clicking the link\n• React immediately after reviewing\n• **DO NOT PROCEED** until all ads are reviewed`
+            }
+          },
+          {
             type: 'divider'
           }
         ]
@@ -117,26 +124,6 @@ export class SlackService {
         }
       }
 
-      // Send final instruction message
-      const footerMessage: ChatPostMessageArguments = {
-        channel: process.env.SLACK_CHANNEL_ID!,
-        text: 'Team approval needed',
-        blocks: [
-          {
-            type: 'divider'
-          },
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: '*📋 APPROVAL INSTRUCTIONS*\nReact with ✅ to approve or ❌ to reject each individual ad above'
-            }
-          }
-        ]
-      };
-
-      await this.sendMessage(footerMessage);
-
       return 'batch-sent';
     } catch (error) {
       console.error('Error sending video batch for approval:', error);
@@ -159,6 +146,77 @@ export class SlackService {
     } catch (error) {
       console.error('Error adding reactions:', error);
       // Don't throw here as the message was sent successfully
+    }
+  }
+
+  /**
+   * Checks if all ads in a batch have been reviewed and sends summary
+   */
+  async checkBatchCompletion(
+    batchName: string,
+    messageTimestamps: string[],
+    totalAds: number
+  ): Promise<void> {
+    try {
+      let approvedCount = 0;
+      let rejectedCount = 0;
+      let reviewedCount = 0;
+
+      for (const messageTs of messageTimestamps) {
+        const reactions = await slack.reactions.get({
+          channel: process.env.SLACK_CHANNEL_ID!,
+          timestamp: messageTs,
+        });
+
+        if (reactions.message?.reactions) {
+          let hasApproval = false;
+          let hasRejection = false;
+
+          for (const reaction of reactions.message.reactions) {
+            if (reaction.name === 'white_check_mark' && reaction.count && reaction.count > 0) {
+              hasApproval = true;
+            }
+            if (reaction.name === 'x' && reaction.count && reaction.count > 0) {
+              hasRejection = true;
+            }
+          }
+
+          if (hasApproval || hasRejection) {
+            reviewedCount++;
+            if (hasApproval) approvedCount++;
+            if (hasRejection) rejectedCount++;
+          }
+        }
+      }
+
+      // Send summary if all ads are reviewed
+      if (reviewedCount === totalAds) {
+        const summaryMessage: ChatPostMessageArguments = {
+          channel: process.env.SLACK_CHANNEL_ID!,
+          text: `Batch ${batchName} review complete`,
+          blocks: [
+            {
+              type: 'header',
+              text: {
+                type: 'plain_text',
+                text: '✅ BATCH REVIEW COMPLETE'
+              }
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*${batchName.toUpperCase()} REVIEW SUMMARY*\n\n**ALL VIDEOS HAVE NOW BEEN REVIEWED**\n\n📊 *Results:*\n• ✅ Approved: ${approvedCount} videos\n• ❌ Rejected: ${rejectedCount} videos\n• 📋 Total reviewed: ${reviewedCount}/${totalAds}\n\n**NEXT TEST CAN NOW COMMENCE** 🚀`
+              }
+            }
+          ]
+        };
+
+        await this.sendMessage(summaryMessage);
+      }
+    } catch (error) {
+      console.error('Error checking batch completion:', error);
+      // Don't throw here as this is a monitoring function
     }
   }
 

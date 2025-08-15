@@ -694,6 +694,29 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  app.post("/api/slack/check-batch", async (req, res) => {
+    try {
+      const { batchName, messageTimestamps, totalAds } = req.body;
+      
+      if (!batchName || !messageTimestamps || !totalAds) {
+        return res.status(400).json({ message: "batchName, messageTimestamps, and totalAds are required" });
+      }
+
+      await slackService.checkBatchCompletion(batchName, messageTimestamps, totalAds);
+      
+      res.json({ 
+        success: true, 
+        message: "Batch completion check performed"
+      });
+    } catch (error) {
+      console.error("Error checking batch completion:", error);
+      res.status(500).json({ 
+        message: "Failed to check batch completion", 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Activity log routes
   app.get("/api/logs", async (_req, res) => {
     try {
