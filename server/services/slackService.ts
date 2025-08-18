@@ -71,7 +71,7 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n**ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE**\n\n*Instructions:*\n• Each ad needs **ONE PERSON** to react with ✅ (approve) or ❌ (reject)\n• Watch the video by clicking the link\n• React immediately after reviewing\n• **DO NOT PROCEED** until all ads are reviewed`
+              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n**ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE**\n\n*Instructions:*\n• Each ad needs **ONE PERSON** to react with ✅ (approve) or ❌ (reject)\n• **MANUALLY ADD** your own ✅ or ❌ reaction to each message below\n• Watch the video by clicking the Google Drive link\n• React immediately after reviewing\n• **DO NOT PROCEED** until all ads are reviewed`
             }
           },
           {
@@ -102,7 +102,7 @@ export class SlackService {
         adText += `💬 *Script:* "${script.content}"\n`;
         
         if (videoLink) {
-          adText += `🎥 *Video:* <${videoLink}|▶️ Watch Video>`;
+          adText += `🎥 *Video:* ${videoLink}`;
         }
 
         const adMessage: ChatPostMessageArguments = {
@@ -121,10 +121,10 @@ export class SlackService {
 
         const messageTs = await this.sendMessage(adMessage);
         
-        // Add individual reactions for this ad
+        // Track message for monitoring (no auto-reactions)
         if (messageTs) {
           messageTimestamps.push(messageTs);
-          await this.addReactions(messageTs, ['white_check_mark', 'x']);
+          // Removed auto-reactions - users will add their own ✅ or ❌
         }
       }
 
