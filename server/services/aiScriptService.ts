@@ -30,6 +30,12 @@ interface ScriptSuggestion {
   audioFile?: string;
   audioUrl?: string;
   error?: string;
+  fileName?: string;
+  videoFile?: string;
+  videoUrl?: string;
+  videoFileId?: string;
+  videoError?: string;
+  folderLink?: string;
 }
 
 class AIScriptService {

@@ -138,8 +138,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
               selectedBackgroundVideo
             );
             
-            // Update suggestions with video information
-            result.suggestions = videosResult;
+            // Merge video information with existing suggestions
+            result.suggestions = result.suggestions.map((originalSuggestion, index) => {
+              const videoResult = videosResult[index];
+              return {
+                ...originalSuggestion,
+                videoFile: videoResult?.videoFile,
+                videoUrl: videoResult?.videoUrl,
+                videoFileId: videoResult?.videoFileId,
+                videoError: videoResult?.videoError,
+                folderLink: videoResult?.folderLink
+              };
+            });
             console.log(`Created ${videosResult.filter(v => v.videoUrl).length} videos successfully`);
           } catch (videoError) {
             console.error('Video creation failed:', videoError);
