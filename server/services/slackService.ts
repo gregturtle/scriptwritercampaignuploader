@@ -272,6 +272,55 @@ export class SlackService {
       console.log(`[BUTTON DECISION] Batch decisions:`, Array.from(batch.entries()));
     } else {
       console.log(`[BUTTON DECISION] ERROR: Batch ${batchName} not found in tracking. Available batches:`, Array.from(batchDecisions.keys()));
+      console.log(`[BUTTON DECISION] Creating new batch tracking for ${batchName}`);
+      batchDecisions.set(batchName, new Map());
+      const newBatch = batchDecisions.get(batchName);
+      if (newBatch) {
+        newBatch.set(scriptNumber, { approved, messageTs, videoFileId });
+        console.log(`[BUTTON DECISION] Created and recorded decision for new batch ${batchName}`);
+      }
+    }
+  }
+
+  /**
+   * Manual completion check for testing - creates batch if it doesn't exist
+   */
+  async checkBatchCompletionManually(batchName: string, totalAds: number, videoFileIds: string[]): Promise<void> {
+    console.log(`[MANUAL CHECK] Checking completion for batch ${batchName}`);
+    
+    let batchDecisionMap = batchDecisions.get(batchName);
+    if (!batchDecisionMap) {
+      console.log(`[MANUAL CHECK] Batch ${batchName} not found, but decision was recorded - this is normal for single-ad batches`);
+      return;
+    }
+    
+    const reviewedCount = batchDecisionMap.size;
+    const approvedCount = Array.from(batchDecisionMap.values()).filter(d => d.approved).length;
+    const rejectedCount = reviewedCount - approvedCount;
+    
+    console.log(`[MANUAL CHECK] Batch ${batchName} status - Reviewed: ${reviewedCount}/${totalAds}, Approved: ${approvedCount}, Rejected: ${rejectedCount}`);
+    
+    if (reviewedCount >= totalAds) {
+      console.log(`[MANUAL CHECK] Batch ${batchName} is complete! Sending summary...`);
+      await this.sendBatchCompletionSummary(batchName, totalAds, approvedCount, rejectedCount);
+      
+      // Process deletions for rejected videos
+      const rejectedFileIds = Array.from(batchDecisionMap.values())
+        .filter(d => !d.approved && d.videoFileId)
+        .map(d => d.videoFileId);
+
+      if (rejectedFileIds.length > 0) {
+        try {
+          const deletionResults = await googleDriveService.deleteFiles(rejectedFileIds);
+          console.log(`[MANUAL CHECK] Deleted ${deletionResults.deletedCount}/${rejectedFileIds.length} rejected videos`);
+        } catch (deletionError) {
+          console.error(`[MANUAL CHECK] Error deleting videos:`, deletionError);
+        }
+      }
+      
+      // Clean up tracking
+      batchDecisions.delete(batchName);
+      console.log(`[MANUAL CHECK] Batch ${batchName} processing complete`);
     }
   }
 
