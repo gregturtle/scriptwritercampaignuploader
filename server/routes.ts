@@ -253,33 +253,34 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   });
 
   // Slack webhook endpoint for handling button interactions
-  app.post('/api/slack/interactions', express.raw({ type: 'application/x-www-form-urlencoded' }), async (req, res) => {
+  app.post('/api/slack/interactions', express.urlencoded({ extended: true }), async (req, res) => {
     try {
       // Debug: Log what we receive
       console.log('[SLACK WEBHOOK] Raw body type:', typeof req.body);
-      console.log('[SLACK WEBHOOK] Raw body:', req.body);
+      console.log('[SLACK WEBHOOK] Raw body keys:', req.body ? Object.keys(req.body) : 'none');
       
-      // Parse the form data - Slack sends URL-encoded data
-      let payloadString;
-      if (Buffer.isBuffer(req.body)) {
-        payloadString = req.body.toString();
+      // Handle different body parsing scenarios
+      let payload;
+      
+      if (req.body && req.body.payload) {
+        // Body was already parsed as URL-encoded object
+        payload = JSON.parse(req.body.payload);
+      } else if (Buffer.isBuffer(req.body)) {
+        // Body is a buffer, parse as URL-encoded string
+        const payloadString = req.body.toString();
+        const urlParams = new URLSearchParams(payloadString);
+        const payloadJson = urlParams.get('payload');
+        if (!payloadJson) throw new Error('No payload found in buffer');
+        payload = JSON.parse(payloadJson);
       } else if (typeof req.body === 'string') {
-        payloadString = req.body;
+        // Body is a string, parse as URL-encoded
+        const urlParams = new URLSearchParams(req.body);
+        const payloadJson = urlParams.get('payload');
+        if (!payloadJson) throw new Error('No payload found in string');
+        payload = JSON.parse(payloadJson);
       } else {
-        throw new Error('Unexpected body type');
+        throw new Error(`Unexpected body type: ${typeof req.body}`);
       }
-      
-      console.log('[SLACK WEBHOOK] Payload string:', payloadString);
-      
-      // Extract payload from URL-encoded data
-      const urlParams = new URLSearchParams(payloadString);
-      const payloadJson = urlParams.get('payload');
-      
-      if (!payloadJson) {
-        throw new Error('No payload found in request');
-      }
-      
-      const payload = JSON.parse(payloadJson);
       
       if (payload.type === 'block_actions') {
         const action = payload.actions[0];
