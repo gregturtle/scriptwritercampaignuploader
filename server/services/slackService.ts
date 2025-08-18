@@ -77,14 +77,14 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*📊 Batch Details*\n• **Batch Name:** ${batchName}\n• **Video Count:** ${videoCount} performance marketing ads\n• **Started:** ${currentTime} UTC`
+              text: `*📊 Batch Details*\n• *Batch Name:* ${batchName}\n• *Video Count:* ${videoCount} performance marketing ads\n• *Started:* ${currentTime} UTC`
             }
           },
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*⏱️ Review Timeline*\n\n**Videos will be available for review in ${delayMinutes} minutes**\n**Review available:** ${reviewTime} UTC\n\n*This delay allows Google Drive to fully process the uploaded videos for optimal review experience.*`
+              text: `*⏱️ Review Timeline*\n\n*Videos will be available for review in ${delayMinutes} minutes*\n*Review available:* ${reviewTime} UTC\n\n*This delay allows Google Drive to fully process the uploaded videos for optimal review experience.*`
             }
           },
           {
@@ -146,7 +146,7 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n**ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE**\n\n*Simple Instructions:*\n• Watch the video by clicking the Google Drive link\n• Click the **APPROVE** or **REJECT** button below each video\n• Each ad needs **ONE PERSON** to click a button\n• **DO NOT PROCEED** until all ads have been reviewed`
+              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n*ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE*\n\n*Simple Instructions:*\n• Watch the video by clicking the Google Drive link\n• Click the *APPROVE* or *REJECT* button below each video\n• Each ad needs *ONE PERSON* to click a button\n• *DO NOT PROCEED* until all ads have been reviewed`
             }
           },
           {
@@ -457,7 +457,7 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*📊 Final Results*\n• **Total Ads:** ${totalAds}\n• **✅ Approved:** ${approvedCount}\n• **❌ Rejected:** ${rejectedCount}\n• **Approval Rate:** ${Math.round((approvedCount / totalAds) * 100)}%${deletionText}`
+              text: `*📊 Final Results*\n• *Total Ads:* ${totalAds}\n• *✅ Approved:* ${approvedCount}\n• *❌ Rejected:* ${rejectedCount}\n• *Approval Rate:* ${Math.round((approvedCount / totalAds) * 100)}%${deletionText}`
             }
           },
           {
