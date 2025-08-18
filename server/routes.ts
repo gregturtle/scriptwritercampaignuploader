@@ -253,10 +253,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   });
 
   // Slack webhook endpoint for handling button interactions
-  app.post('/api/slack/interactions', express.raw({ type: 'application/x-www-form-urlencoded' }), async (req, res) => {
+  app.post('/api/slack/interactions', express.urlencoded({ extended: true }), async (req, res) => {
     try {
-      // Parse the form data
-      const payload = JSON.parse(decodeURIComponent(req.body.toString().split('payload=')[1]));
+      // Parse the form data - Slack sends data as form-encoded with 'payload' field
+      const payload = JSON.parse(req.body.payload);
       
       if (payload.type === 'block_actions') {
         const action = payload.actions[0];
