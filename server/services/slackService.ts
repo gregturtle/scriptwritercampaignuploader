@@ -244,10 +244,8 @@ export class SlackService {
       // Initialize decision tracking for this batch
       batchDecisions.set(batchInfo.batchName, new Map());
 
-      // Start monitoring the batch for completion (check every 30 seconds)
-      setTimeout(() => {
-        this.monitorBatchCompletionByButtons(batchInfo.batchName, batchInfo.scripts.length, videoFileIds);
-      }, 30000);
+      // Start monitoring the batch for completion immediately
+      this.monitorBatchCompletionByButtons(batchInfo.batchName, batchInfo.scripts.length, videoFileIds);
 
       return 'batch-sent';
     } catch (error) {

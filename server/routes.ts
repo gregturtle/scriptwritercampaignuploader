@@ -209,7 +209,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      const slackMessage = hasVideos ? ' - Slack approval workflow will begin in 15 minutes (allowing Google Drive processing time)' : '';
+      const slackMessage = hasVideos ? ' - Slack approval workflow sent immediately' : '';
       
       res.json({
         suggestions: result.suggestions,
