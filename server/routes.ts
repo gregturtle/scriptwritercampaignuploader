@@ -287,8 +287,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         const channel = payload.channel;
         const messageTs = payload.message.ts;
         
-        // Parse action value: approve_${batchInfo.batchName}_${scriptNumber}_${script.videoFileId}
-        const [actionType, batchName, scriptNumber, videoFileId] = action.value.split('_');
+        // Parse action value: approve||${batchInfo.batchName}||${scriptNumber}||${script.videoFileId}
+        const [actionType, batchName, scriptNumber, videoFileId] = action.value.split('||');
         
         console.log(`[SLACK INTERACTION] User ${user.name} clicked ${actionType.toUpperCase()} for script ${scriptNumber} in batch ${batchName}`);
         

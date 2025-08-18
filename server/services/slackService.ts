@@ -214,7 +214,7 @@ export class SlackService {
                     text: '✅ APPROVE'
                   },
                   style: 'primary',
-                  value: `approve_${batchInfo.batchName}_${scriptNumber}_${script.videoFileId || ''}`,
+                  value: `approve||${batchInfo.batchName}||${scriptNumber}||${script.videoFileId || ''}`,
                   action_id: `approve_ad_${scriptNumber}`
                 },
                 {
@@ -224,7 +224,7 @@ export class SlackService {
                     text: '❌ REJECT'
                   },
                   style: 'danger',
-                  value: `reject_${batchInfo.batchName}_${scriptNumber}_${script.videoFileId || ''}`,
+                  value: `reject||${batchInfo.batchName}||${scriptNumber}||${script.videoFileId || ''}`,
                   action_id: `reject_ad_${scriptNumber}`
                 }
               ]
