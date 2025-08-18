@@ -680,7 +680,7 @@ class GoogleDriveService {
   /**
    * Delete a file from Google Drive
    */
-  async deleteFile(fileId: string): Promise<{ success: boolean; error?: string }> {
+  async deleteFile(fileId: string): Promise<{ success: boolean; error?: string; alreadyDeleted?: boolean }> {
     if (!this.isConfigured()) {
       return {
         success: false,
@@ -698,7 +698,17 @@ class GoogleDriveService {
 
       console.log(`Successfully deleted file ${fileId} from Google Drive`);
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
+      // Handle "file not found" as a successful deletion (already deleted)
+      if (error.status === 404 || error.code === 404) {
+        console.log(`File ${fileId} was already deleted or not found - treating as successful`);
+        return { 
+          success: true, 
+          alreadyDeleted: true,
+          error: 'File was already deleted'
+        };
+      }
+      
       console.error(`Error deleting file ${fileId} from Google Drive:`, error);
       return {
         success: false,
@@ -710,17 +720,19 @@ class GoogleDriveService {
   /**
    * Delete multiple files from Google Drive
    */
-  async deleteFiles(fileIds: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> {
+  async deleteFiles(fileIds: string[]): Promise<{ success: boolean; deletedCount: number; alreadyDeletedCount: number; errors: string[] }> {
     if (!this.isConfigured()) {
       return {
         success: false,
         deletedCount: 0,
+        alreadyDeletedCount: 0,
         errors: ['Google Drive service not configured']
       };
     }
 
     const errors: string[] = [];
     let deletedCount = 0;
+    let alreadyDeletedCount = 0;
 
     console.log(`Attempting to delete ${fileIds.length} files from Google Drive`);
 
@@ -728,7 +740,11 @@ class GoogleDriveService {
       try {
         const result = await this.deleteFile(fileId);
         if (result.success) {
-          deletedCount++;
+          if (result.alreadyDeleted) {
+            alreadyDeletedCount++;
+          } else {
+            deletedCount++;
+          }
         } else {
           errors.push(`Failed to delete ${fileId}: ${result.error}`);
         }
@@ -737,7 +753,8 @@ class GoogleDriveService {
       }
     }
 
-    console.log(`Deletion complete: ${deletedCount}/${fileIds.length} files deleted successfully`);
+    const totalProcessed = deletedCount + alreadyDeletedCount;
+    console.log(`Deletion complete: ${deletedCount} newly deleted, ${alreadyDeletedCount} already deleted, ${totalProcessed}/${fileIds.length} files processed successfully`);
     if (errors.length > 0) {
       console.error(`Deletion errors:`, errors);
     }
@@ -745,6 +762,7 @@ class GoogleDriveService {
     return {
       success: errors.length === 0,
       deletedCount,
+      alreadyDeletedCount,
       errors
     };
   }

@@ -301,10 +301,10 @@ export class SlackService {
             
             try {
               const deleteResult = await googleDriveService.deleteFiles(rejectedFileIds);
-              deletedCount = deleteResult.deletedCount;
+              deletedCount = deleteResult.deletedCount + deleteResult.alreadyDeletedCount;
               deletionErrors = deleteResult.errors;
               
-              console.log(`[SLACK MONITOR] Deletion complete: ${deletedCount}/${rejectedFileIds.length} videos deleted`);
+              console.log(`[SLACK MONITOR] Deletion complete: ${deleteResult.deletedCount} newly deleted, ${deleteResult.alreadyDeletedCount} already deleted, ${deletedCount}/${rejectedFileIds.length} videos processed`);
               if (deletionErrors.length > 0) {
                 console.error(`[SLACK MONITOR] Deletion errors:`, deletionErrors);
               }
