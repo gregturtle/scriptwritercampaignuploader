@@ -253,10 +253,33 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   });
 
   // Slack webhook endpoint for handling button interactions
-  app.post('/api/slack/interactions', express.urlencoded({ extended: true }), async (req, res) => {
+  app.post('/api/slack/interactions', express.raw({ type: 'application/x-www-form-urlencoded' }), async (req, res) => {
     try {
-      // Parse the form data - Slack sends data as form-encoded with 'payload' field
-      const payload = JSON.parse(req.body.payload);
+      // Debug: Log what we receive
+      console.log('[SLACK WEBHOOK] Raw body type:', typeof req.body);
+      console.log('[SLACK WEBHOOK] Raw body:', req.body);
+      
+      // Parse the form data - Slack sends URL-encoded data
+      let payloadString;
+      if (Buffer.isBuffer(req.body)) {
+        payloadString = req.body.toString();
+      } else if (typeof req.body === 'string') {
+        payloadString = req.body;
+      } else {
+        throw new Error('Unexpected body type');
+      }
+      
+      console.log('[SLACK WEBHOOK] Payload string:', payloadString);
+      
+      // Extract payload from URL-encoded data
+      const urlParams = new URLSearchParams(payloadString);
+      const payloadJson = urlParams.get('payload');
+      
+      if (!payloadJson) {
+        throw new Error('No payload found in request');
+      }
+      
+      const payload = JSON.parse(payloadJson);
       
       if (payload.type === 'block_actions') {
         const action = payload.actions[0];
