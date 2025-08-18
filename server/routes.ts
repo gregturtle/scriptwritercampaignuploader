@@ -197,22 +197,9 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             timestamp
           };
 
-          // Send immediate notification about batch creation
-          const SLACK_DELAY_MINUTES = 15;
-          await slackService.sendBatchCreationNotification(batchName, videoCount, SLACK_DELAY_MINUTES);
-          console.log(`Sent immediate notification to Slack about batch creation: ${batchName}`);
-          
-          // Schedule actual batch approval messages for 15 minutes later
-          console.log(`Scheduling batch approval messages for ${batchName} in ${SLACK_DELAY_MINUTES} minutes (allowing Google Drive processing time)`);
-          
-          setTimeout(async () => {
-            try {
-              await slackService.sendVideoBatchForApproval(batchData);
-              console.log(`Sent delayed video batch to Slack for approval: ${batchName}`);
-            } catch (delayedSlackError) {
-              console.error('Failed to send delayed Slack notification:', delayedSlackError);
-            }
-          }, SLACK_DELAY_MINUTES * 60 * 1000); // Convert minutes to milliseconds
+          // Send batch approval messages immediately (no delay for testing)
+          await slackService.sendVideoBatchForApproval(batchData);
+          console.log(`Sent video batch to Slack for approval: ${batchName}`);
 
         } catch (slackError) {
           console.error('Failed to send Slack notifications:', slackError);
