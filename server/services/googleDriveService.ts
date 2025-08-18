@@ -676,6 +676,78 @@ class GoogleDriveService {
       return 'Error reading service account email';
     }
   }
+
+  /**
+   * Delete a file from Google Drive
+   */
+  async deleteFile(fileId: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        error: 'Google Drive service not configured'
+      };
+    }
+
+    try {
+      console.log(`Deleting file ${fileId} from Google Drive`);
+      
+      await this.drive.files.delete({
+        fileId: fileId,
+        supportsAllDrives: true
+      });
+
+      console.log(`Successfully deleted file ${fileId} from Google Drive`);
+      return { success: true };
+    } catch (error) {
+      console.error(`Error deleting file ${fileId} from Google Drive:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Delete multiple files from Google Drive
+   */
+  async deleteFiles(fileIds: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        deletedCount: 0,
+        errors: ['Google Drive service not configured']
+      };
+    }
+
+    const errors: string[] = [];
+    let deletedCount = 0;
+
+    console.log(`Attempting to delete ${fileIds.length} files from Google Drive`);
+
+    for (const fileId of fileIds) {
+      try {
+        const result = await this.deleteFile(fileId);
+        if (result.success) {
+          deletedCount++;
+        } else {
+          errors.push(`Failed to delete ${fileId}: ${result.error}`);
+        }
+      } catch (error) {
+        errors.push(`Failed to delete ${fileId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    console.log(`Deletion complete: ${deletedCount}/${fileIds.length} files deleted successfully`);
+    if (errors.length > 0) {
+      console.error(`Deletion errors:`, errors);
+    }
+
+    return {
+      success: errors.length === 0,
+      deletedCount,
+      errors
+    };
+  }
 }
 
 export const googleDriveService = new GoogleDriveService();

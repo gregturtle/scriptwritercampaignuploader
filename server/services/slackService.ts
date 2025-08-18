@@ -1,4 +1,5 @@
 import { type ChatPostMessageArguments, WebClient } from "@slack/web-api";
+import { googleDriveService } from "./googleDriveService";
 
 // Validate environment variables
 if (!process.env.SLACK_BOT_TOKEN) {
@@ -82,8 +83,9 @@ export class SlackService {
 
       await this.sendMessage(headerMessage);
 
-      // Track message timestamps for batch monitoring
+      // Track message timestamps and video file IDs for batch monitoring
       const messageTimestamps: string[] = [];
+      const videoFileIds: string[] = [];
 
       // Send individual messages for each ad with reactions
       for (let i = 0; i < batchInfo.scripts.length; i++) {
@@ -101,6 +103,9 @@ export class SlackService {
         let videoLink = script.videoUrl;
         if (script.videoFileId) {
           videoLink = `https://drive.google.com/file/d/${script.videoFileId}/view?usp=drive_link`;
+          videoFileIds.push(script.videoFileId);
+        } else {
+          videoFileIds.push(''); // Empty placeholder to keep array indices aligned
         }
         
         let adText = `*🎬 AD ${scriptNumber}: ${script.title}*\n`;
@@ -139,7 +144,7 @@ export class SlackService {
 
       // Start monitoring the batch for completion (check every 30 seconds)
       setTimeout(() => {
-        this.monitorBatchCompletion(batchInfo.batchName, messageTimestamps, batchInfo.scripts.length);
+        this.monitorBatchCompletion(batchInfo.batchName, messageTimestamps, batchInfo.scripts.length, videoFileIds);
       }, 30000);
 
       return 'batch-sent';
@@ -174,18 +179,19 @@ export class SlackService {
     batchName: string,
     messageTimestamps: string[],
     totalAds: number,
+    videoFileIds: string[] = [],
     attempts: number = 0
   ): Promise<void> {
     const maxAttempts = 40; // Check for 20 minutes (40 * 30 seconds)
     
     try {
       console.log(`[SLACK MONITOR] Monitoring attempt ${attempts + 1}/${maxAttempts} for ${batchName}`);
-      const isComplete = await this.checkBatchCompletion(batchName, messageTimestamps, totalAds);
+      const isComplete = await this.checkBatchCompletion(batchName, messageTimestamps, totalAds, videoFileIds);
       
       if (!isComplete && attempts < maxAttempts) {
         // Continue monitoring every 30 seconds
         setTimeout(() => {
-          this.monitorBatchCompletion(batchName, messageTimestamps, totalAds, attempts + 1);
+          this.monitorBatchCompletion(batchName, messageTimestamps, totalAds, videoFileIds, attempts + 1);
         }, 30000);
       } else if (attempts >= maxAttempts) {
         console.log(`[SLACK MONITOR] Monitoring timeout for ${batchName} after ${maxAttempts} attempts`);
@@ -201,7 +207,8 @@ export class SlackService {
   async checkBatchCompletion(
     batchName: string,
     messageTimestamps: string[],
-    totalAds: number
+    totalAds: number,
+    videoFileIds: string[] = []
   ): Promise<boolean> {
     try {
       console.log(`[SLACK MONITOR] Checking batch completion for ${batchName} - ${messageTimestamps.length} messages, ${totalAds} total ads`);
@@ -251,6 +258,76 @@ export class SlackService {
       if (reviewedCount === totalAds) {
         console.log(`[SLACK MONITOR] Sending completion summary for ${batchName}`);
         
+        // Identify and delete rejected videos from Google Drive
+        let deletedCount = 0;
+        let deletionErrors: string[] = [];
+        
+        if (videoFileIds.length > 0 && rejectedCount > 0) {
+          console.log(`[SLACK MONITOR] Processing video deletions for rejected videos`);
+          
+          const rejectedFileIds: string[] = [];
+          
+          // Identify which videos were rejected based on message reactions
+          for (let i = 0; i < messageTimestamps.length; i++) {
+            const messageTs = messageTimestamps[i];
+            const videoFileId = videoFileIds[i];
+            
+            if (!videoFileId) continue; // Skip if no video file ID
+            
+            try {
+              const reactions = await slack.reactions.get({
+                channel: process.env.SLACK_CHANNEL_ID!,
+                timestamp: messageTs,
+              });
+
+              if (reactions.message?.reactions) {
+                const hasRejection = reactions.message.reactions.some(
+                  reaction => reaction.name === 'x' && reaction.count && reaction.count > 0
+                );
+                
+                if (hasRejection) {
+                  rejectedFileIds.push(videoFileId);
+                  console.log(`[SLACK MONITOR] Video ${videoFileId} marked for deletion (rejected)`);
+                }
+              }
+            } catch (error) {
+              console.error(`[SLACK MONITOR] Error checking reactions for video deletion:`, error);
+            }
+          }
+          
+          // Delete rejected videos from Google Drive
+          if (rejectedFileIds.length > 0) {
+            console.log(`[SLACK MONITOR] Deleting ${rejectedFileIds.length} rejected videos from Google Drive`);
+            
+            try {
+              const deleteResult = await googleDriveService.deleteFiles(rejectedFileIds);
+              deletedCount = deleteResult.deletedCount;
+              deletionErrors = deleteResult.errors;
+              
+              console.log(`[SLACK MONITOR] Deletion complete: ${deletedCount}/${rejectedFileIds.length} videos deleted`);
+              if (deletionErrors.length > 0) {
+                console.error(`[SLACK MONITOR] Deletion errors:`, deletionErrors);
+              }
+            } catch (error) {
+              console.error(`[SLACK MONITOR] Error deleting rejected videos:`, error);
+              deletionErrors.push(`Bulk deletion failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+          }
+        }
+        
+        // Build summary message with deletion information
+        let summaryText = `*${batchName.toUpperCase()} REVIEW SUMMARY*\n\n**ALL VIDEOS HAVE NOW BEEN REVIEWED**\n\n📊 *Results:*\n• ✅ Approved: ${approvedCount} videos\n• ❌ Rejected: ${rejectedCount} videos\n• 📋 Total reviewed: ${reviewedCount}/${totalAds}`;
+        
+        if (deletedCount > 0) {
+          summaryText += `\n\n🗑️ *Cleanup:*\n• Deleted ${deletedCount} rejected videos from Google Drive`;
+        }
+        
+        if (deletionErrors.length > 0) {
+          summaryText += `\n• ⚠️ ${deletionErrors.length} deletion errors (see logs)`;
+        }
+        
+        summaryText += `\n\n**NEXT TEST CAN NOW COMMENCE** 🚀`;
+        
         const summaryMessage: ChatPostMessageArguments = {
           channel: process.env.SLACK_CHANNEL_ID!,
           text: `Batch ${batchName} review complete`,
@@ -266,7 +343,7 @@ export class SlackService {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `*${batchName.toUpperCase()} REVIEW SUMMARY*\n\n**ALL VIDEOS HAVE NOW BEEN REVIEWED**\n\n📊 *Results:*\n• ✅ Approved: ${approvedCount} videos\n• ❌ Rejected: ${rejectedCount} videos\n• 📋 Total reviewed: ${reviewedCount}/${totalAds}\n\n**NEXT TEST CAN NOW COMMENCE** 🚀`
+                text: summaryText
               }
             }
           ]
