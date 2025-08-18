@@ -77,21 +77,21 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*📊 Batch Details*\n• *Batch Name:* ${batchName}\n• *Video Count:* ${videoCount} performance marketing ads\n• *Started:* ${currentTime} UTC`
+              text: `📊 Batch Details\n• Batch Name: ${batchName}\n• Video Count: ${videoCount} performance marketing ads\n• Started: ${currentTime} UTC`
             }
           },
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*⏱️ Review Timeline*\n\n*Videos will be available for review in ${delayMinutes} minutes*\n*Review available:* ${reviewTime} UTC\n\n*This delay allows Google Drive to fully process the uploaded videos for optimal review experience.*`
+              text: `⏱️ Review Timeline\n\nVideos will be available for review in ${delayMinutes} minutes\nReview available: ${reviewTime} UTC\n\nThis delay allows Google Drive to fully process the uploaded videos for optimal review experience.`
             }
           },
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*🎯 What's Next*\n• Videos are being uploaded to Google Drive\n• Batch approval workflow will begin automatically in ${delayMinutes} minutes\n• You'll receive detailed review messages with video links\n• Each ad will need ✅ (approve) or ❌ (reject) reaction`
+              text: `🎯 What's Next\n• Videos are being uploaded to Google Drive\n• Batch approval workflow will begin automatically in ${delayMinutes} minutes\n• You'll receive detailed review messages with video links\n• Each ad will need ✅ (approve) or ❌ (reject) reaction`
             }
           }
         ]
@@ -139,14 +139,14 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*📊 Batch Summary*\n• ${batchInfo.videoCount} videos created\n• Generated: ${batchInfo.timestamp}\n• <${batchInfo.driveFolder}|📁 View All Videos in Drive>`
+              text: `📊 Batch Summary\n• ${batchInfo.videoCount} videos created\n• Generated: ${batchInfo.timestamp}\n• <${batchInfo.driveFolder}|📁 View All Videos in Drive>`
             }
           },
           {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n*ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE*\n\n*Simple Instructions:*\n• Watch the video by clicking the Google Drive link\n• Click the *APPROVE* or *REJECT* button below each video\n• Each ad needs *ONE PERSON* to click a button\n• *DO NOT PROCEED* until all ads have been reviewed`
+              text: `🚨 URGENT REVIEW REQUIRED 🚨\n\nTHIS IS A FRESH BATCH OF NEW CONCEPTS\n\nALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE\n\nSimple Instructions:\n• Watch the video by clicking the Google Drive link\n• Click the APPROVE or REJECT button below each video\n• Each ad needs ONE PERSON to click a button\n• DO NOT PROCEED until all ads have been reviewed`
             }
           },
           {
@@ -182,13 +182,13 @@ export class SlackService {
           videoFileIds.push(''); // Empty placeholder to keep array indices aligned
         }
         
-        let adText = `*🎬 AD ${scriptNumber}: ${script.title}*\n`;
-        adText += `📁 *File:* \`${fileName}\`\n`;
-        adText += `💬 *Script:* "${script.content}"\n`;
+        let adText = `🎬 AD ${scriptNumber}: ${script.title}\n`;
+        adText += `📁 File: ${fileName}\n`;
+        adText += `💬 Script: "${script.content}"\n`;
 
         // Add Google Drive video link with proper formatting
         if (videoLink) {
-          adText += `\n🎥 *Video:* ${videoLink}`;
+          adText += `\n🎥 Video: ${videoLink}`;
         } else {
           adText += `\n⚠️ Video not yet uploaded to Drive`;
         }
@@ -350,7 +350,7 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*Decision:* ${statusText} by ${userName}`
+              text: `Decision: ${statusText} by ${userName}`
             }
           }
         ]
@@ -439,7 +439,7 @@ export class SlackService {
   ): Promise<void> {
     try {
       const deletionText = rejectedCount > 0 
-        ? `\n\n*🗑️ Cleanup:* ${rejectedCount} rejected video(s) automatically deleted from Google Drive`
+        ? `\n\n🗑️ Cleanup: ${rejectedCount} rejected video(s) automatically deleted from Google Drive`
         : '';
 
       const summaryMessage: ChatPostMessageArguments = {
@@ -457,7 +457,7 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*📊 Final Results*\n• *Total Ads:* ${totalAds}\n• *✅ Approved:* ${approvedCount}\n• *❌ Rejected:* ${rejectedCount}\n• *Approval Rate:* ${Math.round((approvedCount / totalAds) * 100)}%${deletionText}`
+              text: `📊 Final Results\n• Total Ads: ${totalAds}\n• ✅ Approved: ${approvedCount}\n• ❌ Rejected: ${rejectedCount}\n• Approval Rate: ${Math.round((approvedCount / totalAds) * 100)}%${deletionText}`
             }
           },
           {
@@ -465,8 +465,8 @@ export class SlackService {
             text: {
               type: 'mrkdwn',
               text: rejectedCount > 0 
-                ? `*✅ Workflow Complete*\n\nOnly approved videos remain in Google Drive and are ready for Meta campaign upload. Rejected videos have been automatically removed to streamline the workflow.`
-                : `*✅ Workflow Complete*\n\nAll videos approved! Ready for Meta campaign upload.`
+                ? `✅ Workflow Complete\n\nOnly approved videos remain in Google Drive and are ready for Meta campaign upload. Rejected videos have been automatically removed to streamline the workflow.`
+                : `✅ Workflow Complete\n\nAll videos approved! Ready for Meta campaign upload.`
             }
           }
         ]
@@ -644,17 +644,17 @@ export class SlackService {
         }
         
         // Build summary message with deletion information
-        let summaryText = `*${batchName.toUpperCase()} REVIEW SUMMARY*\n\n*ALL VIDEOS HAVE NOW BEEN REVIEWED*\n\n📊 *Results:*\n• ✅ Approved: ${approvedCount} videos\n• ❌ Rejected: ${rejectedCount} videos\n• 📋 Total reviewed: ${reviewedCount}/${totalAds}`;
+        let summaryText = `${batchName.toUpperCase()} REVIEW SUMMARY\n\nALL VIDEOS HAVE NOW BEEN REVIEWED\n\n📊 Results:\n• ✅ Approved: ${approvedCount} videos\n• ❌ Rejected: ${rejectedCount} videos\n• 📋 Total reviewed: ${reviewedCount}/${totalAds}`;
         
         if (deletedCount > 0) {
-          summaryText += `\n\n🗑️ *Cleanup:*\n• Deleted ${deletedCount} rejected videos from Google Drive`;
+          summaryText += `\n\n🗑️ Cleanup:\n• Deleted ${deletedCount} rejected videos from Google Drive`;
         }
         
         if (deletionErrors.length > 0) {
           summaryText += `\n• ⚠️ ${deletionErrors.length} deletion errors (see logs)`;
         }
         
-        summaryText += `\n\n*NEXT TEST CAN NOW COMMENCE* 🚀`;
+        summaryText += `\n\nNEXT TEST CAN NOW COMMENCE 🚀`;
         
         const summaryMessage: ChatPostMessageArguments = {
           channel: process.env.SLACK_CHANNEL_ID!,
