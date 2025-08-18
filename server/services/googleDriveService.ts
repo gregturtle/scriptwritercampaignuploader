@@ -699,13 +699,12 @@ class GoogleDriveService {
       console.log(`Successfully deleted file ${fileId} from Google Drive`);
       return { success: true };
     } catch (error: any) {
-      // Handle "file not found" as a successful deletion (already deleted)
+      // Handle "file not found" - this is a real error, not success
       if (error.status === 404 || error.code === 404) {
-        console.log(`File ${fileId} was already deleted or not found - treating as successful`);
+        console.error(`File ${fileId} not found in Google Drive - this indicates an issue with file ID tracking`);
         return { 
-          success: true, 
-          alreadyDeleted: true,
-          error: 'File was already deleted'
+          success: false,
+          error: `File not found: ${fileId}`
         };
       }
       

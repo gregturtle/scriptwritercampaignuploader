@@ -307,6 +307,11 @@ class VideoService {
           );
 
           console.log(`Successfully uploaded ${outputFileName} to batch folder. File ID: ${driveResult.id}`);
+          console.log(`Drive result details:`, {
+            id: driveResult.id,
+            webViewLink: driveResult.webViewLink,
+            name: driveResult.name
+          });
 
           return {
             ...result,
@@ -415,6 +420,13 @@ class VideoService {
           driveId: videoResult.driveId,
           driveLink: videoResult.driveLink
         });
+        
+        // Log potential issue with missing driveId
+        if (!videoResult.driveId) {
+          console.error(`WARNING: No driveId returned for video "${suggestion.title}" - deletion will fail`);
+        } else {
+          console.log(`Successfully got driveId for "${suggestion.title}": ${videoResult.driveId}`);
+        }
         
         results.push({
           ...suggestion,

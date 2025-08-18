@@ -300,13 +300,16 @@ export class SlackService {
             console.log(`[SLACK MONITOR] Deleting ${rejectedFileIds.length} rejected videos from Google Drive`);
             
             try {
+              console.log(`[SLACK MONITOR] File IDs to delete:`, rejectedFileIds);
               const deleteResult = await googleDriveService.deleteFiles(rejectedFileIds);
-              deletedCount = deleteResult.deletedCount + deleteResult.alreadyDeletedCount;
+              deletedCount = deleteResult.deletedCount;
               deletionErrors = deleteResult.errors;
               
-              console.log(`[SLACK MONITOR] Deletion complete: ${deleteResult.deletedCount} newly deleted, ${deleteResult.alreadyDeletedCount} already deleted, ${deletedCount}/${rejectedFileIds.length} videos processed`);
+              console.log(`[SLACK MONITOR] Deletion complete: ${deleteResult.deletedCount}/${rejectedFileIds.length} videos deleted successfully`);
               if (deletionErrors.length > 0) {
                 console.error(`[SLACK MONITOR] Deletion errors:`, deletionErrors);
+                // Log the issue for debugging
+                console.error(`[SLACK MONITOR] This suggests file IDs from video upload don't match Google Drive file IDs`);
               }
             } catch (error) {
               console.error(`[SLACK MONITOR] Error deleting rejected videos:`, error);
