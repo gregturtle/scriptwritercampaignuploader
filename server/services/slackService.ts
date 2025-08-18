@@ -31,6 +31,75 @@ export class SlackService {
   }
 
   /**
+   * Sends initial notification when a batch is being created
+   */
+  async sendBatchCreationNotification(
+    batchName: string, 
+    videoCount: number, 
+    delayMinutes: number
+  ): Promise<string | undefined> {
+    try {
+      const currentTime = new Date().toLocaleString('en-US', {
+        timeZone: 'UTC',
+        hour12: true,
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+
+      const reviewTime = new Date(Date.now() + delayMinutes * 60 * 1000).toLocaleString('en-US', {
+        timeZone: 'UTC',
+        hour12: true,
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+
+      const notificationMessage: ChatPostMessageArguments = {
+        channel: process.env.SLACK_CHANNEL_ID!,
+        text: `New batch of performance marketing ads being created: ${batchName}`,
+        blocks: [
+          {
+            type: 'header',
+            text: {
+              type: 'plain_text',
+              text: '🚀 NEW BATCH IN PRODUCTION'
+            }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*📊 Batch Details*\n• **Batch Name:** ${batchName}\n• **Video Count:** ${videoCount} performance marketing ads\n• **Started:** ${currentTime} UTC`
+            }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*⏱️ Review Timeline*\n\n**Videos will be available for review in ${delayMinutes} minutes**\n**Review available:** ${reviewTime} UTC\n\n*This delay allows Google Drive to fully process the uploaded videos for optimal review experience.*`
+            }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*🎯 What's Next*\n• Videos are being uploaded to Google Drive\n• Batch approval workflow will begin automatically in ${delayMinutes} minutes\n• You'll receive detailed review messages with video links\n• Each ad will need ✅ (approve) or ❌ (reject) reaction`
+            }
+          }
+        ]
+      };
+
+      return await this.sendMessage(notificationMessage);
+    } catch (error) {
+      console.error('Error sending batch creation notification:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Sends a video batch approval request to Slack with structured formatting
    */
   async sendVideoBatchForApproval(

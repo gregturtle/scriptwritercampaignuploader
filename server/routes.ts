@@ -163,7 +163,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Save suggestions to "New Scripts" tab
       await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
-      // Schedule Slack notification with 15-minute delay for Google Drive processing
+      // Send immediate notification and schedule batch approval for later
       if (result.suggestions.some(s => s.videoUrl)) {
         try {
           const timestamp = new Date().toLocaleString('en-CA', { 
@@ -197,9 +197,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             timestamp
           };
 
-          // Schedule Slack notification for 15 minutes later to allow Google Drive processing
+          // Send immediate notification about batch creation
           const SLACK_DELAY_MINUTES = 15;
-          console.log(`Scheduling Slack notification for ${batchName} in ${SLACK_DELAY_MINUTES} minutes (allowing Google Drive processing time)`);
+          await slackService.sendBatchCreationNotification(batchName, videoCount, SLACK_DELAY_MINUTES);
+          console.log(`Sent immediate notification to Slack about batch creation: ${batchName}`);
+          
+          // Schedule actual batch approval messages for 15 minutes later
+          console.log(`Scheduling batch approval messages for ${batchName} in ${SLACK_DELAY_MINUTES} minutes (allowing Google Drive processing time)`);
           
           setTimeout(async () => {
             try {
@@ -210,9 +214,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             }
           }, SLACK_DELAY_MINUTES * 60 * 1000); // Convert minutes to milliseconds
 
-          console.log(`Video batch created and scheduled for Slack approval in ${SLACK_DELAY_MINUTES} minutes: ${batchName}`);
         } catch (slackError) {
-          console.error('Failed to schedule Slack notification:', slackError);
+          console.error('Failed to send Slack notifications:', slackError);
           // Continue without failing the entire request
         }
       }
