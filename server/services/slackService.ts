@@ -15,6 +15,8 @@ const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 // In-memory tracking for button decisions
 const batchDecisions = new Map<string, Map<string, { approved: boolean; messageTs: string; videoFileId: string }>>();
 
+
+
 export class SlackService {
   /**
    * Sends a structured message to the configured Slack channel
@@ -144,7 +146,7 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n**ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE**\n\n*Instructions:*\n• Each ad needs **ONE PERSON** to click either **APPROVE** or **REJECT** button\n• Watch the video by clicking the Google Drive link first\n• Click the appropriate button immediately after reviewing\n• **DO NOT PROCEED** until all ads are reviewed`
+              text: `*🚨 URGENT REVIEW REQUIRED 🚨*\n\n*THIS IS A FRESH BATCH OF NEW CONCEPTS*\n\n**ALL VIDEOS MUST BE APPROVED OR REJECTED BEFORE THE NEXT TEST CAN COMMENCE**\n\n*Simple Instructions:*\n• Watch the video by clicking the Google Drive link\n• Click the **APPROVE** or **REJECT** button below each video\n• Each ad needs **ONE PERSON** to click a button\n• **DO NOT PROCEED** until all ads have been reviewed`
             }
           },
           {
@@ -252,6 +254,127 @@ export class SlackService {
       console.error('Error sending video batch for approval:', error);
       throw error;
     }
+  }
+
+  /**
+   * Records a decision from button interaction
+   */
+  async recordDecision(
+    batchName: string, 
+    scriptNumber: string, 
+    videoFileId: string, 
+    approved: boolean, 
+    messageTs: string
+  ): Promise<void> {
+    const batch = batchDecisions.get(batchName);
+    if (batch) {
+      batch.set(scriptNumber, { approved, messageTs, videoFileId });
+      console.log(`[BUTTON DECISION] Batch: ${batchName}, Script: ${scriptNumber}, Decision: ${approved ? 'APPROVED' : 'REJECTED'}`);
+    }
+  }
+
+  /**
+   * Updates a message to show the decision made
+   */
+  async updateMessageWithDecision(
+    channel: string,
+    messageTs: string, 
+    originalText: string,
+    statusText: string,
+    userName: string
+  ): Promise<void> {
+    try {
+      await slack.chat.update({
+        channel,
+        ts: messageTs,
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: originalText
+            }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*Decision:* ${statusText} by ${userName}`
+            }
+          }
+        ]
+      });
+    } catch (error) {
+      console.error('Error updating Slack message:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Monitors batch completion using button decisions instead of emoji reactions
+   */
+  async monitorBatchCompletionByButtons(
+    batchName: string,
+    totalAds: number,
+    videoFileIds: string[]
+  ): Promise<void> {
+    let attempts = 0;
+    const maxAttempts = 120; // 120 attempts * 30 seconds = 60 minutes max monitoring
+    
+    const checkCompletion = async () => {
+      attempts++;
+      console.log(`[BUTTON MONITOR] Monitoring attempt ${attempts}/${maxAttempts} for ${batchName}`);
+      
+      const batchDecisionMap = batchDecisions.get(batchName);
+      if (!batchDecisionMap) {
+        console.log(`[BUTTON MONITOR] No decisions found for batch ${batchName}`);
+        if (attempts < maxAttempts) {
+          setTimeout(checkCompletion, 30000);
+        }
+        return;
+      }
+
+      const reviewedCount = batchDecisionMap.size;
+      const approvedCount = Array.from(batchDecisionMap.values()).filter(d => d.approved).length;
+      const rejectedCount = reviewedCount - approvedCount;
+
+      console.log(`[BUTTON MONITOR] Batch status - Reviewed: ${reviewedCount}/${totalAds}, Approved: ${approvedCount}, Rejected: ${rejectedCount}`);
+
+      if (reviewedCount >= totalAds) {
+        console.log(`[BUTTON MONITOR] Sending completion summary for ${batchName}`);
+        await this.sendBatchCompletionSummary(batchName, totalAds, approvedCount, rejectedCount);
+        
+        // Process deletions for rejected videos
+        const rejectedFileIds = Array.from(batchDecisionMap.values())
+          .filter(d => !d.approved && d.videoFileId)
+          .map(d => d.videoFileId);
+
+        if (rejectedFileIds.length > 0) {
+          console.log(`[BUTTON MONITOR] Processing video deletions for rejected videos`);
+          console.log(`[BUTTON MONITOR] Video file IDs marked for deletion:`, rejectedFileIds);
+          
+          try {
+            console.log(`[BUTTON MONITOR] Deleting ${rejectedFileIds.length} rejected videos from Google Drive`);
+            const deletionResults = await googleDriveService.deleteFiles(rejectedFileIds);
+            console.log(`[BUTTON MONITOR] Deletion complete: ${deletionResults.deletedCount}/${rejectedFileIds.length} videos deleted successfully`);
+          } catch (deletionError) {
+            console.error(`[BUTTON MONITOR] Error deleting videos:`, deletionError);
+          }
+        }
+
+        // Clean up tracking for this batch
+        batchDecisions.delete(batchName);
+        console.log(`[BUTTON MONITOR] Summary message sent successfully for ${batchName}`);
+        
+      } else if (attempts < maxAttempts) {
+        setTimeout(checkCompletion, 30000);
+      } else {
+        console.log(`[BUTTON MONITOR] Timeout reached for batch ${batchName} - stopping monitoring`);
+      }
+    };
+
+    // Start monitoring
+    setTimeout(checkCompletion, 30000);
   }
 
   /**

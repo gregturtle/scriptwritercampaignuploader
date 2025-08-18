@@ -314,6 +314,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to process interaction' });
     }
   });
+
   // Auth routes
   app.get("/api/auth/status", async (req, res) => {
     try {
