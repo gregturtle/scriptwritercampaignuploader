@@ -644,7 +644,7 @@ export class SlackService {
         }
         
         // Build summary message with deletion information
-        let summaryText = `*${batchName.toUpperCase()} REVIEW SUMMARY*\n\n**ALL VIDEOS HAVE NOW BEEN REVIEWED**\n\n📊 *Results:*\n• ✅ Approved: ${approvedCount} videos\n• ❌ Rejected: ${rejectedCount} videos\n• 📋 Total reviewed: ${reviewedCount}/${totalAds}`;
+        let summaryText = `*${batchName.toUpperCase()} REVIEW SUMMARY*\n\n*ALL VIDEOS HAVE NOW BEEN REVIEWED*\n\n📊 *Results:*\n• ✅ Approved: ${approvedCount} videos\n• ❌ Rejected: ${rejectedCount} videos\n• 📋 Total reviewed: ${reviewedCount}/${totalAds}`;
         
         if (deletedCount > 0) {
           summaryText += `\n\n🗑️ *Cleanup:*\n• Deleted ${deletedCount} rejected videos from Google Drive`;
@@ -654,7 +654,7 @@ export class SlackService {
           summaryText += `\n• ⚠️ ${deletionErrors.length} deletion errors (see logs)`;
         }
         
-        summaryText += `\n\n**NEXT TEST CAN NOW COMMENCE** 🚀`;
+        summaryText += `\n\n*NEXT TEST CAN NOW COMMENCE* 🚀`;
         
         const summaryMessage: ChatPostMessageArguments = {
           channel: process.env.SLACK_CHANNEL_ID!,
