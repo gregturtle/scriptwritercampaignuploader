@@ -348,6 +348,7 @@ class VideoService {
     audioUrl?: string;
     videoFile?: string;
     videoUrl?: string;
+    videoFileId?: string;
     videoError?: string;
     folderLink?: string;
   }>> {
@@ -401,7 +402,8 @@ class VideoService {
         results.push({
           ...suggestion,
           videoFile: videoResult.outputPath,
-          videoUrl: videoResult.outputUrl,
+          videoUrl: videoResult.driveLink, // Use Google Drive link instead of outputUrl
+          videoFileId: videoResult.driveId, // Add the Google Drive file ID
           folderLink: batchFolderLink || undefined
         });
       } else {
