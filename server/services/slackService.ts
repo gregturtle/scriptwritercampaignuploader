@@ -91,34 +91,21 @@ export class SlackService {
         const scriptNumber = i + 1;
         const fileName = script.fileName || `script${scriptNumber}`;
         
-        // Create direct Google Drive file link if we have the file ID
+        // Create properly formatted Google Drive link
         let videoLink = script.videoUrl;
         if (script.videoFileId) {
-          videoLink = `https://drive.google.com/file/d/${script.videoFileId}/view`;
+          videoLink = `https://drive.google.com/file/d/${script.videoFileId}/view?usp=drive_link`;
         }
         
         let adText = `*🎬 AD ${scriptNumber}: ${script.title}*\n`;
         adText += `📁 *File:* \`${fileName}\`\n`;
         adText += `💬 *Script:* "${script.content}"\n`;
 
-        // Create video preview with direct server URL
-        let messageTs: string | undefined;
-        const videoFilePath = (script as any).videoFile; // This contains the local file path from video service
-        
-        // Create server URL for video file if it exists
-        let videoServerUrl = '';
-        if (videoFilePath && require('fs').existsSync(videoFilePath)) {
-          const path = require('path');
-          const videoFileName = path.basename(videoFilePath);
-          videoServerUrl = `${process.env.REPLIT_DEV_DOMAIN ? 'https://' + process.env.REPLIT_DEV_DOMAIN : 'http://localhost:5000'}/uploads/videos/${videoFileName}`;
-        }
-
-        // Enhanced ad text with direct video URL
-        let enhancedAdText = adText;
-        if (videoServerUrl) {
-          enhancedAdText += `\n🎥 *Video:* ${videoServerUrl}`;
+        // Add Google Drive video link with proper formatting
+        if (videoLink) {
+          adText += `\n🎥 *Video:* ${videoLink}`;
         } else {
-          enhancedAdText += `\n⚠️ Video file not available`;
+          adText += `\n⚠️ Video not yet uploaded to Drive`;
         }
 
         const adMessage: ChatPostMessageArguments = {
@@ -129,13 +116,13 @@ export class SlackService {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: enhancedAdText
+                text: adText
               }
             }
           ]
         };
 
-        messageTs = await this.sendMessage(adMessage);
+        const messageTs = await this.sendMessage(adMessage);
         
         // Track message for monitoring (no auto-reactions)
         if (messageTs) {
