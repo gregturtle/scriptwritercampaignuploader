@@ -264,6 +264,56 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       });
     }
   });
+
+  // Slack webhook endpoint for handling button interactions
+  app.post('/api/slack/interactions', express.raw({ type: 'application/x-www-form-urlencoded' }), async (req, res) => {
+    try {
+      // Parse the form data
+      const payload = JSON.parse(decodeURIComponent(req.body.toString().split('payload=')[1]));
+      
+      if (payload.type === 'block_actions') {
+        const action = payload.actions[0];
+        const user = payload.user;
+        const channel = payload.channel;
+        const messageTs = payload.message.ts;
+        
+        // Parse action value: approve_${batchInfo.batchName}_${scriptNumber}_${script.videoFileId}
+        const [actionType, batchName, scriptNumber, videoFileId] = action.value.split('_');
+        
+        console.log(`[SLACK INTERACTION] User ${user.name} clicked ${actionType.toUpperCase()} for script ${scriptNumber} in batch ${batchName}`);
+        
+        // Update the message to show the decision
+        const isApproved = actionType === 'approve';
+        const statusText = isApproved ? '✅ APPROVED' : '❌ REJECTED';
+        const statusEmoji = isApproved ? '✅' : '❌';
+        
+        // Update the button message to show the decision
+        await slackService.updateMessageWithDecision(
+          channel.id,
+          messageTs,
+          payload.message.blocks[0].text.text, // Keep original text
+          statusText,
+          user.name
+        );
+        
+        // Record the decision for batch monitoring
+        await slackService.recordDecision(batchName, scriptNumber, videoFileId, isApproved, messageTs);
+        
+        // Send acknowledgment response
+        res.json({
+          response_type: 'in_channel',
+          text: `${statusEmoji} Decision recorded for Ad ${scriptNumber}`
+        });
+        
+      } else {
+        res.status(200).json({ message: 'Event received but not processed' });
+      }
+      
+    } catch (error) {
+      console.error('Error handling Slack interaction:', error);
+      res.status(500).json({ error: 'Failed to process interaction' });
+    }
+  });
   // Auth routes
   app.get("/api/auth/status", async (req, res) => {
     try {
