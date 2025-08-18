@@ -167,9 +167,10 @@ export class SlackService {
     totalAds: number,
     attempts: number = 0
   ): Promise<void> {
-    const maxAttempts = 20; // Check for 10 minutes (20 * 30 seconds)
+    const maxAttempts = 40; // Check for 20 minutes (40 * 30 seconds)
     
     try {
+      console.log(`[SLACK MONITOR] Monitoring attempt ${attempts + 1}/${maxAttempts} for ${batchName}`);
       const isComplete = await this.checkBatchCompletion(batchName, messageTimestamps, totalAds);
       
       if (!isComplete && attempts < maxAttempts) {
@@ -177,9 +178,11 @@ export class SlackService {
         setTimeout(() => {
           this.monitorBatchCompletion(batchName, messageTimestamps, totalAds, attempts + 1);
         }, 30000);
+      } else if (attempts >= maxAttempts) {
+        console.log(`[SLACK MONITOR] Monitoring timeout for ${batchName} after ${maxAttempts} attempts`);
       }
     } catch (error) {
-      console.error('Error monitoring batch completion:', error);
+      console.error(`[SLACK MONITOR] Error monitoring batch completion for ${batchName}:`, error);
     }
   }
 
@@ -237,6 +240,8 @@ export class SlackService {
 
       // Send summary if all ads are reviewed
       if (reviewedCount === totalAds) {
+        console.log(`[SLACK MONITOR] Sending completion summary for ${batchName}`);
+        
         const summaryMessage: ChatPostMessageArguments = {
           channel: process.env.SLACK_CHANNEL_ID!,
           text: `Batch ${batchName} review complete`,
@@ -258,7 +263,13 @@ export class SlackService {
           ]
         };
 
-        await this.sendMessage(summaryMessage);
+        try {
+          await this.sendMessage(summaryMessage);
+          console.log(`[SLACK MONITOR] Summary message sent successfully for ${batchName}`);
+        } catch (error) {
+          console.error(`[SLACK MONITOR] Failed to send summary message:`, error);
+        }
+        
         return true; // Batch is complete
       }
       
