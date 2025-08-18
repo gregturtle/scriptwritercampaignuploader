@@ -297,6 +297,7 @@ class VideoService {
       // Auto-upload to Google Drive batch folder if successful
       if (result.success && result.outputPath && batchFolderId) {
         try {
+          console.log(`Attempting to upload ${outputFileName} to batch folder ${batchFolderId}`);
           const { googleDriveService } = await import('./googleDriveService');
           
           const driveResult = await googleDriveService.uploadVideoToSpecificFolder(
@@ -314,9 +315,15 @@ class VideoService {
             folderLink: `https://drive.google.com/drive/folders/${batchFolderId}`
           };
         } catch (driveError) {
-          console.warn('Failed to upload to batch folder:', driveError);
+          console.error('Failed to upload to batch folder - detailed error:', driveError);
           // Continue without failing the video creation
         }
+      } else {
+        console.log(`Skipping Google Drive upload for ${outputFileName}:`, {
+          success: result.success,
+          hasOutputPath: !!result.outputPath,
+          hasBatchFolderId: !!batchFolderId
+        });
       }
 
       return result;
@@ -361,17 +368,21 @@ class VideoService {
 
     // Try to create the batch folder upfront
     try {
+      console.log(`Creating batch folder for ${suggestions.length} videos with timestamp: ${batchTimestamp}`);
       const { googleDriveService } = await import('./googleDriveService');
       if (googleDriveService.isConfigured()) {
+        console.log('Google Drive service is configured, creating timestamped subfolder...');
         batchFolderId = await googleDriveService.createTimestampedSubfolder(
           '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh',
           batchTimestamp
         );
         batchFolderLink = `https://drive.google.com/drive/folders/${batchFolderId}`;
-        console.log(`Created batch folder for ${suggestions.length} videos: ${batchFolderLink}`);
+        console.log(`Created batch folder for ${suggestions.length} videos: ${batchFolderLink} (ID: ${batchFolderId})`);
+      } else {
+        console.log('Google Drive service is not configured');
       }
     } catch (error) {
-      console.warn('Could not create batch folder, will fallback to individual uploads:', error);
+      console.error('Could not create batch folder, will fallback to individual uploads:', error);
     }
 
     for (let i = 0; i < suggestions.length; i++) {
@@ -399,6 +410,12 @@ class VideoService {
       );
 
       if (videoResult.success) {
+        console.log(`Video result for "${suggestion.title}":`, {
+          outputPath: videoResult.outputPath,
+          driveId: videoResult.driveId,
+          driveLink: videoResult.driveLink
+        });
+        
         results.push({
           ...suggestion,
           videoFile: videoResult.outputPath,

@@ -91,6 +91,12 @@ export class SlackService {
         const scriptNumber = i + 1;
         const fileName = script.fileName || `script${scriptNumber}`;
         
+        console.log(`Slack script ${scriptNumber} data:`, {
+          title: script.title,
+          videoUrl: script.videoUrl,
+          videoFileId: script.videoFileId
+        });
+        
         // Create properly formatted Google Drive link
         let videoLink = script.videoUrl;
         if (script.videoFileId) {

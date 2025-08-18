@@ -694,6 +694,37 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Google Drive test endpoint
+  app.get('/api/drive/test', async (req, res) => {
+    try {
+      const { googleDriveService } = await import('./services/googleDriveService');
+      
+      if (!googleDriveService.isConfigured()) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Google Drive service is not configured' 
+        });
+      }
+
+      // Test creating a timestamped subfolder
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').substring(0, 19);
+      const testFolderId = await googleDriveService.createTimestampedSubfolder(
+        '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh',
+        `test_${timestamp}`
+      );
+
+      res.json({ 
+        success: true, 
+        message: 'Google Drive test successful',
+        folderId: testFolderId,
+        folderLink: `https://drive.google.com/drive/folders/${testFolderId}`
+      });
+    } catch (error) {
+      console.error('Google Drive test failed:', error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   app.post("/api/slack/check-batch", async (req, res) => {
     try {
       const { batchName, messageTimestamps, totalAds } = req.body;
