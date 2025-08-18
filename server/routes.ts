@@ -163,7 +163,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Save suggestions to "New Scripts" tab
       await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
-      // Send to Slack for approval if videos were created
+      // Schedule Slack notification with 15-minute delay for Google Drive processing
       if (result.suggestions.some(s => s.videoUrl)) {
         try {
           const timestamp = new Date().toLocaleString('en-CA', { 
@@ -183,7 +183,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           // Find the Google Drive folder URL from the first video
           const driveFolder = result.suggestions.find(s => s.videoUrl)?.videoUrl || 'Google Drive folder';
           
-          await slackService.sendVideoBatchForApproval({
+          const batchData = {
             batchName,
             videoCount,
             scripts: result.suggestions.map((s, index) => ({ 
@@ -195,20 +195,38 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             })),
             driveFolder,
             timestamp
-          });
+          };
 
-          console.log(`Sent video batch to Slack for approval: ${batchName}`);
+          // Schedule Slack notification for 15 minutes later to allow Google Drive processing
+          const SLACK_DELAY_MINUTES = 15;
+          console.log(`Scheduling Slack notification for ${batchName} in ${SLACK_DELAY_MINUTES} minutes (allowing Google Drive processing time)`);
+          
+          setTimeout(async () => {
+            try {
+              await slackService.sendVideoBatchForApproval(batchData);
+              console.log(`Sent delayed video batch to Slack for approval: ${batchName}`);
+            } catch (delayedSlackError) {
+              console.error('Failed to send delayed Slack notification:', delayedSlackError);
+            }
+          }, SLACK_DELAY_MINUTES * 60 * 1000); // Convert minutes to milliseconds
+
+          console.log(`Video batch created and scheduled for Slack approval in ${SLACK_DELAY_MINUTES} minutes: ${batchName}`);
         } catch (slackError) {
-          console.error('Failed to send Slack notification:', slackError);
+          console.error('Failed to schedule Slack notification:', slackError);
           // Continue without failing the entire request
         }
       }
 
+      const hasVideos = result.suggestions.some(s => s.videoUrl);
+      const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
+      const slackMessage = hasVideos ? ' - Slack approval workflow will begin in 15 minutes (allowing Google Drive processing time)' : '';
+      
       res.json({
         suggestions: result.suggestions,
-        message: `Generated ${result.suggestions.length} script suggestions based on performance data analysis`,
+        message: baseMessage + slackMessage,
         savedToSheet: true,
-        voiceGenerated: result.voiceGenerated
+        voiceGenerated: result.voiceGenerated,
+        slackScheduled: hasVideos
       });
     } catch (error) {
       console.error('Error generating AI script suggestions:', error);
