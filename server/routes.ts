@@ -322,9 +322,6 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         // Record the decision for batch monitoring
         await slackService.recordDecision(batchName, scriptNumber, videoFileId, isApproved, messageTs);
         
-        // Also manually check for completion after each decision
-        await slackService.checkBatchCompletionManually(batchName, 1, [videoFileId]);
-        
         // Send acknowledgment response
         res.json({
           response_type: 'in_channel',
