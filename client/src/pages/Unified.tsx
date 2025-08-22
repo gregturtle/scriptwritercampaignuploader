@@ -96,9 +96,10 @@ export default function Unified() {
         const response = await fetch('/api/elevenlabs/voices');
         if (response.ok) {
           const data = await response.json();
-          // Filter for commonly used voices and add Samara X if available
+          // Filter for commonly used voices and add Ellara/Samara X if available
           const commonVoices = [
-            { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ella AI (Professional)' },
+            { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ellara (Ellabot 2.0)' },
+            { voice_id: 'XC8zV5Ew3WmYE1jEkkYY', name: 'Elara Quinn (Professional)' },
             { voice_id: 'flq6f7yk4E4fJM5XTYuZ', name: 'Mark (Alternative)' }
           ];
           
@@ -121,7 +122,8 @@ export default function Unified() {
         console.error('Error loading voices:', error);
         // Fallback to default voices if API fails
         setAvailableVoices([
-          { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ella AI (Professional)' },
+          { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ellara (Ellabot 2.0)' },
+          { voice_id: 'XC8zV5Ew3WmYE1jEkkYY', name: 'Elara Quinn (Professional)' },
           { voice_id: 'flq6f7yk4E4fJM5XTYuZ', name: 'Mark (Alternative)' }
         ]);
       } finally {
