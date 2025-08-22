@@ -207,8 +207,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             } catch (delayedSlackError) {
               console.error('Failed to send delayed Slack approval workflow:', delayedSlackError);
             }
-          }, 2 * 60 * 1000); // 2 minutes delay for testing
-          console.log(`Slack approval workflow scheduled for 2 minutes delay for batch: ${batchName}`);
+          }, 20 * 60 * 1000); // 20 minutes delay
+          console.log(`Slack approval workflow scheduled for 20 minutes delay for batch: ${batchName}`);
 
         } catch (slackError) {
           console.error('Failed to send Slack notifications:', slackError);
