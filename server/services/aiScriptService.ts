@@ -207,9 +207,9 @@ class AIScriptService {
       }
 
       // Generate suggestions using OpenAI
-      // Force 45-55 word scripts for maximum 15-16 seconds
-      const targetWordCount = "45-55";
-      console.log(`Targeting ${targetWordCount} words for maximum 15-16 second scripts`);
+      // Force 40-50 word scripts for maximum 14-15 seconds
+      const targetWordCount = "40-50";
+      console.log(`Targeting ${targetWordCount} words for maximum 14-15 second scripts`);
 
       const prompt = `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
@@ -220,7 +220,7 @@ CONTEXT:
 - What3Words assigns unique 3-word addresses to every 3x3 meter location globally
 - These are voiceover scripts for video ads encouraging app downloads
 - The background visuals are constant - you only write the spoken narration
-- MANDATORY: Each script must be EXACTLY 45-55 words (maximum 15-16 seconds when spoken)
+- MANDATORY: Each script must be EXACTLY 40-50 words (maximum 14-15 seconds when spoken)
 - "Score" represents overall performance (higher = better performing voiceovers)
 
 SCRIPT STRUCTURE REQUIREMENTS:
