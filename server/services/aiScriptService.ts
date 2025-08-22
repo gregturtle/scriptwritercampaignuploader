@@ -207,9 +207,9 @@ class AIScriptService {
       }
 
       // Generate suggestions using OpenAI
-      // Force 35-40 word scripts for maximum 12-13 seconds
-      const targetWordCount = "35-40";
-      console.log(`Targeting ${targetWordCount} words for maximum 12-13 second scripts`);
+      // Force 35-42 word scripts for maximum 12-14 seconds
+      const targetWordCount = "35-42";
+      console.log(`Targeting ${targetWordCount} words for maximum 12-14 second scripts`);
 
       const prompt = `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
@@ -220,7 +220,7 @@ CONTEXT:
 - What3Words assigns unique 3-word addresses to every 3x3 meter location globally
 - These are voiceover scripts for video ads encouraging app downloads
 - The background visuals are constant - you only write the spoken narration
-- MANDATORY: Each script must be EXACTLY 35-40 words (maximum 12-13 seconds when spoken)
+- MANDATORY: Each script must be EXACTLY 35-42 words (maximum 12-14 seconds when spoken)
 - "Score" represents overall performance (higher = better performing voiceovers)
 
 SCRIPT STRUCTURE REQUIREMENTS:
@@ -280,10 +280,10 @@ Based on your analysis of BOTH success and failure patterns above, write ${scrip
 - Incorporate proven successful elements from high-scoring data
 - Actively avoid patterns that led to poor performance in low-scoring data
 - Are ONLY spoken narration (no visual descriptions)
-- Must be EXACTLY 35-40 words (NEVER exceed 12-13 seconds when spoken naturally)
+- Must be EXACTLY 35-42 words (NEVER exceed 12-14 seconds when spoken naturally)
 - Focus on encouraging What Three Words app downloads
 - Always write "what three words" instead of "what3words" for proper voice pronunciation
-- CRITICAL: Count every word carefully - scripts over 40 words will be rejected
+- CRITICAL: Count every word carefully - scripts over 42 words will be rejected
 
 REFINEMENT CHECKLIST - Check each script and CORRECT if needed:
 ✓ The script does NOT mention or show any what three words address formatted as "///word.word.word"
@@ -291,8 +291,8 @@ REFINEMENT CHECKLIST - Check each script and CORRECT if needed:
 ✓ The product explanation is concise and clear
 ✓ Tone is confident and engaging throughout
 ✓ Closing call to action is strongly connected to the opening
-✓ Total script is no more than 40 words
-✓ The script would take no more than 12-13 seconds to say out loud at normal advertising pace
+✓ Total script is no more than 42 words
+✓ The script would take no more than 12-14 seconds to say out loud at normal advertising pace
 ✓ what three words does not give directions, only provides precise locations that people navigate to
 ✓ A what three words location is only described as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
 
