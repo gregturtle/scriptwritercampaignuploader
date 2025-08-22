@@ -205,8 +205,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             } catch (delayedSlackError) {
               console.error('Failed to send delayed Slack approval workflow:', delayedSlackError);
             }
-          }, 2 * 60 * 1000); // 2 minutes delay for testing
-          console.log(`Slack approval workflow scheduled for 2 minutes delay (testing)`);
+          }, 20 * 60 * 1000); // 20 minutes delay
+          console.log(`Slack approval workflow scheduled for 20 minutes delay`);
 
         } catch (slackError) {
           console.error('Failed to send Slack notifications:', slackError);
@@ -216,7 +216,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      const slackMessage = hasVideos ? ' - Slack approval workflow scheduled for 2 minutes (testing)' : '';
+      const slackMessage = hasVideos ? ' - Slack approval workflow scheduled for 20 minutes' : '';
       
       res.json({
         suggestions: result.suggestions,
