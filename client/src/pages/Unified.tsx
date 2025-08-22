@@ -60,7 +60,7 @@ export default function Unified() {
   const [availableBackgroundVideos, setAvailableBackgroundVideos] = useState<{path: string, name: string, url: string}[]>([]);
   const [selectedBackgroundVideo, setSelectedBackgroundVideo] = useState<string>('');
   const [loadingVideos, setLoadingVideos] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState<string>('huvDR9lwwSKC0zEjZUox'); // Default to Ella AI
+  const [selectedVoice, setSelectedVoice] = useState<string>('I8vyadnJFaMFR0zgn147'); // Default to Hybrid Voice 1
   const [availableVoices, setAvailableVoices] = useState<{voice_id: string, name: string}[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
 
@@ -96,10 +96,10 @@ export default function Unified() {
         const response = await fetch('/api/elevenlabs/voices');
         if (response.ok) {
           const data = await response.json();
-          // Filter for commonly used voices and add Ellara/Samara X if available
+          // Filter for commonly used voices
           const commonVoices = [
+            { voice_id: 'I8vyadnJFaMFR0zgn147', name: 'Hybrid Voice 1' },
             { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ellara (Ellabot 2.0)' },
-            { voice_id: 'XC8zV5Ew3WmYE1jEkkYY', name: 'Elara Quinn (Professional)' },
             { voice_id: 'flq6f7yk4E4fJM5XTYuZ', name: 'Mark (Alternative)' }
           ];
           
@@ -122,8 +122,8 @@ export default function Unified() {
         console.error('Error loading voices:', error);
         // Fallback to default voices if API fails
         setAvailableVoices([
+          { voice_id: 'I8vyadnJFaMFR0zgn147', name: 'Hybrid Voice 1' },
           { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ellara (Ellabot 2.0)' },
-          { voice_id: 'XC8zV5Ew3WmYE1jEkkYY', name: 'Elara Quinn (Professional)' },
           { voice_id: 'flq6f7yk4E4fJM5XTYuZ', name: 'Mark (Alternative)' }
         ]);
       } finally {
