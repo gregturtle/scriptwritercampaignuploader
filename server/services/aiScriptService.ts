@@ -275,22 +275,47 @@ FAILURE PATTERNS (from low-scoring scripts):
 3. What hooks or value propositions fall flat?
 4. What script patterns consistently underperform?
 
+CREATIVE DIVERSITY REQUIREMENTS:
+Create a mix of scripts with distinct creative approaches:
+
+CONVENTIONAL SCRIPTS (50% of batch):
+- Use proven successful patterns from high-scoring data
+- Safe, obvious messaging that clearly explains the value
+- Professional, straightforward tone
+- Clear benefit-focused structure
+
+BOLD EXPERIMENTAL SCRIPTS (50% of batch):
+- Push creative boundaries with unusual angles, risky concepts, or surprising approaches
+- Use unexpected metaphors, dramatic statements, or contrarian perspectives
+- Experiment with different tones: mysterious, urgent, playful, philosophical, provocative
+- Try unconventional structures: questions-only, countdown style, story fragments, contradictions
+- Explore creative edges that humans might not consider, even if performance is uncertain
+
 TASK:
-Based on your analysis of BOTH success and failure patterns above, write ${scriptCount} new voiceover scripts that:
-- Incorporate proven successful elements from high-scoring data
-- Actively avoid patterns that led to poor performance in low-scoring data
+Write ${scriptCount} new voiceover scripts with maximum creative diversity:
+- Include roughly 50% conventional safe scripts and 50% bold experimental scripts
+- Vary tone, structure, opening style, and creative approach dramatically between scripts
 - Are ONLY spoken narration (no visual descriptions)
 - Must be EXACTLY 40-46 words (NEVER exceed 14-15 seconds when spoken naturally)
 - Focus on encouraging What Three Words app downloads
 - Always write "what three words" instead of "what3words" for proper voice pronunciation
 - CRITICAL: Count every word carefully - scripts over 46 words will be rejected
+- AVOID rewriting the same concept multiple times - surprise us with variety
+
+CREATIVE INSPIRATION:
+- What if the script started with a contradiction or paradox?
+- What if it used reverse psychology or challenged assumptions?
+- What if it told a micro-story or created intrigue?
+- What if it used unexpected comparisons or metaphors?
+- What if it addressed fears, desires, or hidden motivations?
+- What if it broke conventional advertising rules?
 
 REFINEMENT CHECKLIST - Check each script and CORRECT if needed:
 ✓ The script does NOT mention or show any what three words address formatted as "///word.word.word"
-✓ The opening is unique, fresh, or surprising
-✓ The product explanation is concise and clear
-✓ Tone is confident and engaging throughout
-✓ Closing call to action is strongly connected to the opening
+✓ Each script has a distinctly different creative approach from the others
+✓ Roughly half are conventional, half are bold/experimental
+✓ The product explanation is present but may be unconventional in experimental scripts
+✓ Tone varies significantly between scripts
 ✓ Total script is no more than 46 words
 ✓ The script would take no more than 14-15 seconds to say out loud at normal advertising pace
 ✓ what three words does not give directions, only provides precise locations that people navigate to
@@ -321,7 +346,7 @@ Respond in JSON format:
           {
             role: "system",
             content:
-              "You are an expert marketing creative analyst who excels at identifying winning creative patterns and generating high-performing video scripts.",
+              "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice.",
           },
           {
             role: "user",
@@ -329,7 +354,7 @@ Respond in JSON format:
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7,
+        temperature: 0.9,
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
