@@ -163,8 +163,9 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Save suggestions to "New Scripts" tab
       await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
+      // SLACK TEMPORARILY DISABLED FOR TESTING
       // Send immediate notification and schedule batch approval for later
-      if (result.suggestions.some(s => s.videoUrl)) {
+      if (false && result.suggestions.some(s => s.videoUrl)) {
         try {
           const timestamp = new Date().toLocaleString('en-CA', { 
             timeZone: 'UTC',
@@ -216,7 +217,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      const slackMessage = hasVideos ? ' - Slack approval workflow scheduled for 20 minutes' : '';
+      const slackMessage = hasVideos ? ' - Slack workflow temporarily disabled for testing' : '';
       
       res.json({
         suggestions: result.suggestions,
