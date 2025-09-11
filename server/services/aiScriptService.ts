@@ -112,13 +112,14 @@ class AIScriptService {
       voiceId?: string;
       includeVoice?: boolean;
       scriptCount?: number;
+      guidancePrompt?: string;
     } = {}
   ): Promise<{
     suggestions: ScriptSuggestion[];
     message: string;
     voiceGenerated?: boolean;
   }> {
-    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false, scriptCount = 5 } = options;
+    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false, scriptCount = 5, guidancePrompt } = options;
     try {
       // Read the performance data
       const performanceData = await this.readPerformanceData(
@@ -240,7 +241,11 @@ IMPORTANT CONSTRAINTS:
 - A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
 - Never mention or show any what three words address formatted as "///word.word.word"
 
-HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
+${guidancePrompt ? `ADDITIONAL CREATIVE GUIDANCE:
+Follow this thematic direction: "${guidancePrompt}"
+Incorporate this guidance into your script creation while maintaining all other requirements.
+
+` : ''}HIGH-PERFORMING VOICEOVER SCRIPTS (Learn from these SUCCESS patterns):
 ${topPerformers
   .map(
     (item) => `

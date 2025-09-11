@@ -104,10 +104,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.post('/api/ai/generate-scripts', async (req, res) => {
     try {
       console.log('AI script generation request received:', req.body);
-      const { spreadsheetId, tabName, generateAudio = true, scriptCount = 5, backgroundVideoPath, voiceId } = req.body;
+      const { spreadsheetId, tabName, generateAudio = true, scriptCount = 5, backgroundVideoPath, voiceId, guidancePrompt } = req.body;
       
       if (!spreadsheetId) {
         return res.status(400).json({ message: 'Spreadsheet ID is required' });
+      }
+
+      // Validate guidancePrompt if provided
+      if (guidancePrompt !== undefined && (typeof guidancePrompt !== 'string' || guidancePrompt.length > 1000)) {
+        return res.status(400).json({ message: 'Guidance prompt must be a string with maximum 1000 characters' });
       }
 
       console.log(`Generating ${scriptCount} AI script suggestions from sheet: ${spreadsheetId}, tab: ${tabName || 'Cleansed with BEAP'}, with audio: ${generateAudio}`);
@@ -118,7 +123,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           tabName: tabName || 'Cleansed with BEAP',
           includeVoice: generateAudio,
           scriptCount: scriptCount,
-          voiceId: voiceId
+          voiceId: voiceId,
+          guidancePrompt: guidancePrompt
         }
       );
 
