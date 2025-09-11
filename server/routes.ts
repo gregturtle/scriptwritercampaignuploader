@@ -169,60 +169,62 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Save suggestions to "New Scripts" tab
       await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
+      // SLACK WORKFLOW TEMPORARILY DISABLED FOR TESTING
       // Send immediate notification and schedule batch approval for later
-      if (result.suggestions.some(s => s.videoUrl)) {
-        try {
-          const timestamp = new Date().toLocaleString('en-CA', { 
-            timeZone: 'UTC',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          }).replace(',', '');
+      // if (result.suggestions.some(s => s.videoUrl)) {
+      //   try {
+      //     const timestamp = new Date().toLocaleString('en-CA', { 
+      //       timeZone: 'UTC',
+      //       year: 'numeric',
+      //       month: '2-digit',
+      //       day: '2-digit',
+      //       hour: '2-digit',
+      //       minute: '2-digit',
+      //       second: '2-digit',
+      //       hour12: false
+      //     }).replace(',', '');
 
-          const batchName = `Generated_${timestamp}`;
-          const videoCount = result.suggestions.filter(s => s.videoUrl).length;
+      //     const batchName = `Generated_${timestamp}`;
+      //     const videoCount = result.suggestions.filter(s => s.videoUrl).length;
           
-          // Find the Google Drive folder URL from the first video
-          const driveFolder = result.suggestions.find(s => s.videoUrl)?.videoUrl || 'Google Drive folder';
+      //     // Find the Google Drive folder URL from the first video
+      //     const driveFolder = result.suggestions.find(s => s.videoUrl)?.videoUrl || 'Google Drive folder';
           
-          const batchData = {
-            batchName,
-            videoCount,
-            scripts: result.suggestions.map((s, index) => ({ 
-              title: s.title, 
-              content: s.content,
-              fileName: s.fileName || `script${index + 1}`,
-              videoUrl: s.videoUrl,
-              videoFileId: s.videoFileId
-            })),
-            driveFolder,
-            timestamp
-          };
+      //     const batchData = {
+      //       batchName,
+      //       videoCount,
+      //       scripts: result.suggestions.map((s, index) => ({ 
+      //         title: s.title, 
+      //         content: s.content,
+      //         fileName: s.fileName || `script${index + 1}`,
+      //         videoUrl: s.videoUrl,
+      //         videoFileId: s.videoFileId
+      //       })),
+      //       driveFolder,
+      //       timestamp
+      //     };
 
-          // Send batch approval messages after 20-minute delay for Google Drive processing
-          setTimeout(async () => {
-            try {
-              await slackService.sendVideoBatchForApproval(batchData);
-              console.log(`Sent video batch to Slack for approval: ${batchName}`);
-            } catch (delayedSlackError) {
-              console.error('Failed to send delayed Slack approval workflow:', delayedSlackError);
-            }
-          }, 20 * 60 * 1000); // 20 minutes delay
-          console.log(`Slack approval workflow scheduled for 20 minutes delay`);
+      //     // Send batch approval messages after 20-minute delay for Google Drive processing
+      //     setTimeout(async () => {
+      //       try {
+      //         await slackService.sendVideoBatchForApproval(batchData);
+      //         console.log(`Sent video batch to Slack for approval: ${batchName}`);
+      //       } catch (delayedSlackError) {
+      //         console.error('Failed to send delayed Slack approval workflow:', delayedSlackError);
+      //       }
+      //     }, 20 * 60 * 1000); // 20 minutes delay
+      //     console.log(`Slack approval workflow scheduled for 20 minutes delay`);
 
-        } catch (slackError) {
-          console.error('Failed to send Slack notifications:', slackError);
-          // Continue without failing the entire request
-        }
-      }
+      //   } catch (slackError) {
+      //     console.error('Failed to send Slack notifications:', slackError);
+      //     // Continue without failing the entire request
+      //   }
+      // }
+      console.log(`Slack workflow disabled for testing - ${result.suggestions.filter(s => s.videoUrl).length} videos generated without Slack notifications`);
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      const slackMessage = hasVideos ? ' - Slack approval workflow scheduled for 20 minutes' : '';
+      const slackMessage = hasVideos ? ' - Slack workflow disabled for testing' : '';
       
       res.json({
         suggestions: result.suggestions,
