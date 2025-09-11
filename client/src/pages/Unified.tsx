@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -63,6 +64,7 @@ export default function Unified() {
   const [selectedVoice, setSelectedVoice] = useState<string>('I8vyadnJFaMFR0zgn147'); // Default to Hybrid Voice 1
   const [availableVoices, setAvailableVoices] = useState<{voice_id: string, name: string}[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
+  const [guidance, setGuidance] = useState('');
 
   const { toast } = useToast();
 
@@ -410,17 +412,24 @@ export default function Unified() {
       const reportResult = await reportResponse.json();
 
       // Step 2: Generate AI scripts using the same spreadsheet
+      const scriptRequestBody: any = {
+        spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
+        tabName: 'Cleansed with BEAP',
+        generateAudio: withAudio,
+        scriptCount: scriptCount,
+        backgroundVideoPath: selectedBackgroundVideo,
+        voiceId: selectedVoice
+      };
+
+      // Add guidance prompt only if provided
+      if (guidance.trim().length > 0) {
+        scriptRequestBody.guidancePrompt = guidance.trim();
+      }
+
       const scriptResponse = await fetch('/api/ai/generate-scripts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
-          tabName: 'Cleansed with BEAP',
-          generateAudio: withAudio,
-          scriptCount: scriptCount,
-          backgroundVideoPath: selectedBackgroundVideo,
-          voiceId: selectedVoice
-        })
+        body: JSON.stringify(scriptRequestBody)
       });
 
       if (!scriptResponse.ok) {
@@ -434,9 +443,13 @@ export default function Unified() {
         scriptResult
       });
 
+      // Clear guidance after successful generation
+      const wasGuidanceUsed = guidance.trim().length > 0;
+      setGuidance('');
+
       toast({
         title: "Complete Success!",
-        description: `Generated report with ${reportResult.dataExported} records and ${scriptResult.suggestions.length} AI script suggestions`,
+        description: `Generated report with ${reportResult.dataExported} records and ${scriptResult.suggestions.length} AI script suggestions${wasGuidanceUsed ? ' with creative guidance applied' : ''}`,
       });
 
     } catch (error) {
@@ -611,6 +624,26 @@ export default function Unified() {
                   <SelectItem value="50">50</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* AI Guidance - Optional creative direction */}
+          <div className="space-y-2">
+            <Label htmlFor="ai-guidance" className="text-sm font-medium">
+              AI Creative Guidance (Optional)
+            </Label>
+            <Textarea
+              id="ai-guidance"
+              data-testid="input-ai-guidance"
+              value={guidance}
+              onChange={(e) => setGuidance(e.target.value)}
+              placeholder="e.g., outdoor pursuits, meetup spots, family activities..."
+              className="min-h-16 resize-none"
+              maxLength={500}
+            />
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              <span>Provide thematic direction to guide script generation. This will be cleared after each batch.</span>
+              <span>{guidance.length}/500</span>
             </div>
           </div>
 
