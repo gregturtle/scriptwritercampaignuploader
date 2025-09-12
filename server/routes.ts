@@ -203,6 +203,9 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             timestamp
           };
 
+          // AUTOMATIC SLACK POSTS DISABLED FOR TESTING
+          // Uncomment the block below to re-enable automatic Slack posts
+          /*
           // Send batch approval messages after 20-minute delay for Google Drive processing
           setTimeout(async () => {
             try {
@@ -213,6 +216,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             }
           }, 20 * 60 * 1000); // 20 minutes delay
           console.log(`Slack approval workflow scheduled for 20 minutes delay`);
+          */
+          console.log(`[AUTOMATIC SLACK DISABLED] - Use manual trigger endpoint for testing`);
 
         } catch (slackError) {
           console.error('Failed to send Slack notifications:', slackError);
@@ -222,14 +227,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      const slackMessage = hasVideos ? ' - Slack approval workflow scheduled for 20 minutes' : '';
+      // Automatic Slack disabled for testing - use manual trigger instead
+      const slackMessage = hasVideos ? ' - Use manual Slack trigger for batch approval' : '';
       
       res.json({
         suggestions: result.suggestions,
         message: baseMessage + slackMessage,
         savedToSheet: true,
         voiceGenerated: result.voiceGenerated,
-        slackScheduled: hasVideos
+        slackScheduled: false  // Changed to false since automatic is disabled
       });
     } catch (error) {
       console.error('Error generating AI script suggestions:', error);
