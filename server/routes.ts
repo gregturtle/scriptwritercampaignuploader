@@ -781,8 +781,17 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // Slack integration routes
+  // Slack integration routes - DISABLED FOR TESTING
   app.post("/api/slack/test", async (req, res) => {
+    // ALL SLACK MESSAGING DISABLED FOR TESTING
+    console.log('[SLACK DISABLED] Test message request ignored - all Slack messaging disabled');
+    res.status(200).json({
+      success: false,
+      message: 'Slack messaging is currently disabled for testing',
+      disabled: true
+    });
+    
+    /* Original implementation - commented out for testing
     try {
       const { message } = req.body;
       
@@ -804,6 +813,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
+    */
   });
 
   // Google Drive test endpoint
@@ -1388,8 +1398,17 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // Manual Slack batch trigger endpoint
+  // Manual Slack batch trigger endpoint - DISABLED FOR TESTING
   app.post('/api/slack/manual-batch', async (req, res) => {
+    // ALL SLACK MESSAGING DISABLED FOR TESTING
+    console.log('[SLACK DISABLED] Manual batch request ignored - all Slack messaging disabled');
+    res.status(200).json({
+      success: false,
+      message: 'Slack messaging is currently disabled for testing',
+      disabled: true
+    });
+    
+    /* Original implementation - commented out for testing
     try {
       const batchData = req.body;
       
@@ -1412,6 +1431,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         details: error.message 
       });
     }
+    */
   });
 
   // Serve static files for uploads (backgrounds folder)
