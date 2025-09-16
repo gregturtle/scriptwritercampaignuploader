@@ -302,21 +302,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             timestamp
           };
 
-          // AUTOMATIC SLACK POSTS DISABLED FOR TESTING
-          // Uncomment the block below to re-enable automatic Slack posts
-          /*
-          // Send batch approval messages after 20-minute delay for Google Drive processing
-          setTimeout(async () => {
-            try {
-              await slackService.sendVideoBatchForApproval(batchData);
-              console.log(`Sent video batch to Slack for approval: ${batchName}`);
-            } catch (delayedSlackError) {
-              console.error('Failed to send delayed Slack approval workflow:', delayedSlackError);
-            }
-          }, 20 * 60 * 1000); // 20 minutes delay
-          console.log(`Slack approval workflow scheduled for 20 minutes delay`);
-          */
-          console.log(`[AUTOMATIC SLACK DISABLED] - Use manual trigger endpoint for testing`);
+          // Send batch approval messages instantly to Slack
+          try {
+            await slackService.sendVideoBatchForApproval(batchData);
+            console.log(`Sent video batch to Slack for approval: ${batchName}`);
+          } catch (slackError) {
+            console.error('Failed to send Slack approval workflow:', slackError);
+          }
 
         } catch (slackError) {
           console.error('Failed to send Slack notifications:', slackError);
@@ -326,15 +318,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      // Automatic Slack disabled for testing - use manual trigger instead
-      const slackMessage = hasVideos ? ' - Use manual Slack trigger for batch approval' : '';
+      // Slack integration enabled with instant sending
+      const slackMessage = hasVideos ? ' - Videos sent to Slack for approval' : '';
       
       res.json({
         suggestions: result.suggestions,
         message: baseMessage + slackMessage,
         savedToSheet: true,
         voiceGenerated: result.voiceGenerated,
-        slackScheduled: false  // Changed to false since automatic is disabled
+        slackScheduled: hasVideos  // True if videos were sent to Slack
       });
     } catch (error) {
       console.error('Error generating AI script suggestions:', error);
