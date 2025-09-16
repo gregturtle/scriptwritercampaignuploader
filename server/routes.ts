@@ -1450,6 +1450,82 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Validate batch integrity
+  app.get('/api/batches/:batchId/validate', async (req, res) => {
+    try {
+      const { batchId } = req.params;
+      
+      const batch = await appStorage.getScriptBatchByBatchId(batchId);
+      if (!batch) {
+        return res.status(404).json({ error: 'Batch not found' });
+      }
+      
+      const scripts = await appStorage.getBatchScriptsByBatchId(batchId);
+      
+      // Validation checks
+      const issues: string[] = [];
+      const validationResults = {
+        batchId,
+        scriptCount: batch.scriptCount,
+        actualScriptCount: scripts.length,
+        scriptsWithAudio: scripts.filter(s => s.audioFile).length,
+        scriptsWithVideo: scripts.filter(s => s.videoUrl || s.videoFile).length,
+        allScriptsHaveContent: true,
+        allScriptsHaveFiles: true,
+        scriptOrder: true
+      };
+      
+      // Check script count matches
+      if (batch.scriptCount !== scripts.length) {
+        issues.push(`Script count mismatch: expected ${batch.scriptCount}, found ${scripts.length}`);
+      }
+      
+      // Check all scripts have content
+      scripts.forEach((script, index) => {
+        if (!script.content || script.content.trim() === '') {
+          validationResults.allScriptsHaveContent = false;
+          issues.push(`Script ${index} has no content`);
+        }
+        
+        // Check script order is correct
+        if (script.scriptIndex !== index) {
+          validationResults.scriptOrder = false;
+          issues.push(`Script order mismatch at index ${index}: expected ${index}, got ${script.scriptIndex}`);
+        }
+        
+        // If video exists, audio should also exist
+        if (script.videoUrl && !script.audioFile) {
+          issues.push(`Script ${index} has video but no audio file`);
+        }
+      });
+      
+      // Check if all scripts have files when batch has videos
+      if (batch.folderLink) {
+        scripts.forEach((script, index) => {
+          if (!script.videoUrl && !script.videoFile) {
+            validationResults.allScriptsHaveFiles = false;
+            issues.push(`Script ${index} is missing video file`);
+          }
+        });
+      }
+      
+      const isValid = issues.length === 0;
+      
+      res.json({
+        valid: isValid,
+        validationResults,
+        issues,
+        message: isValid ? 'Batch integrity validated successfully' : 'Batch has integrity issues'
+      });
+    } catch (error) {
+      console.error('Error validating batch:', error);
+      res.status(500).json({
+        error: 'Failed to validate batch',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
   // Get batch details by ID
   app.get('/api/batches/:batchId', async (req, res) => {
     try {
