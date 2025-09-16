@@ -695,6 +695,10 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
                 return { id: result.adId, source: 'google-drive' };
               } else {
                 // Handle regular database files
+                if (!dbFile) {
+                  throw new Error('Database file not found for non-Google Drive file');
+                }
+                
                 // Update file with Meta asset ID
                 await appStorage.updateFile(dbFile.id, {
                   metaAssetId: result.videoId,
