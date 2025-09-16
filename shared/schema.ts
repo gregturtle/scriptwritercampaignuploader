@@ -107,10 +107,12 @@ export const batchScripts = pgTable("batch_scripts", {
   scriptIndex: integer("script_index").notNull(), // Order in batch (0-based)
   title: text("title").notNull(),
   content: text("content").notNull(), // The actual script text
+  contentHash: text("content_hash"), // SHA-256 hash of content for integrity checking
   reasoning: text("reasoning"),
   targetMetrics: text("target_metrics"),
   fileName: text("file_name"),
   audioFile: text("audio_file"), // Path to audio file if generated
+  audioChecksum: text("audio_checksum"), // Checksum of audio file for integrity
   videoFile: text("video_file"), // Path to video file if generated
   videoUrl: text("video_url"), // Google Drive URL
   videoFileId: text("video_file_id"), // Google Drive file ID

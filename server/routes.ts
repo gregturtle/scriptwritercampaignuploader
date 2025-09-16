@@ -4,6 +4,7 @@ import { storage as appStorage } from "./storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { z } from "zod";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -83,6 +84,44 @@ const upload = multer({
   },
 });
 
+// Helper function to validate batch integrity
+async function validateBatchIntegrity(batchId: string) {
+  const batch = await appStorage.getScriptBatchByBatchId(batchId);
+  if (!batch) {
+    return { valid: false, issues: ['Batch not found'] };
+  }
+  
+  const scripts = await appStorage.getBatchScriptsByBatchId(batchId);
+  const issues: string[] = [];
+  
+  // Check script count matches
+  if (batch.scriptCount !== scripts.length) {
+    issues.push(`Script count mismatch: expected ${batch.scriptCount}, found ${scripts.length}`);
+  }
+  
+  // Check all scripts have content
+  scripts.forEach((script, index) => {
+    if (!script.content || script.content.trim() === '') {
+      issues.push(`Script ${index} has no content`);
+    }
+    
+    // Check script order is correct
+    if (script.scriptIndex !== index) {
+      issues.push(`Script order mismatch at index ${index}`);
+    }
+    
+    // If video exists, audio should also exist
+    if (script.videoUrl && !script.audioFile) {
+      issues.push(`Script ${index} has video but no audio file`);
+    }
+  });
+  
+  return {
+    valid: issues.length === 0,
+    issues
+  };
+}
+
 export async function registerRoutes(app: express.Express): Promise<Server> {
   
   // AI Script Generation endpoints - MUST be first to avoid static file conflicts
@@ -144,18 +183,26 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         }
       );
       
-      // Store all scripts in batch_scripts table
+      // Store all scripts in batch_scripts table with content hashes
       const batchScripts = await appStorage.createBatchScripts(
-        result.suggestions.map((suggestion, index) => ({
-          batchId,
-          scriptIndex: index,
-          title: suggestion.title,
-          content: suggestion.content,
-          reasoning: suggestion.reasoning,
-          targetMetrics: suggestion.targetMetrics?.join(', '),
-          fileName: suggestion.fileName || `script${index + 1}`,
-          audioFile: suggestion.audioFile || null
-        }))
+        result.suggestions.map((suggestion, index) => {
+          // AUTOMATIC FAILSAFE: Compute content hash for integrity tracking
+          const contentHash = crypto.createHash('sha256')
+            .update(suggestion.content)
+            .digest('hex');
+          
+          return {
+            batchId,
+            scriptIndex: index,
+            title: suggestion.title,
+            content: suggestion.content,
+            contentHash, // Store hash for later verification
+            reasoning: suggestion.reasoning,
+            targetMetrics: suggestion.targetMetrics?.join(', '),
+            fileName: suggestion.fileName || `script${index + 1}`,
+            audioFile: suggestion.audioFile || null
+          };
+        })
       );
       
       console.log(`Stored ${batchScripts.length} scripts for batch ${batchId}`);
@@ -1659,6 +1706,69 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         timestamp
       };
       
+      // AUTOMATIC FAILSAFE: Validate batch integrity before sending to Slack
+      const validationResult = await validateBatchIntegrity(batchId);
+      if (!validationResult.valid) {
+        console.error(`[FAILSAFE] Batch ${batchId} failed integrity check:`, validationResult.issues);
+        return res.status(400).json({
+          error: 'Batch failed integrity validation',
+          issues: validationResult.issues,
+          message: 'This batch has integrity issues and cannot be sent to Slack'
+        });
+      }
+      
+      // AUTOMATIC FAILSAFE: Verify content hashes match stored values
+      for (const script of scripts) {
+        if (script.contentHash) {
+          const currentHash = crypto.createHash('sha256')
+            .update(script.content)
+            .digest('hex');
+          
+          if (currentHash !== script.contentHash) {
+            console.error(`[FAILSAFE] Content hash mismatch for script "${script.title}"`);
+            console.error(`Expected: ${script.contentHash}`);
+            console.error(`Got: ${currentHash}`);
+            
+            await appStorage.createActivityLog({
+              type: 'security_alert',
+              message: `Content integrity violation detected in batch ${batchId}, script: ${script.title}`
+            });
+            
+            return res.status(403).json({
+              error: 'Content integrity violation detected',
+              script: script.title,
+              message: 'Script content has been modified since generation. This batch cannot be sent to Slack for security reasons.'
+            });
+          }
+        }
+      }
+      
+      // AUTOMATIC FAILSAFE: Check for duplicate script titles within batch
+      const titles = new Set<string>();
+      for (const script of scripts) {
+        if (titles.has(script.title)) {
+          console.error(`[FAILSAFE] Duplicate script title detected: "${script.title}"`);
+          return res.status(400).json({
+            error: 'Duplicate script titles detected',
+            duplicateTitle: script.title,
+            message: 'Batch contains duplicate script titles which could cause confusion'
+          });
+        }
+        titles.add(script.title);
+      }
+      
+      // AUTOMATIC FAILSAFE: Ensure all scripts have videos before sending
+      const scriptsWithoutVideos = scripts.filter(s => !s.videoUrl && !s.videoFile);
+      if (scriptsWithoutVideos.length > 0) {
+        console.error(`[FAILSAFE] ${scriptsWithoutVideos.length} scripts have no videos`);
+        return res.status(400).json({
+          error: 'Scripts missing video files',
+          count: scriptsWithoutVideos.length,
+          scripts: scriptsWithoutVideos.map(s => s.title),
+          message: 'All scripts must have videos before sending to Slack'
+        });
+      }
+      
       // Send to Slack
       await slackService.sendVideoBatchForApproval(batchData);
       
@@ -1680,15 +1790,22 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     */
   });
   
-  // Legacy manual Slack batch trigger endpoint (deprecated) - DISABLED FOR TESTING
+  // Legacy manual Slack batch trigger endpoint - PERMANENTLY BLOCKED
   app.post('/api/slack/manual-batch', async (req, res) => {
-    // ALL SLACK MESSAGING DISABLED FOR TESTING
-    console.log('[SLACK DISABLED - DEPRECATED] This endpoint is deprecated. Use /api/slack/send-batch/:batchId instead');
-    res.status(200).json({
-      success: false,
-      message: 'This endpoint is deprecated and disabled. Use /api/slack/send-batch/:batchId to send specific batches to Slack',
-      disabled: true,
-      deprecated: true
+    // AUTOMATIC FAILSAFE: This endpoint is permanently blocked to prevent content mixing
+    console.error('[FAILSAFE TRIGGERED] Attempt to use deprecated manual batch endpoint blocked');
+    
+    // Log the attempt for security auditing
+    await appStorage.createActivityLog({
+      type: 'security_warning',
+      message: `Blocked attempt to use deprecated manual batch endpoint from IP: ${req.ip}`
+    });
+    
+    res.status(403).json({
+      error: 'This endpoint is permanently disabled for security',
+      message: 'Manual JSON batch construction is not allowed. Use /api/slack/send-batch/:batchId with a valid batch ID from the database.',
+      reason: 'This endpoint allowed mixing scripts from different batches which could cause approved content mismatch',
+      alternative: '/api/slack/send-batch/:batchId'
     });
   });
 
