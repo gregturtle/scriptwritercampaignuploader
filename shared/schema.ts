@@ -79,6 +79,49 @@ export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
   id: true,
 });
 
+// Script Generation Batches - tracks each generation batch with unique ID
+export const scriptBatches = pgTable("script_batches", {
+  id: serial("id").primaryKey(),
+  batchId: text("batch_id").notNull().unique(), // Unique batch identifier
+  spreadsheetId: text("spreadsheet_id"),
+  tabName: text("tab_name"),
+  voiceId: text("voice_id"),
+  guidancePrompt: text("guidance_prompt"),
+  backgroundVideoPath: text("background_video_path"),
+  scriptCount: integer("script_count").notNull(),
+  folderLink: text("folder_link"), // Google Drive folder for batch
+  slackMessageTs: text("slack_message_ts"), // Slack message timestamp for tracking
+  status: text("status").notNull().default("generated"), // generated, slack_sent, approved, rejected
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertScriptBatchSchema = createInsertSchema(scriptBatches).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Batch Scripts - stores the actual script content for each batch
+export const batchScripts = pgTable("batch_scripts", {
+  id: serial("id").primaryKey(),
+  batchId: text("batch_id").notNull(), // Links to scriptBatches.batchId
+  scriptIndex: integer("script_index").notNull(), // Order in batch (0-based)
+  title: text("title").notNull(),
+  content: text("content").notNull(), // The actual script text
+  reasoning: text("reasoning"),
+  targetMetrics: text("target_metrics"),
+  fileName: text("file_name"),
+  audioFile: text("audio_file"), // Path to audio file if generated
+  videoFile: text("video_file"), // Path to video file if generated
+  videoUrl: text("video_url"), // Google Drive URL
+  videoFileId: text("video_file_id"), // Google Drive file ID
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBatchScriptSchema = createInsertSchema(batchScripts).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertAuthToken = z.infer<typeof insertAuthTokenSchema>;
 export type AuthToken = typeof authTokens.$inferSelect;
@@ -94,6 +137,12 @@ export type Creative = typeof creatives.$inferSelect;
 
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
+
+export type InsertScriptBatch = z.infer<typeof insertScriptBatchSchema>;
+export type ScriptBatch = typeof scriptBatches.$inferSelect;
+
+export type InsertBatchScript = z.infer<typeof insertBatchScriptSchema>;
+export type BatchScript = typeof batchScripts.$inferSelect;
 
 // Frontend types
 export type FileUpload = {

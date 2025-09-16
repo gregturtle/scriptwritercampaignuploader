@@ -4,7 +4,9 @@ import {
   Campaign, InsertCampaign,
   Creative, InsertCreative,
   ActivityLog, InsertActivityLog,
-  authTokens, files, campaigns, creatives, activityLogs
+  ScriptBatch, InsertScriptBatch,
+  BatchScript, InsertBatchScript,
+  authTokens, files, campaigns, creatives, activityLogs, scriptBatches, batchScripts
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -33,6 +35,18 @@ export interface IStorage {
   // Activity logs
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
   getActivityLogs(limit?: number): Promise<ActivityLog[]>;
+  
+  // Script Batches
+  createScriptBatch(batch: InsertScriptBatch): Promise<ScriptBatch>;
+  getScriptBatchByBatchId(batchId: string): Promise<ScriptBatch | undefined>;
+  getRecentScriptBatches(limit?: number): Promise<ScriptBatch[]>;
+  updateScriptBatchStatus(batchId: string, status: string): Promise<ScriptBatch>;
+  
+  // Batch Scripts
+  createBatchScript(script: InsertBatchScript): Promise<BatchScript>;
+  createBatchScripts(scripts: InsertBatchScript[]): Promise<BatchScript[]>;
+  getBatchScriptsByBatchId(batchId: string): Promise<BatchScript[]>;
+  updateBatchScript(id: number, updates: Partial<InsertBatchScript>): Promise<BatchScript>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -175,6 +189,96 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
     
     return logs;
+  }
+  
+  // Script Batches
+  async createScriptBatch(batch: InsertScriptBatch): Promise<ScriptBatch> {
+    const [newBatch] = await db
+      .insert(scriptBatches)
+      .values(batch)
+      .returning();
+    
+    return newBatch;
+  }
+
+  async getScriptBatchByBatchId(batchId: string): Promise<ScriptBatch | undefined> {
+    const [batch] = await db
+      .select()
+      .from(scriptBatches)
+      .where(eq(scriptBatches.batchId, batchId));
+    
+    return batch;
+  }
+
+  async getRecentScriptBatches(limit: number = 10): Promise<ScriptBatch[]> {
+    const batches = await db
+      .select()
+      .from(scriptBatches)
+      .orderBy(desc(scriptBatches.createdAt))
+      .limit(limit);
+    
+    return batches;
+  }
+
+  async updateScriptBatchStatus(batchId: string, status: string): Promise<ScriptBatch> {
+    const [updatedBatch] = await db
+      .update(scriptBatches)
+      .set({ status })
+      .where(eq(scriptBatches.batchId, batchId))
+      .returning();
+    
+    if (!updatedBatch) {
+      throw new Error(`Script batch with ID ${batchId} not found`);
+    }
+    
+    return updatedBatch;
+  }
+  
+  // Batch Scripts
+  async createBatchScript(script: InsertBatchScript): Promise<BatchScript> {
+    const [newScript] = await db
+      .insert(batchScripts)
+      .values(script)
+      .returning();
+    
+    return newScript;
+  }
+
+  async createBatchScripts(scripts: InsertBatchScript[]): Promise<BatchScript[]> {
+    if (scripts.length === 0) {
+      return [];
+    }
+    
+    const newScripts = await db
+      .insert(batchScripts)
+      .values(scripts)
+      .returning();
+    
+    return newScripts;
+  }
+
+  async getBatchScriptsByBatchId(batchId: string): Promise<BatchScript[]> {
+    const scripts = await db
+      .select()
+      .from(batchScripts)
+      .where(eq(batchScripts.batchId, batchId))
+      .orderBy(batchScripts.scriptIndex);
+    
+    return scripts;
+  }
+
+  async updateBatchScript(id: number, updates: Partial<InsertBatchScript>): Promise<BatchScript> {
+    const [updatedScript] = await db
+      .update(batchScripts)
+      .set(updates)
+      .where(eq(batchScripts.id, id))
+      .returning();
+    
+    if (!updatedScript) {
+      throw new Error(`Batch script with ID ${id} not found`);
+    }
+    
+    return updatedScript;
   }
 }
 
