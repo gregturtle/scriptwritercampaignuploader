@@ -85,7 +85,7 @@ class ElevenLabsService {
       similarityBoost = 0.75,
       style = 0.0,
       useSpeakerBoost = true,
-      modelId = 'eleven_multilingual_v2'
+      modelId = 'eleven_monolingual_v1'
     } = options;
 
     const requestData: GenerateVoiceRequest = {
@@ -178,9 +178,9 @@ class ElevenLabsService {
           suggestion.content,
           selectedVoiceId,
           {
-            stability: 0.6, // Slightly more stable for scripted content
-            similarityBoost: 0.8, // Higher similarity for consistency
-            style: 0.1, // Slight style for engagement
+            stability: 0.75, // High stability for consistent accent
+            similarityBoost: 0.85, // Very high similarity to prevent accent drift
+            style: 0.0, // Zero style to avoid any accent variation
           }
         );
 
