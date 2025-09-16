@@ -117,6 +117,22 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       console.log(`Generating ${scriptCount} AI script suggestions from sheet: ${spreadsheetId}, tab: ${tabName || 'Cleansed with BEAP'}, with audio: ${generateAudio}`);
       
+      // Generate unique batch ID
+      const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      console.log(`Creating batch ${batchId} for ${scriptCount} scripts`);
+      
+      // Create batch record in database
+      const batch = await appStorage.createScriptBatch({
+        batchId,
+        spreadsheetId,
+        tabName: tabName || 'Cleansed with BEAP',
+        voiceId,
+        guidancePrompt,
+        backgroundVideoPath,
+        scriptCount,
+        status: 'generating'
+      });
+      
       const result = await aiScriptService.generateScriptSuggestions(
         spreadsheetId, 
         {
@@ -127,6 +143,22 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           guidancePrompt: guidancePrompt
         }
       );
+      
+      // Store all scripts in batch_scripts table
+      const batchScripts = await appStorage.createBatchScripts(
+        result.suggestions.map((suggestion, index) => ({
+          batchId,
+          scriptIndex: index,
+          title: suggestion.title,
+          content: suggestion.content,
+          reasoning: suggestion.reasoning,
+          targetMetrics: suggestion.targetMetrics?.join(', '),
+          fileName: suggestion.fileName || `script${index + 1}`,
+          audioFile: suggestion.audioFile || null
+        }))
+      );
+      
+      console.log(`Stored ${batchScripts.length} scripts for batch ${batchId}`);
 
       // Auto-generate videos if audio was generated and background videos are available
       if (generateAudio && result.suggestions.some(s => s.audioFile)) {
@@ -144,6 +176,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
               selectedBackgroundVideo
             );
             
+            // Update batch scripts with video information
+            for (let i = 0; i < videosResult.length; i++) {
+              const videoResult = videosResult[i];
+              if (videoResult && (videoResult.videoUrl || videoResult.videoFile)) {
+                await appStorage.updateBatchScript(batchScripts[i].id, {
+                  videoFile: videoResult.videoFile || null,
+                  videoUrl: videoResult.videoUrl || null,
+                  videoFileId: videoResult.videoFileId || null
+                });
+              }
+            }
+            
             // Merge video information with existing suggestions
             result.suggestions = result.suggestions.map((originalSuggestion, index) => {
               const videoResult = videosResult[index];
@@ -156,7 +200,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
                 folderLink: videoResult?.folderLink
               };
             });
-            console.log(`Created ${videosResult.filter(v => v.videoUrl).length} videos successfully`);
+            
+            // Update batch record with folder link
+            const folderLink = videosResult.find(v => v.folderLink)?.folderLink;
+            if (folderLink) {
+              await appStorage.updateScriptBatchStatus(batchId, 'videos_generated');
+              await appStorage.updateScriptBatch(batchId, { folderLink });
+            }
+            
+            console.log(`Created ${videosResult.filter(v => v.videoUrl).length} videos successfully for batch ${batchId}`);
           } catch (videoError) {
             console.error('Video creation failed:', videoError);
             // Continue without videos - don't fail the entire request

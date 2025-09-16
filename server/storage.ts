@@ -41,6 +41,7 @@ export interface IStorage {
   getScriptBatchByBatchId(batchId: string): Promise<ScriptBatch | undefined>;
   getRecentScriptBatches(limit?: number): Promise<ScriptBatch[]>;
   updateScriptBatchStatus(batchId: string, status: string): Promise<ScriptBatch>;
+  updateScriptBatch(batchId: string, updates: Partial<InsertScriptBatch>): Promise<ScriptBatch>;
   
   // Batch Scripts
   createBatchScript(script: InsertBatchScript): Promise<BatchScript>;
@@ -224,6 +225,20 @@ export class DatabaseStorage implements IStorage {
     const [updatedBatch] = await db
       .update(scriptBatches)
       .set({ status })
+      .where(eq(scriptBatches.batchId, batchId))
+      .returning();
+    
+    if (!updatedBatch) {
+      throw new Error(`Script batch with ID ${batchId} not found`);
+    }
+    
+    return updatedBatch;
+  }
+
+  async updateScriptBatch(batchId: string, updates: Partial<InsertScriptBatch>): Promise<ScriptBatch> {
+    const [updatedBatch] = await db
+      .update(scriptBatches)
+      .set(updates)
       .where(eq(scriptBatches.batchId, batchId))
       .returning();
     
