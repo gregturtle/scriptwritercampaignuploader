@@ -1450,30 +1450,148 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // Manual Slack batch trigger endpoint - DISABLED FOR TESTING
-  app.post('/api/slack/manual-batch', async (req, res) => {
+  // Get batch details by ID
+  app.get('/api/batches/:batchId', async (req, res) => {
+    try {
+      const { batchId } = req.params;
+      
+      const batch = await appStorage.getScriptBatchByBatchId(batchId);
+      if (!batch) {
+        return res.status(404).json({ error: 'Batch not found' });
+      }
+      
+      const scripts = await appStorage.getBatchScriptsByBatchId(batchId);
+      
+      res.json({
+        batch: {
+          ...batch,
+          scripts: scripts.map(s => ({
+            id: s.id,
+            scriptIndex: s.scriptIndex,
+            title: s.title,
+            content: s.content,
+            reasoning: s.reasoning,
+            targetMetrics: s.targetMetrics,
+            fileName: s.fileName,
+            audioFile: s.audioFile,
+            videoFile: s.videoFile,
+            videoUrl: s.videoUrl,
+            videoFileId: s.videoFileId,
+            createdAt: s.createdAt
+          }))
+        },
+        message: 'Batch details retrieved successfully'
+      });
+    } catch (error) {
+      console.error('Error retrieving batch details:', error);
+      res.status(500).json({
+        error: 'Failed to retrieve batch details',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // Get recent batches for manual Slack trigger
+  app.get('/api/batches/recent', async (req, res) => {
+    try {
+      const batches = await appStorage.getRecentScriptBatches(10);
+      
+      // For each batch, get the script count and video count
+      const batchesWithDetails = await Promise.all(
+        batches.map(async (batch) => {
+          const scripts = await appStorage.getBatchScriptsByBatchId(batch.batchId);
+          const videoCount = scripts.filter(s => s.videoUrl || s.videoFile).length;
+          
+          return {
+            batchId: batch.batchId,
+            spreadsheetId: batch.spreadsheetId,
+            scriptCount: batch.scriptCount,
+            videoCount,
+            status: batch.status,
+            folderLink: batch.folderLink,
+            createdAt: batch.createdAt,
+            guidancePrompt: batch.guidancePrompt
+          };
+        })
+      );
+      
+      res.json({
+        batches: batchesWithDetails,
+        message: 'Recent batches retrieved successfully'
+      });
+    } catch (error) {
+      console.error('Error retrieving recent batches:', error);
+      res.status(500).json({
+        error: 'Failed to retrieve recent batches',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Send batch to Slack using stored batch data - DISABLED FOR TESTING
+  app.post('/api/slack/send-batch/:batchId', async (req, res) => {
     // ALL SLACK MESSAGING DISABLED FOR TESTING
-    console.log('[SLACK DISABLED] Manual batch request ignored - all Slack messaging disabled');
+    console.log('[SLACK DISABLED] Batch Slack send request ignored - all Slack messaging disabled');
+    const { batchId } = req.params;
+    
     res.status(200).json({
       success: false,
       message: 'Slack messaging is currently disabled for testing',
+      batchId,
       disabled: true
     });
     
     /* Original implementation - commented out for testing
     try {
-      const batchData = req.body;
+      const { batchId } = req.params;
       
-      if (!batchData || !batchData.scripts || !Array.isArray(batchData.scripts)) {
-        return res.status(400).json({ error: 'Invalid batch data provided' });
+      // Retrieve batch from database
+      const batch = await appStorage.getScriptBatchByBatchId(batchId);
+      if (!batch) {
+        return res.status(404).json({ error: 'Batch not found' });
       }
-
-      // Send to Slack immediately
+      
+      // Retrieve all scripts for the batch
+      const scripts = await appStorage.getBatchScriptsByBatchId(batchId);
+      if (scripts.length === 0) {
+        return res.status(400).json({ error: 'No scripts found for this batch' });
+      }
+      
+      // Prepare data for Slack
+      const timestamp = new Date(batch.createdAt).toLocaleString('en-CA', { 
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).replace(',', '');
+      
+      const batchData = {
+        batchName: `Batch_${timestamp}`,
+        videoCount: scripts.filter(s => s.videoUrl).length,
+        scripts: scripts.map(s => ({
+          title: s.title,
+          content: s.content,
+          fileName: s.fileName || `script${s.scriptIndex + 1}`,
+          videoUrl: s.videoUrl,
+          videoFileId: s.videoFileId
+        })),
+        driveFolder: batch.folderLink || 'Google Drive folder',
+        timestamp
+      };
+      
+      // Send to Slack
       await slackService.sendVideoBatchForApproval(batchData);
+      
+      // Update batch status
+      await appStorage.updateScriptBatchStatus(batchId, 'slack_sent');
       
       res.json({
         success: true,
-        message: `Batch sent to Slack for approval: ${batchData.batchName}`,
+        message: `Batch ${batchId} sent to Slack for approval`,
         videoCount: batchData.videoCount
       });
     } catch (error: any) {
@@ -1484,6 +1602,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       });
     }
     */
+  });
+  
+  // Legacy manual Slack batch trigger endpoint (deprecated) - DISABLED FOR TESTING
+  app.post('/api/slack/manual-batch', async (req, res) => {
+    // ALL SLACK MESSAGING DISABLED FOR TESTING
+    console.log('[SLACK DISABLED - DEPRECATED] This endpoint is deprecated. Use /api/slack/send-batch/:batchId instead');
+    res.status(200).json({
+      success: false,
+      message: 'This endpoint is deprecated and disabled. Use /api/slack/send-batch/:batchId to send specific batches to Slack',
+      disabled: true,
+      deprecated: true
+    });
   });
 
   // Serve static files for uploads (backgrounds folder)
