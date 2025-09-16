@@ -1653,18 +1653,6 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
   // Send batch to Slack using stored batch data - DISABLED FOR TESTING
   app.post('/api/slack/send-batch/:batchId', async (req, res) => {
-    // ALL SLACK MESSAGING DISABLED FOR TESTING
-    console.log('[SLACK DISABLED] Batch Slack send request ignored - all Slack messaging disabled');
-    const { batchId } = req.params;
-    
-    res.status(200).json({
-      success: false,
-      message: 'Slack messaging is currently disabled for testing',
-      batchId,
-      disabled: true
-    });
-    
-    /* Original implementation - commented out for testing
     try {
       const { batchId } = req.params;
       
@@ -1699,8 +1687,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           title: s.title,
           content: s.content,
           fileName: s.fileName || `script${s.scriptIndex + 1}`,
-          videoUrl: s.videoUrl,
-          videoFileId: s.videoFileId
+          videoUrl: s.videoUrl || undefined,
+          videoFileId: s.videoFileId || undefined
         })),
         driveFolder: batch.folderLink || 'Google Drive folder',
         timestamp
@@ -1787,7 +1775,6 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         details: error.message 
       });
     }
-    */
   });
   
   // Legacy manual Slack batch trigger endpoint - PERMANENTLY BLOCKED
