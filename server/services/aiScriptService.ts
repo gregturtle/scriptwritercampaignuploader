@@ -508,7 +508,9 @@ Respond in JSON format:
         "Generated Date",
         "File Title", 
         "Script Title",
-        "Script Content",
+        "Recording Language",
+        "Native Language Script",
+        "English Script",
         "AI Reasoning",
         "Target Metrics",
       ];
@@ -519,11 +521,16 @@ Respond in JSON format:
         const safeTitle = suggestion.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
         const fileTitle = `script${index + 1}_${safeTitle}_${Date.now()}`;
         
+        // Get language name from code
+        const languageName = suggestion.language ? this.getLanguageName(suggestion.language) : 'English';
+        
         return [
           generatedDate,
           fileTitle,
           suggestion.title,
-          suggestion.content,
+          languageName, // Recording Language
+          suggestion.nativeContent || suggestion.content, // Native Language Script (or English if not multilingual)
+          suggestion.content, // English Script (always the English version or translation)
           suggestion.reasoning,
           suggestion.targetMetrics.join(", "),
         ];
