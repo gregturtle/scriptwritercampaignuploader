@@ -27,6 +27,8 @@ interface UnifiedResult {
     suggestions: Array<{
       title: string;
       content: string;
+      nativeContent?: string;  // Native language version when multilingual
+      language?: string;       // Language code when multilingual
       reasoning: string;
       targetMetrics: string[];
       audioUrl?: string;
@@ -1048,7 +1050,16 @@ export default function Unified() {
                         
                         <div className="flex-1">
                           <h4 className="font-medium text-blue-900 mb-2">{suggestion.title}</h4>
-                          <p className="text-sm text-gray-700 mb-3 italic">"{suggestion.content}"</p>
+                          {/* Display native language script if available */}
+                          {suggestion.nativeContent ? (
+                            <div className="mb-3">
+                              <p className="text-sm text-gray-900 mb-1 font-medium italic">"{suggestion.nativeContent}"</p>
+                              <p className="text-xs text-gray-600 mb-1">English translation:</p>
+                              <p className="text-sm text-gray-700 italic">"{suggestion.content}"</p>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-700 mb-3 italic">"{suggestion.content}"</p>
+                          )}
                           <p className="text-xs text-blue-700">{suggestion.reasoning}</p>
                           
                           {/* Video Player (if available) */}

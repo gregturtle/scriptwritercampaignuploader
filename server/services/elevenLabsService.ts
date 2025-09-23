@@ -145,13 +145,18 @@ class ElevenLabsService {
     suggestions: Array<{
       title: string;
       content: string;
+      nativeContent?: string; // Native language version when multilingual
+      language?: string;      // Language code when multilingual
       reasoning: string;
       targetMetrics: string[];
     }>,
-    voiceId?: string
+    voiceId?: string,
+    language?: string
   ): Promise<Array<{
     title: string;
     content: string;
+    nativeContent?: string;
+    language?: string;
     reasoning: string;
     targetMetrics: string[];
     audioFile?: string;
@@ -166,21 +171,32 @@ class ElevenLabsService {
     // Use Ella AI voice ID as default (what3words Ellabot 2.0)
     const defaultVoiceId = 'huvDR9lwwSKC0zEjZUox'; // Ella AI voice ID
     const selectedVoiceId = voiceId || defaultVoiceId;
-    console.log('Using voice ID:', selectedVoiceId);
+    const isMultilingual = language && language !== 'en';
+    
+    console.log(`Using voice ID: ${selectedVoiceId}, Language: ${language || 'en'}, Multilingual: ${isMultilingual}`);
 
     const results = [];
 
     for (let i = 0; i < suggestions.length; i++) {
       const suggestion = suggestions[i];
       try {
+        // Use native content for multilingual scripts, otherwise use regular content
+        const textToSpeak = suggestion.nativeContent || suggestion.content;
+        
+        // Use multilingual model for non-English languages
+        const modelId = isMultilingual ? 'eleven_multilingual_v2' : 'eleven_monolingual_v1';
+        
+        console.log(`Generating voice for suggestion ${i + 1} in ${language || 'en'} using model ${modelId}`);
+        
         // Generate audio for the script content
         const audioBuffer = await this.generateSpeech(
-          suggestion.content,
+          textToSpeak,
           selectedVoiceId,
           {
             stability: 0.75, // High stability for consistent accent
             similarityBoost: 0.85, // Very high similarity to prevent accent drift
             style: 0.0, // Zero style to avoid any accent variation
+            modelId: modelId // Use appropriate model based on language
           }
         );
 

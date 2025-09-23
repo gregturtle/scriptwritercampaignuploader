@@ -450,9 +450,11 @@ Respond in JSON format:
       if (includeVoice && elevenLabsService.isConfigured()) {
         console.log('Starting voice generation for', suggestions.length, 'suggestions');
         try {
+          // Pass language information for multilingual voice generation
           suggestions = await elevenLabsService.generateScriptVoiceovers(
             suggestions,
-            voiceId
+            voiceId,
+            language // Pass the language code for proper voice selection
           );
           voiceGenerated = true;
           console.log('Voice generation completed. Suggestions now have audioUrl:', suggestions.some(s => s.audioUrl));
