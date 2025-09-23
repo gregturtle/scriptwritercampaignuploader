@@ -302,13 +302,16 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             timestamp
           };
 
-          // Send batch approval messages instantly to Slack
+          // SLACK TEMPORARILY DISABLED FOR TESTING
+          /*
           try {
             await slackService.sendVideoBatchForApproval(batchData);
             console.log(`Sent video batch to Slack for approval: ${batchName}`);
           } catch (slackError) {
             console.error('Failed to send Slack approval workflow:', slackError);
           }
+          */
+          console.log(`[SLACK DISABLED FOR TESTING] - Would have sent batch: ${batchName}`);
 
         } catch (slackError) {
           console.error('Failed to send Slack notifications:', slackError);
@@ -318,15 +321,15 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      // Slack integration enabled with instant sending
-      const slackMessage = hasVideos ? ' - Videos sent to Slack for approval' : '';
+      // Slack temporarily disabled for testing
+      const slackMessage = hasVideos ? ' - Slack notifications disabled for testing' : '';
       
       res.json({
         suggestions: result.suggestions,
         message: baseMessage + slackMessage,
         savedToSheet: true,
         voiceGenerated: result.voiceGenerated,
-        slackScheduled: hasVideos  // True if videos were sent to Slack
+        slackScheduled: false  // Temporarily disabled for testing
       });
     } catch (error) {
       console.error('Error generating AI script suggestions:', error);
