@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
 import { Link } from 'wouter';
 import { useCampaigns } from '@/hooks/useCampaigns';
+import { LanguageSelector } from '@/components/LanguageSelector';
 
 interface UnifiedResult {
   reportResult: {
@@ -65,6 +66,7 @@ export default function Unified() {
   const [availableVoices, setAvailableVoices] = useState<{voice_id: string, name: string}[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [guidance, setGuidance] = useState('');
+  const [selectedLanguage, setSelectedLanguage] = useState('en'); // Default to English
 
   const { toast } = useToast();
 
@@ -418,7 +420,8 @@ export default function Unified() {
         generateAudio: withAudio,
         scriptCount: scriptCount,
         backgroundVideoPath: selectedBackgroundVideo,
-        voiceId: selectedVoice
+        voiceId: selectedVoice,
+        language: selectedLanguage // Add selected language
       };
 
       // Add guidance prompt only if provided
@@ -625,6 +628,20 @@ export default function Unified() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Language Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="language-selector" className="text-sm font-medium">
+              Script Language
+            </Label>
+            <LanguageSelector
+              value={selectedLanguage}
+              onValueChange={setSelectedLanguage}
+            />
+            <p className="text-xs text-gray-500">
+              Scripts will be written natively in the selected language, then translated to English.
+            </p>
           </div>
 
           {/* AI Guidance - Optional creative direction */}

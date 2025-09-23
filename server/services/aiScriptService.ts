@@ -25,6 +25,9 @@ interface PerformanceData {
 interface ScriptSuggestion {
   title: string;
   content: string;
+  nativeContent?: string;  // Native language version when multilingual
+  englishContent?: string; // English translation when multilingual
+  language?: string;       // Language code when multilingual
   reasoning: string;
   targetMetrics: string[];
   audioFile?: string;
@@ -39,6 +42,51 @@ interface ScriptSuggestion {
 }
 
 class AIScriptService {
+  /**
+   * Map language codes to their full names
+   */
+  private getLanguageName(code: string): string {
+    const languageNames: { [key: string]: string } = {
+      'en': 'English',
+      'es': 'Spanish', 
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'ru': 'Russian',
+      'zh': 'Chinese',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'ar': 'Arabic',
+      'hi': 'Hindi',
+      'nl': 'Dutch',
+      'pl': 'Polish',
+      'tr': 'Turkish',
+      'sv': 'Swedish',
+      'no': 'Norwegian',
+      'da': 'Danish',
+      'fi': 'Finnish',
+      'he': 'Hebrew',
+      'el': 'Greek',
+      'cs': 'Czech',
+      'hu': 'Hungarian',
+      'ro': 'Romanian',
+      'th': 'Thai',
+      'vi': 'Vietnamese',
+      'id': 'Indonesian',
+      'ms': 'Malay',
+      'uk': 'Ukrainian',
+      'bn': 'Bengali',
+      'ta': 'Tamil',
+      'te': 'Telugu',
+      'mr': 'Marathi',
+      'gu': 'Gujarati',
+      'ur': 'Urdu',
+      'pa': 'Punjabi'
+    };
+    return languageNames[code] || code.toUpperCase();
+  }
+
   /**
    * Read performance data from Google Sheets tab - specifically designed for "Cleansed with BEAP" tab
    */
@@ -113,13 +161,14 @@ class AIScriptService {
       includeVoice?: boolean;
       scriptCount?: number;
       guidancePrompt?: string;
+      language?: string;
     } = {}
   ): Promise<{
     suggestions: ScriptSuggestion[];
     message: string;
     voiceGenerated?: boolean;
   }> {
-    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false, scriptCount = 5, guidancePrompt } = options;
+    const { tabName = "Cleansed with BEAP", voiceId, includeVoice = false, scriptCount = 5, guidancePrompt, language = 'en' } = options;
     try {
       // Read the performance data
       const performanceData = await this.readPerformanceData(
@@ -210,7 +259,9 @@ class AIScriptService {
       // Generate suggestions using OpenAI
       // Force 40-46 word scripts for maximum 14-15 seconds
       const targetWordCount = "40-46";
-      console.log(`Targeting ${targetWordCount} words for maximum 14-15 second scripts`);
+      const targetLanguage = this.getLanguageName(language);
+      const isMultilingual = language !== 'en';
+      console.log(`Targeting ${targetWordCount} words for maximum 14-15 second scripts in ${targetLanguage}`);
 
       const prompt = `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to analyze both successful AND failed performance patterns to write data-driven voiceover scripts.
@@ -307,6 +358,13 @@ Write ${scriptCount} new voiceover scripts with maximum creative diversity:
 - CRITICAL: Count every word carefully - scripts over 46 words will be rejected
 - AVOID rewriting the same concept multiple times - surprise us with variety
 
+${isMultilingual ? `LANGUAGE REQUIREMENT:
+- Write each script NATIVELY in ${targetLanguage} FIRST
+- The ${targetLanguage} script must be culturally appropriate and natural-sounding
+- Then provide an accurate English translation
+- Both versions must maintain the same creative intent and be 40-46 words
+- Adapt cultural references and idioms appropriately for the target language` : ''}
+
 CREATIVE INSPIRATION:
 - What if the script started with a contradiction or paradox?
 - What if it used reverse psychology or challenged assumptions?
@@ -327,17 +385,19 @@ REFINEMENT CHECKLIST - Check each script and CORRECT if needed:
 ✓ A what three words location is only described as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
 
 For each voiceover script, provide:
-1. TITLE: Brief concept description
-2. CONTENT: The complete voiceover script (spoken words only)
-3. REASONING: Explain specifically which successful patterns you incorporated AND which failure patterns you avoided
-4. TARGET METRICS: Which metrics this aims to improve based on successful examples
+1. TITLE: Brief concept description${isMultilingual ? ' (in English)' : ''}
+2. CONTENT: The complete voiceover script ${isMultilingual ? `in ${targetLanguage}` : '(spoken words only)'}
+${isMultilingual ? '3. ENGLISH_CONTENT: The English translation of the script' : ''}
+${isMultilingual ? '4' : '3'}. REASONING: Explain specifically which successful patterns you incorporated AND which failure patterns you avoided
+${isMultilingual ? '5' : '4'}. TARGET METRICS: Which metrics this aims to improve based on successful examples
 
 Respond in JSON format:
 {
   "suggestions": [
     {
       "title": "Voiceover concept name",
-      "content": "Complete voiceover script - spoken words only (use 'what three words' not 'what3words')",
+      "content": "${isMultilingual ? `Complete voiceover script in ${targetLanguage}` : 'Complete voiceover script - spoken words only (use \'what three words\' not \'what3words\')'}",
+      ${isMultilingual ? '"englishContent": "English translation of the script (use \'what three words\' not \'what3words\')",' : ''}
       "reasoning": "Detailed analysis of success patterns incorporated and failure patterns avoided from the data", 
       "targetMetrics": ["app_installs", "save_location", "search_3wa"]
     }
@@ -368,9 +428,22 @@ Respond in JSON format:
         throw new Error("Invalid response format from OpenAI");
       }
 
-      console.log(`Generated ${result.suggestions.length} script suggestions`);
+      console.log(`Generated ${result.suggestions.length} script suggestions in ${targetLanguage}`);
       
-      let suggestions: ScriptSuggestion[] = result.suggestions;
+      // Process multilingual responses
+      let suggestions: ScriptSuggestion[] = result.suggestions.map((suggestion: any) => {
+        if (isMultilingual && suggestion.englishContent) {
+          // For multilingual scripts, store the native language as content
+          // and the English translation in a separate field (we'll use it for voice generation)
+          return {
+            ...suggestion,
+            nativeContent: suggestion.content,  // Store the native language version
+            content: suggestion.englishContent,  // Use English for voice generation
+            language: language  // Store the language code
+          };
+        }
+        return suggestion;
+      });
       let voiceGenerated = false;
 
       // Generate voice recordings if requested and ElevenLabs is configured
