@@ -429,6 +429,7 @@ Respond in JSON format:
         ],
         response_format: { type: "json_object" },
         temperature: 0.9,
+        reasoning_effort: "high",  // Use maximum reasoning for better multilingual scripts
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
