@@ -360,7 +360,11 @@ Write ${scriptCount} new voiceover scripts with maximum creative diversity:
 
 ${isMultilingual ? `LANGUAGE REQUIREMENT:
 - Write each script NATIVELY in ${targetLanguage} FIRST
-- The ${targetLanguage} script must be culturally appropriate and natural-sounding
+- Use CONVERSATIONAL ${targetLanguage} - the way people actually speak in everyday life
+- Avoid formal, academic, or literary language - write how real people talk to friends
+- Keep it professional but natural - like a friendly recommendation, not a textbook
+- The ${targetLanguage} script must sound culturally authentic and natural to native speakers
+- Use common everyday vocabulary and phrases, not rare or overly sophisticated words
 - Then provide an accurate English translation
 - Both versions must maintain the same creative intent and be 40-46 words
 - Adapt cultural references and idioms appropriately for the target language` : ''}
@@ -411,7 +415,7 @@ Respond in JSON format:
           {
             role: "system",
             content:
-              "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice.",
+              "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice. When writing in non-English languages, always use conversational, everyday language that real people use in daily life - avoid formal, academic, or literary styles. Write as if you're recommending the app to a friend, not reading from a textbook.",
           },
           {
             role: "user",
