@@ -360,11 +360,7 @@ Write ${scriptCount} new voiceover scripts with maximum creative diversity:
 
 ${isMultilingual ? `LANGUAGE REQUIREMENT:
 - Write each script NATIVELY in ${targetLanguage} FIRST
-- Use CONVERSATIONAL ${targetLanguage} - the way people actually speak in everyday life
-- Avoid formal, academic, or literary language - write how real people talk to each other
-- Keep it natural and authentic - not overly casual or friendly, just normal everyday speech
-- The ${targetLanguage} script must sound culturally authentic and natural to native speakers
-- Use common everyday vocabulary and phrases, not rare or overly sophisticated words
+- The ${targetLanguage} script must be culturally appropriate and natural-sounding
 - Then provide an accurate English translation
 - Both versions must maintain the same creative intent and be 40-46 words
 - Adapt cultural references and idioms appropriately for the target language` : ''}
@@ -410,12 +406,12 @@ Respond in JSON format:
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",  // Switching back to GPT-4o for better compatibility
+        model: "gpt-4.1-2025-04-14",
         messages: [
           {
             role: "system",
             content:
-              "You are a professional creative director who combines data-driven insights with measured creative innovation. Your scripts should be creative but grounded - avoid overly wild or experimental concepts. Focus on proven advertising patterns enhanced with subtle creative twists. Maintain a balance between innovation and practicality. Each script should feel fresh yet professional, surprising yet believable. Prioritize clarity and emotional connection over abstract concepts. Stay within the bounds of effective advertising - be bold but not bizarre, creative but not chaotic. When writing in non-English languages, always use conversational, everyday language that real people use in daily life - avoid formal, academic, or literary styles. Write how people naturally speak to each other, not from a textbook or overly casual register. Your creativity should enhance the message, not overshadow it.",
+              "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice.",
           },
           {
             role: "user",
@@ -423,8 +419,7 @@ Respond in JSON format:
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.9,  // Balanced creativity setting
-        max_tokens: 4000,  // GPT-4o uses max_tokens
+        temperature: 0.9,
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
