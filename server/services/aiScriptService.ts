@@ -424,7 +424,7 @@ Respond in JSON format:
         ],
         response_format: { type: "json_object" },
         temperature: 0.9,
-        max_tokens: 4000,  // Increased for better reasoning and creativity
+        max_completion_tokens: 4000,  // GPT-5 uses max_completion_tokens instead of max_tokens
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
