@@ -410,7 +410,7 @@ Respond in JSON format:
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4.1-2025-04-14",
+        model: "gpt-4o",  // Using OpenAI's most advanced GPT model with highest reasoning capabilities
         messages: [
           {
             role: "system",
@@ -424,6 +424,7 @@ Respond in JSON format:
         ],
         response_format: { type: "json_object" },
         temperature: 0.9,
+        max_tokens: 4000,  // Increased for better reasoning and creativity
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
