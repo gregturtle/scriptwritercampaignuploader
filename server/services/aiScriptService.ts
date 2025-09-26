@@ -423,7 +423,7 @@ Respond in JSON format:
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.9,
+        temperature: 1,  // GPT-5 only supports default temperature of 1
         max_completion_tokens: 4000,  // GPT-5 uses max_completion_tokens instead of max_tokens
       });
 
