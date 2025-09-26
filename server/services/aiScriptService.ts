@@ -410,7 +410,7 @@ Respond in JSON format:
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",  // Using GPT-5 - OpenAI's latest model with highest reasoning capabilities
+        model: "gpt-4o",  // Switching back to GPT-4o for better compatibility
         messages: [
           {
             role: "system",
@@ -423,8 +423,8 @@ Respond in JSON format:
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 1,  // GPT-5 only supports default temperature of 1
-        max_completion_tokens: 4000,  // GPT-5 uses max_completion_tokens instead of max_tokens
+        temperature: 0.9,  // Balanced creativity setting
+        max_tokens: 4000,  // GPT-4o uses max_tokens
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
