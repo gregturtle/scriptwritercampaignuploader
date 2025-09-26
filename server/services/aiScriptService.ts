@@ -358,21 +358,16 @@ Write ${scriptCount} new voiceover scripts with maximum creative diversity:
 - CRITICAL: Count every word carefully - scripts over 46 words will be rejected
 - AVOID rewriting the same concept multiple times - surprise us with variety
 
-${isMultilingual ? `LANGUAGE REQUIREMENT - CRITICAL:
-- DO NOT WRITE IN ENGLISH FIRST AND TRANSLATE - this creates unnatural language
-- Think and compose DIRECTLY in ${targetLanguage} from the beginning
-- Use native ${targetLanguage} sentence structures, NOT English grammar patterns
-- Include natural ${targetLanguage} expressions and idioms that native speakers actually use
-- Follow ${targetLanguage} word order and grammatical patterns, not English ones
-- Avoid words or phrases that are obvious translations from English
-- Use conversational ${targetLanguage} - how people actually speak in daily life
-- The script must sound like it was written by a native ${targetLanguage} speaker, NOT translated
-- Use common everyday vocabulary that real people use, not textbook language
-- AFTER writing the native ${targetLanguage} version, provide an English translation
-- Both versions must be 40-46 words
-- If you cannot write naturally in ${targetLanguage}, create a culturally adapted version that sounds authentic
-- For Hindi/Kannada: Use SOV (Subject-Object-Verb) word order, not English SVO pattern
-- For all languages: Respect native grammar rules, not English grammar translated` : ''}
+${isMultilingual ? `LANGUAGE REQUIREMENT:
+- Write each script NATIVELY in ${targetLanguage} FIRST
+- Use CONVERSATIONAL ${targetLanguage} - the way people actually speak in everyday life
+- Avoid formal, academic, or literary language - write how real people talk to each other
+- Keep it natural and authentic - not overly casual or friendly, just normal everyday speech
+- The ${targetLanguage} script must sound culturally authentic and natural to native speakers
+- Use common everyday vocabulary and phrases, not rare or overly sophisticated words
+- Then provide an accurate English translation
+- Both versions must maintain the same creative intent and be 40-46 words
+- Adapt cultural references and idioms appropriately for the target language` : ''}
 
 CREATIVE INSPIRATION:
 - What if the script started with a contradiction or paradox?
@@ -415,12 +410,12 @@ Respond in JSON format:
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4.1-2025-04-14",
         messages: [
           {
             role: "system",
             content:
-              "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice. CRITICAL for non-English scripts: Never think in English and translate - compose directly in the target language using native sentence structures, natural idioms, and authentic expressions. Scripts must sound like they were written by a native speaker, not translated. Use everyday conversational language that real people actually speak.",
+              "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice. When writing in non-English languages, always use conversational, everyday language that real people use in daily life - avoid formal, academic, or literary styles. Write how people naturally speak to each other, not from a textbook or overly casual register.",
           },
           {
             role: "user",
@@ -428,7 +423,7 @@ Respond in JSON format:
           },
         ],
         response_format: { type: "json_object" },
-        reasoning_effort: "high",  // Use maximum reasoning for better multilingual scripts
+        temperature: 0.9,
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
