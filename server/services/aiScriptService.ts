@@ -358,12 +358,15 @@ Write ${scriptCount} new voiceover scripts with maximum creative diversity:
 - CRITICAL: Count every word carefully - scripts over 46 words will be rejected
 - AVOID rewriting the same concept multiple times - surprise us with variety
 
-${isMultilingual ? `LANGUAGE REQUIREMENT:
-- Write each script NATIVELY in ${targetLanguage} FIRST
-- The ${targetLanguage} script must be culturally appropriate and natural-sounding
-- Then provide an accurate English translation
+${isMultilingual ? `CRITICAL LANGUAGE REQUIREMENT:
+YOU MUST WRITE SCRIPTS NATIVELY IN ${targetLanguage.toUpperCase()} FIRST!
+- DO NOT write in English and then translate
+- Think and create DIRECTLY in ${targetLanguage} from the beginning
+- The ${targetLanguage} script must be culturally authentic and natural-sounding
+- Use native ${targetLanguage} expressions, idioms, and cultural references
+- AFTER completing the ${targetLanguage} script, provide an accurate English translation
 - Both versions must maintain the same creative intent and be 40-46 words
-- Adapt cultural references and idioms appropriately for the target language` : ''}
+- The English translation should convey the meaning, not be word-for-word literal` : ''}
 
 CREATIVE INSPIRATION:
 - What if the script started with a contradiction or paradox?
@@ -410,8 +413,9 @@ Respond in JSON format:
         messages: [
           {
             role: "system",
-            content:
-              "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice.",
+            content: isMultilingual 
+              ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You combine data-driven insights with fearless creative exploration, creating surprising, diverse advertising concepts that are culturally authentic to ${targetLanguage} speakers. Your scripts range from safe and proven to wildly experimental. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.`
+              : "You are a bold creative director and experimental copywriter who combines data-driven insights with fearless creative exploration. You excel at creating surprising, diverse advertising concepts that range from safe and proven to wildly experimental and boundary-pushing. Your goal is maximum creative variety - never repeat the same approach twice.",
           },
           {
             role: "user",
