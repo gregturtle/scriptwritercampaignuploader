@@ -423,22 +423,31 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         const statusText = isApproved ? '✅ APPROVED' : '❌ REJECTED';
         const statusEmoji = isApproved ? '✅' : '❌';
         
-        // Update the button message to show the decision
-        await slackService.updateMessageWithDecision(
-          channel.id,
-          messageTs,
-          payload.message.blocks[0].text.text, // Keep original text
-          statusText,
-          user.name
-        );
-        
-        // Record the decision for batch monitoring
-        await slackService.recordDecision(batchName, scriptNumber, videoFileId, isApproved, messageTs);
-        
-        // Send acknowledgment response
+        // CRITICAL: Respond to Slack immediately (within 3 seconds) to avoid 502 timeout
         res.json({
           response_type: 'in_channel',
           text: `${statusEmoji} Decision recorded for Ad ${scriptNumber}`
+        });
+        
+        // Process the decision asynchronously in the background (don't await)
+        setImmediate(async () => {
+          try {
+            // Update the button message to show the decision
+            await slackService.updateMessageWithDecision(
+              channel.id,
+              messageTs,
+              payload.message.blocks[0].text.text, // Keep original text
+              statusText,
+              user.name
+            );
+            
+            // Record the decision for batch monitoring
+            await slackService.recordDecision(batchName, scriptNumber, videoFileId, isApproved, messageTs);
+            
+            console.log(`[SLACK INTERACTION] Successfully processed ${actionType} for script ${scriptNumber}`);
+          } catch (error) {
+            console.error(`[SLACK INTERACTION] Error processing decision:`, error);
+          }
         });
         
       } else {
