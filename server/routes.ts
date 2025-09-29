@@ -303,16 +303,28 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             timestamp
           };
 
-          // SLACK TEMPORARILY DISABLED FOR TESTING
-          /*
+          // Send to Slack for approval with 15-minute delay for Google Drive processing
+          console.log(`Video batch created: ${batchName}. Slack approval workflow will begin in 15 minutes (allowing Google Drive processing time)`);
+          
+          // Send immediate batch creation notification
           try {
-            await slackService.sendVideoBatchForApproval(batchData);
-            console.log(`Sent video batch to Slack for approval: ${batchName}`);
-          } catch (slackError) {
-            console.error('Failed to send Slack approval workflow:', slackError);
+            await slackService.sendMessage({
+              channel: process.env.SLACK_CHANNEL_ID!,
+              text: `Batch ${batchName} created with ${videoCount} videos. Approval workflow will begin in 15 minutes to allow Google Drive processing.`
+            });
+          } catch (error) {
+            console.error('Error sending immediate notification:', error);
           }
-          */
-          console.log(`[SLACK DISABLED FOR TESTING] - Would have sent batch: ${batchName}`);
+          
+          // Schedule approval workflow for 15 minutes later
+          setTimeout(async () => {
+            try {
+              await slackService.sendVideoBatchForApproval(batchData);
+              console.log(`Sent video batch to Slack for approval: ${batchName}`);
+            } catch (slackError) {
+              console.error('Failed to send Slack approval workflow:', slackError);
+            }
+          }, 15 * 60 * 1000); // 15 minutes in milliseconds
 
         } catch (slackError) {
           console.error('Failed to send Slack notifications:', slackError);
@@ -322,15 +334,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions based on performance data analysis`;
-      // Slack temporarily disabled for testing
-      const slackMessage = hasVideos ? ' - Slack notifications disabled for testing' : '';
+      const slackMessage = hasVideos ? ' - Slack approval workflow will begin in 15 minutes (allowing Google Drive processing time)' : '';
       
       res.json({
         suggestions: result.suggestions,
         message: baseMessage + slackMessage,
         savedToSheet: true,
         voiceGenerated: result.voiceGenerated,
-        slackScheduled: false  // Temporarily disabled for testing
+        slackScheduled: hasVideos
       });
     } catch (error) {
       console.error('Error generating AI script suggestions:', error);
