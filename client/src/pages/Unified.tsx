@@ -12,47 +12,33 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
 import { Link } from 'wouter';
-import { useCampaigns } from '@/hooks/useCampaigns';
 import { LanguageSelector } from '@/components/LanguageSelector';
 
-interface UnifiedResult {
-  reportResult: {
-    spreadsheetId: string;
-    spreadsheetUrl: string;
-    dataExported: number;
-    dateRange: { since: string; until: string };
-    createdNew: boolean;
-  };
-  scriptResult: {
-    suggestions: Array<{
-      title: string;
-      content: string;
-      nativeContent?: string;  // Native language version when multilingual
-      language?: string;       // Language code when multilingual
-      reasoning: string;
-      targetMetrics: string[];
-      audioUrl?: string;
-      audioFile?: string;
-      videoUrl?: string;
-      videoFile?: string;
-      videoError?: string;
-      error?: string;
-    }>;
-    message: string;
-    savedToSheet: boolean;
-  };
+interface ScriptResult {
+  suggestions: Array<{
+    title: string;
+    content: string;
+    nativeContent?: string;  // Native language version when multilingual
+    language?: string;       // Language code when multilingual
+    reasoning: string;
+    targetMetrics: string[];
+    audioUrl?: string;
+    audioFile?: string;
+    videoUrl?: string;
+    videoFile?: string;
+    videoError?: string;
+    error?: string;
+  }>;
+  message: string;
+  savedToSheet: boolean;
 }
 
 export default function Unified() {
-  const [dateRange, setDateRange] = useState('all_time');
-  const [customSince, setCustomSince] = useState('');
-  const [customUntil, setCustomUntil] = useState('');
-  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [spreadsheetId, setSpreadsheetId] = useState('');
   const [withAudio, setWithAudio] = useState(true);
   const [scriptCount, setScriptCount] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<UnifiedResult | null>(null);
+  const [result, setResult] = useState<ScriptResult | null>(null);
   const [selectedScripts, setSelectedScripts] = useState<Set<number>>(new Set());
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
@@ -156,7 +142,7 @@ export default function Unified() {
 
   const handleSelectAllScripts = (checked: boolean) => {
     if (checked) {
-      setSelectedScripts(new Set(result?.scriptResult.suggestions.map((_, index) => index) || []));
+      setSelectedScripts(new Set(result?.suggestions.map((_, index) => index) || []));
     } else {
       setSelectedScripts(new Set());
     }
@@ -168,7 +154,7 @@ export default function Unified() {
     setIsGeneratingAudio(true);
     try {
       const selectedSuggestions = Array.from(selectedScripts).map(index => 
-        result.scriptResult.suggestions[index]
+        result.suggestions[index]
       );
 
       const response = await fetch('/api/ai/generate-audio-only', {
@@ -190,7 +176,7 @@ export default function Unified() {
       setResult(prevResult => {
         if (!prevResult) return prevResult;
         
-        const updatedSuggestions = [...prevResult.scriptResult.suggestions];
+        const updatedSuggestions = [...prevResult.suggestions];
         audioResult.suggestions.forEach((updatedSuggestion: any, resultIndex: number) => {
           const originalIndex = Array.from(selectedScripts)[resultIndex];
           updatedSuggestions[originalIndex] = updatedSuggestion;
@@ -198,10 +184,7 @@ export default function Unified() {
 
         return {
           ...prevResult,
-          scriptResult: {
-            ...prevResult.scriptResult,
-            suggestions: updatedSuggestions
-          }
+          suggestions: updatedSuggestions
         };
       });
 
@@ -341,34 +324,6 @@ export default function Unified() {
       setIsUploadingVideo(false);
     }
   };
-  
-  // Use campaigns hook directly like other pages
-  const { 
-    campaigns, 
-    isLoading: campaignsLoading 
-  } = useCampaigns();
-  
-  // Debug removed - campaigns are loading properly
-
-  const datePresets = {
-    'all_time': { label: 'All available data (recommended)', since: '2025-01-01', until: '2025-06-25' },
-    'last_7_days': { label: 'Last 7 days', since: '2025-06-18', until: '2025-06-25' },
-    'last_30_days': { label: 'Last 30 days', since: '2025-05-26', until: '2025-06-25' },
-    'last_90_days': { label: 'Last 90 days', since: '2025-03-27', until: '2025-06-25' },
-    'custom': { label: 'Custom range', since: customSince, until: customUntil }
-  };
-
-  const handleCampaignToggle = (campaignId: string) => {
-    setSelectedCampaigns(prev => 
-      prev.includes(campaignId) 
-        ? prev.filter(id => id !== campaignId)
-        : [...prev, campaignId]
-    );
-  };
-
-  const handleSelectAll = (selected: boolean) => {
-    setSelectedCampaigns(selected ? campaigns.map(c => c.id) : []);
-  };
 
   const handleGenerate = async () => {
     if (!spreadsheetId.trim()) {
@@ -395,31 +350,9 @@ export default function Unified() {
     setIsGeneratingAudio(false);
 
     try {
-      const selectedDateRange = datePresets[dateRange as keyof typeof datePresets];
-      
-      // Step 1: Generate performance report
-      const reportResponse = await fetch('/api/reports/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dateRange: {
-            since: selectedDateRange.since,
-            until: selectedDateRange.until
-          },
-          campaignIds: selectedCampaigns.length > 0 ? selectedCampaigns : campaigns.map(c => c.id),
-          spreadsheetId: spreadsheetId.trim()
-        })
-      });
-
-      if (!reportResponse.ok) {
-        throw new Error('Failed to generate performance report');
-      }
-
-      const reportResult = await reportResponse.json();
-
-      // Step 2: Generate AI scripts using the same spreadsheet
+      // Generate AI scripts using Guidance Primer
       const scriptRequestBody: any = {
-        spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
+        spreadsheetId: spreadsheetId.trim(),
         generateAudio: withAudio,
         scriptCount: scriptCount,
         backgroundVideoPath: selectedBackgroundVideo,
@@ -451,10 +384,7 @@ export default function Unified() {
 
       const scriptResult = await scriptResponse.json();
 
-      setResult({
-        reportResult,
-        scriptResult
-      });
+      setResult(scriptResult);
 
       // Clear guidance after successful generation
       const wasGuidanceUsed = guidance.trim().length > 0;
@@ -462,7 +392,7 @@ export default function Unified() {
 
       toast({
         title: "Complete Success!",
-        description: `Generated report with ${reportResult.dataExported} records and ${scriptResult.suggestions.length} AI script suggestions${wasGuidanceUsed ? ' with creative guidance applied' : ''}`,
+        description: `Generated ${scriptResult.suggestions.length} AI script suggestions${wasGuidanceUsed ? ' with creative guidance applied' : ''}`,
       });
 
     } catch (error) {
@@ -494,7 +424,7 @@ export default function Unified() {
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Generate AI script suggestions using proven patterns from the Guidance Primer. Filter by specific campaigns or date ranges, and control creative experimentation.
+          Generate AI script suggestions using proven patterns from the Guidance Primer and control creative experimentation.
         </p>
 
       </div>
@@ -507,7 +437,7 @@ export default function Unified() {
             Configuration
           </CardTitle>
           <CardDescription>
-            Configure your report parameters and Google Sheets destination
+            Configure your script generation settings and Google Sheets destination
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -521,103 +451,6 @@ export default function Unified() {
               placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit or just the sheet ID"
             />
           </div>
-
-          {/* Date Range Selection - Optional */}
-          <div className="space-y-2">
-            <Label htmlFor="date-range">Date Range (Optional - defaults to all data)</Label>
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select date range" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(datePresets).map(([key, preset]) => (
-                  <SelectItem key={key} value={key}>
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Custom Date Range */}
-          {dateRange === 'custom' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="since">Start Date</Label>
-                <Input
-                  id="since"
-                  type="date"
-                  value={customSince}
-                  onChange={(e) => setCustomSince(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="until">End Date</Label>
-                <Input
-                  id="until"
-                  type="date"
-                  value={customUntil}
-                  onChange={(e) => setCustomUntil(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Campaign Selection - Optional */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Campaign Selection (Optional - defaults to all campaigns for best AI analysis)</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSelectAll(true)}
-                  disabled={campaignsLoading}
-                >
-                  Select All
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSelectAll(false)}
-                >
-                  Clear All
-                </Button>
-              </div>
-            </div>
-
-            {campaignsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">Loading campaigns...</span>
-              </div>
-            ) : campaigns.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto border rounded-lg p-4">
-                {campaigns.map((campaign) => (
-                  <label key={campaign.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedCampaigns.includes(campaign.id)}
-                      onChange={() => handleCampaignToggle(campaign.id)}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="text-sm truncate">{campaign.name}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center py-8 text-gray-500">
-                <span>No campaigns found. Please check your Meta connection.</span>
-              </div>
-            )}
-            <p className="text-sm text-gray-500">
-              {selectedCampaigns.length === 0 ? `All ${campaigns.length} campaigns will be included (recommended for best AI analysis)` : `${selectedCampaigns.length} campaigns selected`}
-            </p>
-          </div>
-
-
 
           {/* Script Count Selection */}
           <div className="space-y-4">
@@ -1034,7 +867,7 @@ export default function Unified() {
             {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating Report & Scripts...
+                Generating Scripts...
               </>
             ) : (
               <>
@@ -1056,28 +889,10 @@ export default function Unified() {
                 <CheckCircle className="h-5 w-5" />
                 <span className="font-medium text-lg">Generation Complete!</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Performance Report:</span>
-                  <p>{result.reportResult.dataExported} records exported</p>
-                  <p>Date range: {result.reportResult.dateRange.since} to {result.reportResult.dateRange.until}</p>
-                </div>
-                <div>
-                  <span className="font-medium">AI Scripts:</span>
-                  <p>{result.scriptResult.suggestions.length} script suggestions generated</p>
-                  <p>Saved to "New Scripts" tab</p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <a
-                  href={result.reportResult.spreadsheetUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-green-700 hover:text-green-800 font-medium"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open Google Sheets
-                </a>
+              <div className="text-sm">
+                <p className="font-medium">AI Scripts:</p>
+                <p>{result.suggestions.length} script suggestions generated using Guidance Primer</p>
+                <p>Saved to "New Scripts" tab in your Google Sheets</p>
               </div>
             </CardContent>
           </Card>
@@ -1092,13 +907,13 @@ export default function Unified() {
             </CardHeader>
             <CardContent>
               {/* Bulk Audio Generation Controls (only show if scripts were generated without audio) */}
-              {result.scriptResult.suggestions.some(s => !s.audioUrl) && (
+              {result.suggestions.some(s => !s.audioUrl) && (
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id="select-all"
-                        checked={selectedScripts.size === result.scriptResult.suggestions.length}
+                        checked={selectedScripts.size === result.suggestions.length}
                         onCheckedChange={handleSelectAllScripts}
                       />
                       <Label htmlFor="select-all" className="text-sm font-medium">
@@ -1131,7 +946,7 @@ export default function Unified() {
               )}
 
               <div className="space-y-4">
-                {result.scriptResult.suggestions.map((suggestion, index) => (
+                {result.suggestions.map((suggestion, index) => (
                   <Card key={index} className="bg-blue-50 border-blue-200">
                     <CardContent className="pt-4">
                       <div className="flex items-start gap-3">
