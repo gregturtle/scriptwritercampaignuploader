@@ -69,6 +69,8 @@ export default function Unified() {
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [guidance, setGuidance] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('en'); // Default to English
+  const [primerFile, setPrimerFile] = useState<File | null>(null);
+  const [experimentalPercentage, setExperimentalPercentage] = useState(50);
 
   const { toast } = useToast();
 
@@ -418,17 +420,23 @@ export default function Unified() {
       // Step 2: Generate AI scripts using the same spreadsheet
       const scriptRequestBody: any = {
         spreadsheetId: reportResult.spreadsheetId || spreadsheetId.trim(),
-        tabName: 'Cleansed with BEAP',
         generateAudio: withAudio,
         scriptCount: scriptCount,
         backgroundVideoPath: selectedBackgroundVideo,
         voiceId: selectedVoice,
-        language: selectedLanguage // Add selected language
+        language: selectedLanguage,
+        experimentalPercentage: experimentalPercentage
       };
 
       // Add guidance prompt only if provided
       if (guidance.trim().length > 0) {
         scriptRequestBody.guidancePrompt = guidance.trim();
+      }
+
+      // Add primer file content if uploaded
+      if (primerFile) {
+        const primerContent = await primerFile.text();
+        scriptRequestBody.primerContent = primerContent;
       }
 
       const scriptResponse = await fetch('/api/ai/generate-scripts', {
@@ -486,7 +494,7 @@ export default function Unified() {
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          AI script suggestions and record them automatically. By default, this will analyze all your campaign data. Optionally filter by specific campaigns or date ranges.
+          Generate AI script suggestions using proven patterns from the Guidance Primer. Filter by specific campaigns or date ranges, and control creative experimentation.
         </p>
 
       </div>
@@ -664,6 +672,95 @@ export default function Unified() {
               <span>Provide thematic direction to guide script generation. This will be cleared after each batch.</span>
               <span>{guidance.length}/500</span>
             </div>
+          </div>
+
+          {/* Update Guidance Primer */}
+          <div className="space-y-2">
+            <Label htmlFor="primer-upload" className="text-sm font-medium">
+              Update Guidance Primer (Optional)
+            </Label>
+            <div className="flex items-center gap-2">
+              <input
+                id="primer-upload"
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setPrimerFile(file);
+                    toast({
+                      title: "Primer Uploaded",
+                      description: `Using custom primer: ${file.name}`,
+                    });
+                  }
+                }}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('primer-upload')?.click()}
+                data-testid="button-upload-primer"
+              >
+                <Upload className="mr-2 h-3 w-3" />
+                {primerFile ? 'Change Primer' : 'Upload Primer'}
+              </Button>
+              {primerFile && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">{primerFile.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setPrimerFile(null);
+                      toast({
+                        title: "Primer Removed",
+                        description: "Using default primer",
+                      });
+                    }}
+                    data-testid="button-remove-primer"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-gray-500">
+              {primerFile 
+                ? `Using custom primer file: ${primerFile.name}` 
+                : 'Using default primer with proven script patterns'
+              }
+            </p>
+          </div>
+
+          {/* Experimentation Percentage */}
+          <div className="space-y-2">
+            <Label htmlFor="experimental-percentage" className="text-sm font-medium">
+              Experimentation Level
+            </Label>
+            <div className="flex items-center gap-4">
+              <Select 
+                value={experimentalPercentage.toString()} 
+                onValueChange={(value) => setExperimentalPercentage(parseInt(value))}
+              >
+                <SelectTrigger className="w-32" id="experimental-percentage" data-testid="select-experimental-percentage">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">0%</SelectItem>
+                  <SelectItem value="25">25%</SelectItem>
+                  <SelectItem value="50">50%</SelectItem>
+                  <SelectItem value="75">75%</SelectItem>
+                  <SelectItem value="100">100%</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-gray-600">experimental scripts</span>
+            </div>
+            <p className="text-xs text-gray-500">
+              {experimentalPercentage}% of scripts will be creative curveballs that deviate from the primer guidance. {100 - experimentalPercentage}% will follow the primer closely.
+            </p>
           </div>
 
           {/* Background Video Upload */}

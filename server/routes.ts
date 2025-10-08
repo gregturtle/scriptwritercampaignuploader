@@ -143,7 +143,17 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.post('/api/ai/generate-scripts', async (req, res) => {
     try {
       console.log('AI script generation request received:', req.body);
-      const { spreadsheetId, tabName, generateAudio = true, scriptCount = 5, backgroundVideoPath, voiceId, guidancePrompt, language = 'en' } = req.body;
+      const { 
+        spreadsheetId, 
+        generateAudio = true, 
+        scriptCount = 5, 
+        backgroundVideoPath, 
+        voiceId, 
+        guidancePrompt, 
+        language = 'en',
+        primerContent,
+        experimentalPercentage = 50
+      } = req.body;
       
       if (!spreadsheetId) {
         return res.status(400).json({ message: 'Spreadsheet ID is required' });
@@ -154,7 +164,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         return res.status(400).json({ message: 'Guidance prompt must be a string with maximum 1000 characters' });
       }
 
-      console.log(`Generating ${scriptCount} AI script suggestions from sheet: ${spreadsheetId}, tab: ${tabName || 'Cleansed with BEAP'}, with audio: ${generateAudio}`);
+      // Validate experimentalPercentage
+      if (![0, 25, 50, 75, 100].includes(experimentalPercentage)) {
+        return res.status(400).json({ message: 'Experimental percentage must be 0, 25, 50, 75, or 100' });
+      }
+
+      console.log(`Generating ${scriptCount} AI script suggestions with ${experimentalPercentage}% experimentation, audio: ${generateAudio}`);
       
       // Generate unique batch ID
       const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -164,7 +179,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       const batch = await appStorage.createScriptBatch({
         batchId,
         spreadsheetId,
-        tabName: tabName || 'Cleansed with BEAP',
+        tabName: 'New Scripts',
         voiceId,
         guidancePrompt,
         backgroundVideoPath,
@@ -175,12 +190,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       const result = await aiScriptService.generateScriptSuggestions(
         spreadsheetId, 
         {
-          tabName: tabName || 'Cleansed with BEAP',
           includeVoice: generateAudio,
           scriptCount: scriptCount,
           voiceId: voiceId,
           guidancePrompt: guidancePrompt,
-          language: language
+          language: language,
+          primerContent: primerContent,
+          experimentalPercentage: experimentalPercentage
         }
       );
       
@@ -353,29 +369,6 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  app.get('/api/ai/performance-data/:spreadsheetId', async (req, res) => {
-    try {
-      const { spreadsheetId } = req.params;
-      const { tabName } = req.query;
-      
-      const performanceData = await aiScriptService.readPerformanceData(
-        spreadsheetId, 
-        tabName as string || 'Cleansed with BEAP'
-      );
-      
-      res.json({
-        data: performanceData,
-        count: performanceData.length,
-        scoredCount: performanceData.filter(item => item.score !== undefined).length
-      });
-    } catch (error) {
-      console.error('Error reading performance data:', error);
-      res.status(500).json({ 
-        message: 'Failed to read performance data', 
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
 
   // Slack webhook endpoint for handling button interactions
   app.post('/api/slack/interactions', express.urlencoded({ extended: true }), async (req, res) => {
