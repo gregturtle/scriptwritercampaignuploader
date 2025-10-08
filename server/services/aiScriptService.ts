@@ -143,7 +143,7 @@ ${patterns.map(p => `
 You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to write voiceover scripts, guided by proven performance patterns from our Guidance Primer.
 
 CONTEXT:
-- What3Words assigns unique 3-word addresses to every 3x3 meter location globally
+- What3Words assigns unique 3-word addresses to every 3x3 meter square globally
 - These are voiceover scripts for video ads encouraging app downloads
 - The background visuals are constant - you only write the spoken narration
 - MANDATORY: Each script must be EXACTLY 40-46 words (maximum 14-15 seconds when spoken)
@@ -154,15 +154,11 @@ Write voice-only scripts with THREE parts:
 2. PRODUCT EXPLANATION: Briefly and clearly explain what three words
 3. CLOSING CALL-TO-ACTION: End with a call to action that links back to the OPENING
 
-STYLE & TONE GUIDELINES:
-- Use confident, normal language
-- Keep the script universally appealing (audience flexible)
-- Add creative or random elements to ensure novelty and interest
-- Write for Meta platforms (Facebook/Instagram)
-
 IMPORTANT CONSTRAINTS:
 - what three words does NOT give directions, only provides precise locations that people navigate to
+- Never mention a rooftop as what3words doesn't work vertically
 - A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
+Use '3 meter square' if referring to area and never '3 meter squared or any other area measurement'
 - Never mention or show any what three words address formatted as "///word.word.word"
 
 ${guidancePrompt ? `ADDITIONAL CREATIVE GUIDANCE:
@@ -258,21 +254,17 @@ Respond in JSON format:
 `;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4.1-2025-04-14",
+        model: "o1",
         messages: [
           {
-            role: "system",
-            content: isMultilingual 
-              ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. Your scripts range from primer-based to experimental based on the specified experimentation level. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.`
-              : "You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.",
-          },
-          {
             role: "user",
-            content: prompt,
+            content: isMultilingual 
+              ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. Your scripts range from primer-based to experimental based on the specified experimentation level. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${prompt}`
+              : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${prompt}`,
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.9,
+        reasoning_effort: "high",
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
