@@ -492,7 +492,7 @@ export default function Unified() {
           {/* AI Guidance - Optional creative direction */}
           <div className="space-y-2">
             <Label htmlFor="ai-guidance" className="text-sm font-medium">
-              AI Creative Guidance (Optional)
+              AI Creative Inspiration (Optional)
             </Label>
             <Textarea
               id="ai-guidance"
