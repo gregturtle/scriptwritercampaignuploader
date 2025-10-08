@@ -57,6 +57,7 @@ export default function Unified() {
   const [selectedLanguage, setSelectedLanguage] = useState('en'); // Default to English
   const [primerFile, setPrimerFile] = useState<File | null>(null);
   const [experimentalPercentage, setExperimentalPercentage] = useState(50);
+  const [individualGeneration, setIndividualGeneration] = useState(false);
 
   const { toast } = useToast();
 
@@ -358,7 +359,8 @@ export default function Unified() {
         backgroundVideoPath: selectedBackgroundVideo,
         voiceId: selectedVoice,
         language: selectedLanguage,
-        experimentalPercentage: experimentalPercentage
+        experimentalPercentage: experimentalPercentage,
+        individualGeneration: individualGeneration
       };
 
       // Add guidance prompt only if provided
@@ -853,6 +855,30 @@ export default function Unified() {
               {withAudio 
                 ? `Will generate ${scriptCount} scripts with professional voice recordings${availableBackgroundVideos.length > 0 && selectedBackgroundVideo ? ' and complete video assets' : ''}` 
                 : `Will generate ${scriptCount} scripts without audio recordings`
+              }
+            </p>
+          </div>
+
+          {/* Individual Generation Toggle */}
+          <div className="space-y-4 border-t pt-4">
+            <div className="flex items-center justify-center space-x-3">
+              <Label htmlFor="individual-toggle" className="text-sm font-medium">
+                Batch generation
+              </Label>
+              <Switch
+                id="individual-toggle"
+                checked={individualGeneration}
+                onCheckedChange={setIndividualGeneration}
+                data-testid="toggle-individual-generation"
+              />
+              <Label htmlFor="individual-toggle" className="text-sm font-medium">
+                Individual calls
+              </Label>
+            </div>
+            <p className="text-center text-sm text-gray-500">
+              {individualGeneration 
+                ? `${scriptCount} separate API calls for maximum quality & diversity (slower, higher cost)` 
+                : `Single API call requesting ${scriptCount} scripts (faster, lower cost)`
               }
             </p>
           </div>

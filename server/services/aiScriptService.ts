@@ -84,6 +84,7 @@ class AIScriptService {
       language?: string;
       primerContent?: string;
       experimentalPercentage?: number;
+      individualGeneration?: boolean;
     } = {}
   ): Promise<{
     suggestions: ScriptSuggestion[];
@@ -97,7 +98,8 @@ class AIScriptService {
       guidancePrompt, 
       language = 'en',
       primerContent,
-      experimentalPercentage = 50
+      experimentalPercentage = 50,
+      individualGeneration = false
     } = options;
     
     try {
@@ -253,42 +255,93 @@ Respond in JSON format:
 }
 `;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          {
-            role: "user",
-            content: isMultilingual 
-              ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. Your scripts range from primer-based to experimental based on the specified experimentation level. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${prompt}`
-              : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${prompt}`,
-          },
-        ],
-        response_format: { type: "json_object" },
-        reasoning_effort: "high",
-      });
+      let suggestions: ScriptSuggestion[] = [];
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
+      if (individualGeneration) {
+        // Individual generation mode: Make separate API calls for each script
+        console.log(`Individual generation mode: Making ${scriptCount} separate API calls`);
+        
+        for (let i = 0; i < scriptCount; i++) {
+          console.log(`Generating script ${i + 1} of ${scriptCount}...`);
+          
+          // Modify prompt to request exactly 1 script
+          const individualPrompt = prompt.replace(`Write ${scriptCount} new voiceover scripts`, 'Write 1 new voiceover script');
+          
+          const response = await openai.chat.completions.create({
+            model: "gpt-5",
+            messages: [
+              {
+                role: "user",
+                content: isMultilingual 
+                  ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. Your scripts range from primer-based to experimental based on the specified experimentation level. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${individualPrompt}`
+                  : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`,
+              },
+            ],
+            response_format: { type: "json_object" },
+            reasoning_effort: "high",
+          });
 
-      if (!result.suggestions || !Array.isArray(result.suggestions)) {
-        throw new Error("Invalid response format from OpenAI");
-      }
+          const result = JSON.parse(response.choices[0].message.content || "{}");
 
-      console.log(`Generated ${result.suggestions.length} script suggestions in ${targetLanguage}`);
-      
-      // Process multilingual responses
-      let suggestions: ScriptSuggestion[] = result.suggestions.map((suggestion: any) => {
-        if (isMultilingual && suggestion.englishContent) {
-          // For multilingual scripts, store the native language as content
-          // and the English translation in a separate field (we'll use it for voice generation)
-          return {
-            ...suggestion,
-            nativeContent: suggestion.content,  // Store the native language version
-            content: suggestion.englishContent,  // Use English for voice generation
-            language: language  // Store the language code
-          };
+          if (!result.suggestions || !Array.isArray(result.suggestions) || result.suggestions.length === 0) {
+            console.warn(`Invalid or empty response for script ${i + 1}`);
+            continue;
+          }
+
+          // Process the single script response
+          const suggestion = result.suggestions[0];
+          if (isMultilingual && suggestion.englishContent) {
+            suggestions.push({
+              ...suggestion,
+              nativeContent: suggestion.content,
+              content: suggestion.englishContent,
+              language: language
+            });
+          } else {
+            suggestions.push(suggestion);
+          }
         }
-        return suggestion;
-      });
+        
+        console.log(`Individual generation complete: ${suggestions.length} scripts generated`);
+      } else {
+        // Batch generation mode: Single API call requesting all scripts
+        console.log(`Batch generation mode: Making 1 API call for ${scriptCount} scripts`);
+        
+        const response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "user",
+              content: isMultilingual 
+                ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. Your scripts range from primer-based to experimental based on the specified experimentation level. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${prompt}`
+                : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${prompt}`,
+            },
+          ],
+          response_format: { type: "json_object" },
+          reasoning_effort: "high",
+        });
+
+        const result = JSON.parse(response.choices[0].message.content || "{}");
+
+        if (!result.suggestions || !Array.isArray(result.suggestions)) {
+          throw new Error("Invalid response format from OpenAI");
+        }
+
+        console.log(`Generated ${result.suggestions.length} script suggestions in ${targetLanguage}`);
+        
+        // Process multilingual responses
+        suggestions = result.suggestions.map((suggestion: any) => {
+          if (isMultilingual && suggestion.englishContent) {
+            return {
+              ...suggestion,
+              nativeContent: suggestion.content,
+              content: suggestion.englishContent,
+              language: language
+            };
+          }
+          return suggestion;
+        });
+      }
       let voiceGenerated = false;
 
       // Generate voice recordings if requested and ElevenLabs is configured

@@ -152,7 +152,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         guidancePrompt, 
         language = 'en',
         primerContent,
-        experimentalPercentage = 50
+        experimentalPercentage = 50,
+        individualGeneration = false
       } = req.body;
       
       if (!spreadsheetId) {
@@ -169,7 +170,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         return res.status(400).json({ message: 'Experimental percentage must be 0, 25, 50, 75, or 100' });
       }
 
-      console.log(`Generating ${scriptCount} AI script suggestions with ${experimentalPercentage}% experimentation, audio: ${generateAudio}`);
+      console.log(`Generating ${scriptCount} AI script suggestions with ${experimentalPercentage}% experimentation, audio: ${generateAudio}, mode: ${individualGeneration ? 'individual calls' : 'batch call'}`);
       
       // Generate unique batch ID
       const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -196,7 +197,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           guidancePrompt: guidancePrompt,
           language: language,
           primerContent: primerContent,
-          experimentalPercentage: experimentalPercentage
+          experimentalPercentage: experimentalPercentage,
+          individualGeneration: individualGeneration
         }
       );
       
