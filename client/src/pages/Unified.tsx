@@ -56,7 +56,7 @@ export default function Unified() {
   const [guidance, setGuidance] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('en'); // Default to English
   const [primerFile, setPrimerFile] = useState<File | null>(null);
-  const [experimentalPercentage, setExperimentalPercentage] = useState(50);
+  const [experimentalPercentage, setExperimentalPercentage] = useState(40);
   const [individualGeneration, setIndividualGeneration] = useState(false);
 
   const { toast } = useToast();
@@ -585,10 +585,10 @@ export default function Unified() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">0%</SelectItem>
-                  <SelectItem value="25">25%</SelectItem>
-                  <SelectItem value="50">50%</SelectItem>
-                  <SelectItem value="75">75%</SelectItem>
-                  <SelectItem value="100">100%</SelectItem>
+                  <SelectItem value="20">20%</SelectItem>
+                  <SelectItem value="40">40%</SelectItem>
+                  <SelectItem value="60">60%</SelectItem>
+                  <SelectItem value="80">80%</SelectItem>
                 </SelectContent>
               </Select>
               <span className="text-sm text-gray-600">experimental scripts</span>

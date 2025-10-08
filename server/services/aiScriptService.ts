@@ -258,14 +258,16 @@ Respond in JSON format:
       let suggestions: ScriptSuggestion[] = [];
 
       if (individualGeneration) {
-        // Individual generation mode: Make concurrent API calls for each script
-        console.log(`Individual generation mode: Making ${scriptCount} concurrent API calls`);
+        // Individual generation mode: Make concurrent API calls, 5 scripts per call
+        const scriptsPerCall = 5;
+        const numCalls = Math.ceil(scriptCount / scriptsPerCall);
+        console.log(`Individual generation mode: Making ${numCalls} concurrent API calls (${scriptsPerCall} scripts per call)`);
         
-        // Modify prompt to request exactly 1 script
-        const individualPrompt = prompt.replace(`Write ${scriptCount} new voiceover scripts`, 'Write 1 new voiceover script');
+        // Modify prompt to request exactly 5 scripts
+        const individualPrompt = prompt.replace(`Write ${scriptCount} new voiceover scripts`, `Write ${scriptsPerCall} new voiceover scripts`);
         
         // Create array of promises for concurrent execution
-        const apiCalls = Array.from({ length: scriptCount }, (_, i) => 
+        const apiCalls = Array.from({ length: numCalls }, (_, callIndex) => 
           openai.chat.completions.create({
             model: "gpt-5",
             messages: [
@@ -281,35 +283,36 @@ Respond in JSON format:
           }).then(response => {
             const result = JSON.parse(response.choices[0].message.content || "{}");
             
-            if (!result.suggestions || !Array.isArray(result.suggestions) || result.suggestions.length === 0) {
-              console.warn(`Invalid or empty response for script ${i + 1}`);
-              return null;
+            if (!result.suggestions || !Array.isArray(result.suggestions)) {
+              console.warn(`Invalid or empty response for API call ${callIndex + 1}`);
+              return [];
             }
 
-            // Process the single script response
-            const suggestion = result.suggestions[0];
-            if (isMultilingual && suggestion.englishContent) {
-              return {
-                ...suggestion,
-                nativeContent: suggestion.content,
-                content: suggestion.englishContent,
-                language: language
-              };
-            }
-            return suggestion;
+            // Process all scripts from this call
+            return result.suggestions.map((suggestion: any) => {
+              if (isMultilingual && suggestion.englishContent) {
+                return {
+                  ...suggestion,
+                  nativeContent: suggestion.content,
+                  content: suggestion.englishContent,
+                  language: language
+                };
+              }
+              return suggestion;
+            });
           }).catch(error => {
-            console.error(`Error generating script ${i + 1}:`, error);
-            return null;
+            console.error(`Error in API call ${callIndex + 1}:`, error);
+            return [];
           })
         );
         
         // Wait for all API calls to complete
         const results = await Promise.all(apiCalls);
         
-        // Filter out any null results from errors
-        suggestions = results.filter((s): s is ScriptSuggestion => s !== null);
+        // Flatten the array of arrays and take only the requested number of scripts
+        suggestions = results.flat().slice(0, scriptCount);
         
-        console.log(`Individual generation complete: ${suggestions.length} scripts generated concurrently`);
+        console.log(`Individual generation complete: ${suggestions.length} scripts generated concurrently from ${numCalls} calls`);
       } else {
         // Batch generation mode: Single API call requesting all scripts
         console.log(`Batch generation mode: Making 1 API call for ${scriptCount} scripts`);
