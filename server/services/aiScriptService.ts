@@ -140,7 +140,7 @@ ${patterns.map(p => `
       const lowConfidentSection = buildPrimerSection(grouped.lowConfidence, 'Low Confidence');
 
       const prompt = `
-You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to write data-driven voiceover scripts using proven performance patterns from our Guidance Primer.
+You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to write voiceover scripts, guided by proven performance patterns from our Guidance Primer.
 
 CONTEXT:
 - What3Words assigns unique 3-word addresses to every 3x3 meter location globally
