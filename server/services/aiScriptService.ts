@@ -13,7 +13,7 @@ interface ScriptSuggestion {
   englishContent?: string; // English translation when multilingual
   language?: string;       // Language code when multilingual
   reasoning: string;
-  targetMetrics: string[];
+  targetMetrics?: string[];
   audioFile?: string;
   audioUrl?: string;
   error?: string;
@@ -339,7 +339,6 @@ Respond in JSON format:
         "Native Language Script",
         "English Script",
         "AI Reasoning",
-        "Target Metrics",
       ];
       const generatedDate = new Date().toISOString().split("T")[0];
 
@@ -359,7 +358,6 @@ Respond in JSON format:
           suggestion.nativeContent || suggestion.content, // Native Language Script (or English if not multilingual)
           suggestion.content, // English Script (always the English version or translation)
           suggestion.reasoning,
-          suggestion.targetMetrics.join(", "),
         ];
       });
 

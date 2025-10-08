@@ -148,7 +148,7 @@ class ElevenLabsService {
       nativeContent?: string; // Native language version when multilingual
       language?: string;      // Language code when multilingual
       reasoning: string;
-      targetMetrics: string[];
+      targetMetrics?: string[];
     }>,
     voiceId?: string,
     language?: string
@@ -158,7 +158,7 @@ class ElevenLabsService {
     nativeContent?: string;
     language?: string;
     reasoning: string;
-    targetMetrics: string[];
+    targetMetrics?: string[];
     audioFile?: string;
     audioUrl?: string;
     error?: string;
