@@ -88,6 +88,25 @@ class PrimerService {
   }
 
   /**
+   * Load raw CSV content from primers folder
+   */
+  async loadPrimerCSVContent(customContent?: string): Promise<string> {
+    if (customContent) {
+      return customContent;
+    }
+    
+    // Load from primers folder
+    const primerPath = path.join(__dirname, '../data/primers/guidance_primer.csv');
+    try {
+      const csvContent = fs.readFileSync(primerPath, 'utf-8');
+      return csvContent;
+    } catch (error) {
+      console.error('Error loading primer CSV:', error);
+      throw new Error('Failed to load primer CSV from primers folder');
+    }
+  }
+
+  /**
    * Load primer from uploaded file content
    */
   async loadCustomPrimer(csvContent: string): Promise<PrimerPattern[]> {

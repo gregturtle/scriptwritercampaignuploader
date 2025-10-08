@@ -103,153 +103,72 @@ class AIScriptService {
     } = options;
     
     try {
-      // Load primer patterns (custom or default)
-      let primerPatterns: PrimerPattern[];
-      if (primerContent) {
-        console.log('Using custom primer from uploaded file');
-        primerPatterns = await primerService.loadCustomPrimer(primerContent);
-      } else {
-        console.log('Using default primer');
-        primerPatterns = await primerService.loadDefaultPrimer();
-      }
-
-      // Group by confidence
-      const grouped = primerService.groupByConfidence(primerPatterns);
-      console.log(`Loaded primer: ${grouped.veryConfident.length} very confident, ${grouped.quiteConfident.length} quite confident, ${grouped.lowConfidence.length} low confidence patterns`);
-
+      // Load raw CSV content for the primer
+      const primerCSVContent = await primerService.loadPrimerCSVContent(primerContent);
+      console.log('Loaded primer CSV content');
+      
       // Generate suggestions using OpenAI
-      const targetWordCount = "40-46";
       const targetLanguage = this.getLanguageName(language);
       const isMultilingual = language !== 'en';
-      console.log(`Targeting ${targetWordCount} words for maximum 14-15 second scripts in ${targetLanguage}`);
       console.log(`Experimentation level: ${experimentalPercentage}%`);
 
-      // Build primer guidance sections
-      const buildPrimerSection = (patterns: PrimerPattern[], confidenceLevel: string) => {
-        if (patterns.length === 0) return '';
-        
-        return `
-${confidenceLevel.toUpperCase()} PATTERNS (${confidenceLevel} confidence):
-${patterns.map(p => `
-- ${p.direction}: ${p.feature}
-  Impact: ${p.percentageChange} change vs control
-  Example: "${p.exampleSnippet}"
-`).join('')}`;
-      };
+      // Build the creative inspiration section
+      const creativeInspirationSection = guidancePrompt ? guidancePrompt.trim() : '';
 
-      const veryConfidentSection = buildPrimerSection(grouped.veryConfident, 'Very Confident');
-      const quiteConfidentSection = buildPrimerSection(grouped.quiteConfident, 'Quite Confident');
-      const lowConfidentSection = buildPrimerSection(grouped.lowConfidence, 'Low Confidence');
+      const prompt = `# OBJECTIVE
+You are a copywriter specialising in advertising voiceovers for video ads to run on Meta social platforms, goal of the user downloading the what3words app and then going on to do a key what3words metric action. The background visuals are constant - you only write the spoken narration. Your task is to write voiceover scripts, guided by proven performance patterns from our 'Guidance Primer'. 
 
-      const prompt = `
-You are an expert copywriter specializing in What3Words app advertising voiceovers. Your task is to write voiceover scripts, guided by proven performance patterns from our Guidance Primer.
+## SCRIPT STRUCTURE:
+Write voice-only scripts with three parts:
+- OPENING: Start with an attention-grabbing or intriguing line
+- PRODUCT EXPLANATION: Briefly and clearly explain what three words
+- CLOSING CALL-TO-ACTION: End with a call to action, with an optional nod to the opening line.
 
-CONTEXT:
-- What3Words assigns unique 3-word addresses to every 3x3 meter square globally
-- These are voiceover scripts for video ads encouraging app downloads
-- The background visuals are constant - you only write the spoken narration
-- MANDATORY: Each script must be EXACTLY 40-46 words (maximum 14-15 seconds when spoken)
+## CONSTRAINTS:
+- Never mention a rooftop or similar, as what3words doesn't work vertically
 
-SCRIPT STRUCTURE REQUIREMENTS:
-Write voice-only scripts with THREE parts:
-1. OPENING: Start with an attention-grabbing or intriguing line
-2. PRODUCT EXPLANATION: Briefly and clearly explain what three words
-3. CLOSING CALL-TO-ACTION: End with a call to action that links back to the OPENING
-
-IMPORTANT CONSTRAINTS:
-- what three words does NOT give directions, only provides precise locations that people navigate to
-- Never mention a rooftop as what3words doesn't work vertically
 - A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
-Use '3 meter square' if referring to area and never '3 meter squared or any other area measurement'
-- Never mention or show any what three words address formatted as "///word.word.word"
 
-${guidancePrompt ? `ADDITIONAL CREATIVE GUIDANCE:
-Follow this thematic direction: "${guidancePrompt}"
-Incorporate this guidance into your script creation while maintaining all other requirements.
+- Use '3 meter square' if referring to area and never '3 meter squared' or any other area measurement
 
-` : ''}GUIDANCE PRIMER - PERFORMANCE PATTERNS:
+- Never mention or show any specific or example what3words address itself
 
-Our Guidance Primer contains proven patterns from past campaign analysis, ranked by confidence level. Use these to inform your script creation:
-${veryConfidentSection}
-${quiteConfidentSection}
-${lowConfidentSection}
+## ADDITIONAL CREATIVE INSPIRATION:
+${creativeInspirationSection}
+${creativeInspirationSection ? 'Incorporate this guidance into your script creation too.' : ''}
 
-HOW TO USE THE GUIDANCE PRIMER:
+# PRIMER
 
-VERY CONFIDENT patterns: Follow these strongly - they have multi-test evidence and significant impact
-QUITE CONFIDENT patterns: Incorporate these moderately - they show reliable results
-LOW CONFIDENCE patterns: Use as light guidance only - allow flexibility and creative deviation
+## GUIDANCE PRIMER – PERFORMANCE PATTERNS CSV:
+${primerCSVContent}
 
-EXPERIMENTATION LEVEL: ${experimentalPercentage}%
-- ${experimentalPercentage}% of scripts should be EXPERIMENTAL/CURVEBALL scripts that deviate from the primer
-- ${100 - experimentalPercentage}% of scripts should FOLLOW the primer guidance closely
-- Even experimental scripts should still avoid patterns marked "Avoid / soften" in Very Confident tier
-- Experimental scripts can try novel approaches not covered in the primer
-
-CREATIVE DIVERSITY REQUIREMENTS:
-Create scripts with maximum variety:
-${experimentalPercentage > 0 ? `
-EXPERIMENTAL SCRIPTS (${experimentalPercentage}% of batch):
-- Push creative boundaries with unusual angles, risky concepts, or surprising approaches
-- Use unexpected metaphors, dramatic statements, or contrarian perspectives
-- Experiment with different tones: mysterious, urgent, playful, philosophical, provocative
+## Proportion of Scripts to follow or deviate from primer guidance: 
+### ${experimentalPercentage}% of scripts should be EXPERIMENTAL/CURVEBALL scripts that should deviate from the primer, trying novel approaches not covered in the primer, for example:
+- Push creative boundaries with unusual angles, concepts, or approaches
+- Use unexpected metaphors, statements, perspectives
+- Experiment with different tones: mysterious, urgent, playful, philosophical, provocative etc (not an exhaustive list, can use your own judgement)
 - Try unconventional structures not covered in the primer
 - Explore creative edges that humans might not consider
-` : ''}
-${experimentalPercentage < 100 ? `
-PRIMER-BASED SCRIPTS (${100 - experimentalPercentage}% of batch):
-- Follow the primer guidance, especially Very Confident patterns
-- Lean into patterns marked "Lean into"
-- Avoid or soften patterns marked "Avoid / soften"
-- Weight confidence levels appropriately (Very > Quite > Low)
-` : ''}
 
-TASK:
-Write ${scriptCount} new voiceover scripts with maximum creative diversity:
+### ${100 - experimentalPercentage}% of scripts should FOLLOW the primer guidance closely
+- Use the data provided as to which themes help or hinder performance to try to create winning scripts.
+
+# TASK:
+Write ${scriptCount} new voiceover script with maximum creative diversity:
 - Vary tone, structure, opening style, and creative approach dramatically between scripts
-- Are ONLY spoken narration (no visual descriptions)
-- Must be EXACTLY 40-46 words (NEVER exceed 14-15 seconds when spoken naturally)
-- Focus on encouraging What Three Words app downloads
+- Are only spoken narration (no visual descriptions)
+- Must be exactly 40–46 words (never exceed 14–15 seconds when spoken naturally)
 - Always write "what three words" instead of "what3words" for proper voice pronunciation
-- CRITICAL: Count every word carefully - scripts over 46 words will be rejected
-- AVOID rewriting the same concept multiple times - surprise us with variety
+- Scripts over 46 words will be rejected
 
-${isMultilingual ? `CRITICAL LANGUAGE REQUIREMENT:
-YOU MUST WRITE SCRIPTS NATIVELY IN ${targetLanguage.toUpperCase()} FIRST!
-- DO NOT write in English and then translate
-- Think and create DIRECTLY in ${targetLanguage} from the beginning
-- The ${targetLanguage} script must be culturally authentic and natural-sounding
-- Use native ${targetLanguage} expressions, idioms, and cultural references
-- AFTER completing the ${targetLanguage} script, provide an accurate English translation
-- Both versions must maintain the same creative intent and be 40-46 words
-- The English translation should convey the meaning, not be word-for-word literal` : ''}
-
-REFINEMENT CHECKLIST - Check each script and CORRECT if needed:
-✓ The script does NOT mention or show any what three words address formatted as "///word.word.word"
-✓ Each script has a distinctly different creative approach from the others
-✓ Mix includes both primer-based and experimental scripts based on ${experimentalPercentage}% experimentation level
-✓ Very Confident primer patterns are respected (especially "Avoid / soften" items)
-✓ Total script is no more than 46 words
-✓ The script would take no more than 14-15 seconds to say out loud at normal advertising pace
-✓ what three words does not give directions, only provides precise locations that people navigate to
-✓ A what three words location is only described as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
-
-For each voiceover script, provide:
-1. TITLE: Brief concept description${isMultilingual ? ' (in English)' : ''}
-2. CONTENT: The complete voiceover script ${isMultilingual ? `in ${targetLanguage}` : '(spoken words only)'}
-${isMultilingual ? '3. ENGLISH_CONTENT: The English translation of the script' : ''}
-${isMultilingual ? '4' : '3'}. REASONING: Explain which primer patterns you followed or deliberately deviated from, and why
-${isMultilingual ? '5' : '4'}. TARGET METRICS: Which metrics this aims to improve (app_installs, save_location, search_3wa, directions, share)
-
+# OUTPUT FORMAT:
 Respond in JSON format:
 {
   "suggestions": [
     {
       "title": "Voiceover concept name",
-      "content": "${isMultilingual ? `Complete voiceover script in ${targetLanguage}` : 'Complete voiceover script - spoken words only (use \'what three words\' not \'what3words\')'}",
-      ${isMultilingual ? '"englishContent": "English translation of the script (use \'what three words\' not \'what3words\')",' : ''}
-      "reasoning": "Detailed explanation of primer patterns followed or deliberately deviated from", 
-      "targetMetrics": ["app_installs", "save_location", "search_3wa"]
+      "content": "Complete voiceover script - spoken words only)",
+      "reasoning": "Detailed explanation of primer patterns followed or deliberately deviated from"
     }
   ]
 }
