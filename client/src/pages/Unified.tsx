@@ -21,7 +21,7 @@ interface ScriptResult {
     nativeContent?: string;  // Native language version when multilingual
     language?: string;       // Language code when multilingual
     reasoning: string;
-    targetMetrics: string[];
+    targetMetrics?: string[];
     audioUrl?: string;
     audioFile?: string;
     videoUrl?: string;
@@ -1045,13 +1045,15 @@ export default function Unified() {
                             </div>
                           )}
                           
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {suggestion.targetMetrics.map((metric) => (
-                              <span key={metric} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                                {metric}
-                              </span>
-                            ))}
-                          </div>
+                          {suggestion.targetMetrics && suggestion.targetMetrics.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {suggestion.targetMetrics.map((metric) => (
+                                <span key={metric} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                  {metric}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
