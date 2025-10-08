@@ -589,6 +589,7 @@ export default function Unified() {
                   <SelectItem value="40">40%</SelectItem>
                   <SelectItem value="60">60%</SelectItem>
                   <SelectItem value="80">80%</SelectItem>
+                  <SelectItem value="100">100%</SelectItem>
                 </SelectContent>
               </Select>
               <span className="text-sm text-gray-600">experimental scripts</span>
