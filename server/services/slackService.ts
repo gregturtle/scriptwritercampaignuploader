@@ -22,15 +22,27 @@ export class SlackService {
    * Sends a structured message to the configured Slack channel
    */
   async sendMessage(message: ChatPostMessageArguments): Promise<string | undefined> {
+    console.log('SlackService.sendMessage called with:', {
+      channelId: process.env.SLACK_CHANNEL_ID,
+      messageText: message.text,
+      hasBlocks: !!message.blocks,
+      tokenExists: !!process.env.SLACK_BOT_TOKEN
+    });
+    
     try {
       const response = await slack.chat.postMessage({
         ...message,
         channel: process.env.SLACK_CHANNEL_ID!,
       });
 
+      console.log('Slack message sent successfully, timestamp:', response.ts);
       return response.ts;
     } catch (error) {
       console.error('Error sending Slack message:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   }
