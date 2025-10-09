@@ -287,69 +287,70 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Save suggestions to "New Scripts" tab
       await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
-      // SLACK NOTIFICATIONS DISABLED FOR TESTING
       // Send immediate notification and schedule batch approval for later
-      // if (result.suggestions.some(s => s.videoUrl)) {
-      //   try {
-      //     const timestamp = new Date().toLocaleString('en-CA', { 
-      //       timeZone: 'UTC',
-      //       year: 'numeric',
-      //       month: '2-digit',
-      //       day: '2-digit',
-      //       hour: '2-digit',
-      //       minute: '2-digit',
-      //       second: '2-digit',
-      //       hour12: false
-      //     }).replace(',', '');
+      let slackScheduled = false;
+      if (result.suggestions.some(s => s.videoUrl)) {
+        try {
+          const timestamp = new Date().toLocaleString('en-CA', { 
+            timeZone: 'UTC',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          }).replace(',', '');
 
-      //     const batchName = `Generated_${timestamp}`;
-      //     const videoCount = result.suggestions.filter(s => s.videoUrl).length;
+          const batchName = `Generated_${timestamp}`;
+          const videoCount = result.suggestions.filter(s => s.videoUrl).length;
           
-      //     // Find the Google Drive folder URL from the first video
-      //     const driveFolder = result.suggestions.find(s => s.videoUrl)?.videoUrl || 'Google Drive folder';
+          // Find the Google Drive folder URL from the first video
+          const driveFolder = result.suggestions.find(s => s.videoUrl)?.videoUrl || 'Google Drive folder';
           
-      //     const batchData = {
-      //       batchName,
-      //       videoCount,
-      //       scripts: result.suggestions.map((s, index) => ({ 
-      //         title: s.title, 
-      //         content: s.content,
-      //         fileName: s.fileName || `script${index + 1}`,
-      //         videoUrl: s.videoUrl,
-      //         videoFileId: s.videoFileId
-      //       })),
-      //       driveFolder,
-      //       timestamp
-      //     };
+          const batchData = {
+            batchName,
+            videoCount,
+            scripts: result.suggestions.map((s, index) => ({ 
+              title: s.title, 
+              content: s.content,
+              fileName: s.fileName || `script${index + 1}`,
+              videoUrl: s.videoUrl,
+              videoFileId: s.videoFileId
+            })),
+            driveFolder,
+            timestamp
+          };
 
-      //     // Send to Slack for approval with 15-minute delay for Google Drive processing
-      //     console.log(`Video batch created: ${batchName}. Slack approval workflow will begin in 15 minutes (allowing Google Drive processing time)`);
+          // Send to Slack for approval with 15-minute delay for Google Drive processing
+          console.log(`Video batch created: ${batchName}. Slack approval workflow will begin in 15 minutes (allowing Google Drive processing time)`);
           
-      //     // Send immediate batch creation notification
-      //     try {
-      //       await slackService.sendMessage({
-      //         channel: process.env.SLACK_CHANNEL_ID!,
-      //         text: `Batch ${batchName} created with ${videoCount} videos. Approval workflow will begin in 15 minutes to allow Google Drive processing.`
-      //       });
-      //     } catch (error) {
-      //       console.error('Error sending immediate notification:', error);
-      //     }
+          // Send immediate batch creation notification
+          try {
+            await slackService.sendMessage({
+              channel: process.env.SLACK_CHANNEL_ID!,
+              text: `Batch ${batchName} created with ${videoCount} videos. Approval workflow will begin in 15 minutes to allow Google Drive processing.`
+            });
+          } catch (error) {
+            console.error('Error sending immediate notification:', error);
+          }
           
-      //     // Schedule approval workflow for 15 minutes later
-      //     setTimeout(async () => {
-      //       try {
-      //         await slackService.sendVideoBatchForApproval(batchData);
-      //         console.log(`Sent video batch to Slack for approval: ${batchName}`);
-      //       } catch (slackError) {
-      //         console.error('Failed to send Slack approval workflow:', slackError);
-      //       }
-      //     }, 15 * 60 * 1000); // 15 minutes in milliseconds
+          // Schedule approval workflow for 15 minutes later
+          setTimeout(async () => {
+            try {
+              await slackService.sendVideoBatchForApproval(batchData);
+              console.log(`Sent video batch to Slack for approval: ${batchName}`);
+            } catch (slackError) {
+              console.error('Failed to send Slack approval workflow:', slackError);
+            }
+          }, 15 * 60 * 1000); // 15 minutes in milliseconds
 
-      //   } catch (slackError) {
-      //     console.error('Failed to send Slack notifications:', slackError);
-      //     // Continue without failing the entire request
-      //   }
-      // }
+          slackScheduled = true;
+        } catch (slackError) {
+          console.error('Failed to send Slack notifications:', slackError);
+          // Continue without failing the entire request
+        }
+      }
 
       const hasVideos = result.suggestions.some(s => s.videoUrl);
       const baseMessage = `Generated ${result.suggestions.length} script suggestions using Guidance Primer`;
@@ -359,7 +360,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         message: baseMessage,
         savedToSheet: true,
         voiceGenerated: result.voiceGenerated,
-        slackScheduled: false
+        slackScheduled
       });
     } catch (error) {
       console.error('Error generating AI script suggestions:', error);
