@@ -331,20 +331,20 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             timestamp
           };
 
-          // Send to Slack for approval with 15-minute delay for Google Drive processing
-          console.log(`Video batch created: ${batchName}. Slack approval workflow will begin in 15 minutes (allowing Google Drive processing time)`);
+          // Send to Slack for approval with 5-minute delay for Google Drive processing
+          console.log(`Video batch created: ${batchName}. Slack approval workflow will begin in 5 minutes (allowing Google Drive processing time)`);
           
           // Send immediate batch creation notification
           try {
             await slackService.sendMessage({
               channel: process.env.SLACK_CHANNEL_ID!,
-              text: `Batch ${batchName} created with ${videoCount} videos. Approval workflow will begin in 15 minutes to allow Google Drive processing.`
+              text: `Batch ${batchName} created with ${videoCount} videos. Approval workflow will begin in 5 minutes to allow Google Drive processing.`
             });
           } catch (error) {
             console.error('Error sending immediate notification:', error);
           }
           
-          // Schedule approval workflow for 15 minutes later
+          // Schedule approval workflow for 5 minutes later
           setTimeout(async () => {
             try {
               await slackService.sendVideoBatchForApproval(batchData);
@@ -352,7 +352,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             } catch (slackError) {
               console.error('Failed to send Slack approval workflow:', slackError);
             }
-          }, 15 * 60 * 1000); // 15 minutes in milliseconds
+          }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
           slackScheduled = true;
         } catch (slackError) {
