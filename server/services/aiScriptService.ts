@@ -143,7 +143,7 @@ ${creativeInspirationSection ? 'Incorporate this guidance into your script creat
 ${primerCSVContent}
 
 ## Proportion of Scripts to follow or deviate from primer guidance: 
-### ${experimentalPercentage}% of scripts should be EXPERIMENTAL/CURVEBALL scripts that should deviate from the primer, trying novel approaches not covered in the primer, for example:
+### ${experimentalPercentage}% of scripts should be EXPERIMENTAL/CURVEBALL scripts that can deviate from the primer, trying novel approaches that might not be covered in the primer, for example:
 - Push creative boundaries with unusual angles, concepts, or approaches
 - Use unexpected metaphors, statements, perspectives
 - Experiment with different tones: mysterious, urgent, playful, philosophical, provocative etc (not an exhaustive list, can use your own judgement)
@@ -193,8 +193,8 @@ Respond in JSON format:
               {
                 role: "user",
                 content: isMultilingual 
-                  ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. Your scripts range from primer-based to experimental based on the specified experimentation level. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${individualPrompt}`
-                  : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`,
+                  ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. \n\n${individualPrompt}`
+                  : `\n\n${individualPrompt}`,
               },
             ],
             response_format: { type: "json_object" },
