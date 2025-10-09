@@ -287,9 +287,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Save suggestions to "New Scripts" tab
       await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
 
+      // Debug: Check what's in the suggestions
+      console.log('Checking suggestions for Slack notification:');
+      result.suggestions.forEach((s, i) => {
+        console.log(`  Suggestion ${i + 1}: videoUrl="${s.videoUrl}", videoFileId="${s.videoFileId}"`);
+      });
+      
       // Send immediate notification and schedule batch approval for later
       let slackScheduled = false;
-      if (result.suggestions.some(s => s.videoUrl)) {
+      const hasVideosForSlack = result.suggestions.some(s => s.videoUrl);
+      console.log(`Has videos for Slack: ${hasVideosForSlack}`);
+      
+      if (hasVideosForSlack) {
         try {
           const timestamp = new Date().toLocaleString('en-CA', { 
             timeZone: 'UTC',
