@@ -501,11 +501,11 @@ export default function Unified() {
               onChange={(e) => setGuidance(e.target.value)}
               placeholder="e.g., outdoor pursuits, meetup spots, family activities..."
               className="min-h-16 resize-none"
-              maxLength={500}
+              maxLength={1000}
             />
             <div className="flex justify-between items-center text-xs text-gray-500">
               <span>Provide thematic direction to guide script generation. This will be cleared after each batch.</span>
-              <span>{guidance.length}/500</span>
+              <span>{guidance.length}/1000</span>
             </div>
           </div>
 
