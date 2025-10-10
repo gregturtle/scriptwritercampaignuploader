@@ -154,7 +154,7 @@ ${primerCSVContent}
 - Use the data provided as to which themes help or hinder performance to try to create winning scripts.
 
 # TASK:
-Write ${scriptCount} new voiceover script with maximum creative diversity:
+Write ${scriptCount} new voiceover ${scriptCount === 1 ? 'script' : 'scripts'} with maximum creative diversity:
 - Vary tone, structure, opening style, and creative approach dramatically between scripts
 - Are only spoken narration (no visual descriptions)
 - Must be exactly 40–46 words (never exceed 14–15 seconds when spoken naturally)
@@ -183,7 +183,11 @@ Respond in JSON format:
         console.log(`Individual generation mode: Making ${numCalls} concurrent API calls (${scriptsPerCall} scripts per call)`);
         
         // Modify prompt to request exactly 5 scripts
-        const individualPrompt = prompt.replace(`Write ${scriptCount} new voiceover scripts`, `Write ${scriptsPerCall} new voiceover scripts`);
+        const scriptWord = scriptCount === 1 ? 'script' : 'scripts';
+        const individualPrompt = prompt.replace(
+          `Write ${scriptCount} new voiceover ${scriptWord}`, 
+          `Write ${scriptsPerCall} new voiceover scripts`
+        );
         
         // Create array of promises for concurrent execution
         const apiCalls = Array.from({ length: numCalls }, (_, callIndex) => 
