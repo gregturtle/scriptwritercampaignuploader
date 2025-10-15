@@ -246,7 +246,7 @@ Respond in JSON format:
             {
               role: "user",
               content: isMultilingual 
-                ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. Your scripts range from primer-based to experimental based on the specified experimentation level. Maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${prompt}`
+                ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${prompt}`
                 : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${prompt}`,
             },
           ],
