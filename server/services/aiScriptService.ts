@@ -190,20 +190,26 @@ Respond in JSON format:
         );
         
         // Create array of promises for concurrent execution
-        const apiCalls = Array.from({ length: numCalls }, (_, callIndex) => 
-          openai.chat.completions.create({
+        const apiCalls = Array.from({ length: numCalls }, (_, callIndex) => {
+          const fullContent = isMultilingual 
+            ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`
+            : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`;
+          
+          // Log the role/behavior instruction (first 500 chars)
+          console.log(`[API Call ${callIndex + 1}] Role instruction: ${fullContent.substring(0, 500)}...`);
+          
+          return openai.chat.completions.create({
             model: "gpt-5",
             messages: [
               {
                 role: "user",
-                content: isMultilingual 
-                  ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`
-                  : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`,
+                content: fullContent,
               },
             ],
             response_format: { type: "json_object" },
             reasoning_effort: "high",
-          }).then(response => {
+          })
+        }).then(response => {
             const result = JSON.parse(response.choices[0].message.content || "{}");
             
             if (!result.suggestions || !Array.isArray(result.suggestions)) {
