@@ -296,9 +296,12 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Send immediate notification and schedule batch approval for later
       let slackScheduled = false;
       const hasVideosForSlack = result.suggestions.some(s => s.videoUrl);
-      console.log(`Has videos for Slack: ${hasVideosForSlack}`);
+      const slackDisabled = process.env.DISABLE_SLACK_NOTIFICATIONS === 'true';
       
-      if (hasVideosForSlack) {
+      console.log(`Has videos for Slack: ${hasVideosForSlack}`);
+      console.log(`Slack notifications disabled: ${slackDisabled}`);
+      
+      if (hasVideosForSlack && !slackDisabled) {
         try {
           const timestamp = new Date().toLocaleString('en-CA', { 
             timeZone: 'UTC',
