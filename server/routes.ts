@@ -151,6 +151,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         voiceId, 
         guidancePrompt, 
         language = 'en',
+        slackEnabled = true,
         primerContent,
         experimentalPercentage = 50,
         individualGeneration = false
@@ -296,10 +297,13 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       // Send immediate notification and schedule batch approval for later
       let slackScheduled = false;
       const hasVideosForSlack = result.suggestions.some(s => s.videoUrl);
-      const slackDisabled = process.env.DISABLE_SLACK_NOTIFICATIONS === 'true';
+      const slackDisabledByEnv = process.env.DISABLE_SLACK_NOTIFICATIONS === 'true';
+      const slackDisabledByUser = !slackEnabled;
+      const slackDisabled = slackDisabledByEnv || slackDisabledByUser;
       
       console.log(`Has videos for Slack: ${hasVideosForSlack}`);
-      console.log(`Slack notifications disabled: ${slackDisabled}`);
+      console.log(`Slack notifications disabled by env: ${slackDisabledByEnv}`);
+      console.log(`Slack notifications disabled by user: ${slackDisabledByUser}`);
       
       if (hasVideosForSlack && !slackDisabled) {
         try {
