@@ -208,8 +208,7 @@ Respond in JSON format:
             ],
             response_format: { type: "json_object" },
             reasoning_effort: "high",
-          })
-        }).then(response => {
+          }).then(response => {
             const result = JSON.parse(response.choices[0].message.content || "{}");
             
             if (!result.suggestions || !Array.isArray(result.suggestions)) {
@@ -232,8 +231,8 @@ Respond in JSON format:
           }).catch(error => {
             console.error(`Error in API call ${callIndex + 1}:`, error);
             return [];
-          })
-        );
+          });
+        });
         
         // Wait for all API calls to complete
         const results = await Promise.all(apiCalls);
