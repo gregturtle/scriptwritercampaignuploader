@@ -1684,6 +1684,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     try {
       const { batchId } = req.params;
       
+      // Check if Slack notifications are disabled
+      if (process.env.DISABLE_SLACK_NOTIFICATIONS === 'true') {
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Slack notifications are currently disabled for testing' 
+        });
+      }
+      
       // Retrieve batch from database
       const batch = await appStorage.getScriptBatchByBatchId(batchId);
       if (!batch) {
