@@ -177,16 +177,17 @@ Respond in JSON format:
       let suggestions: ScriptSuggestion[] = [];
 
       if (individualGeneration) {
-        // Individual generation mode: Make concurrent API calls, 5 scripts per call
-        const scriptsPerCall = 5;
+        // Individual generation mode: Make concurrent API calls, up to 5 scripts per call
+        const scriptsPerCall = Math.min(scriptCount, 5);
         const numCalls = Math.ceil(scriptCount / scriptsPerCall);
         console.log(`Individual generation mode: Making ${numCalls} concurrent API calls (${scriptsPerCall} scripts per call)`);
         
-        // Modify prompt to request exactly 5 scripts
+        // Use the actual scriptsPerCall value (no prompt modification needed if it matches)
         const scriptWord = scriptCount === 1 ? 'script' : 'scripts';
+        const scriptsPerCallWord = scriptsPerCall === 1 ? 'script' : 'scripts';
         const individualPrompt = prompt.replace(
           `Write ${scriptCount} new voiceover ${scriptWord}`, 
-          `Write ${scriptsPerCall} new voiceover scripts`
+          `Write ${scriptsPerCall} new voiceover ${scriptsPerCallWord}`
         );
         
         // Create array of promises for concurrent execution
