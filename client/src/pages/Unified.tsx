@@ -58,6 +58,7 @@ export default function Unified() {
   const [primerFile, setPrimerFile] = useState<File | null>(null);
   const [experimentalPercentage, setExperimentalPercentage] = useState(40);
   const [individualGeneration, setIndividualGeneration] = useState(false);
+  const [slackEnabled, setSlackEnabled] = useState(true);
 
   const { toast } = useToast();
 
@@ -360,7 +361,8 @@ export default function Unified() {
         voiceId: selectedVoice,
         language: selectedLanguage,
         experimentalPercentage: experimentalPercentage,
-        individualGeneration: individualGeneration
+        individualGeneration: individualGeneration,
+        slackEnabled: slackEnabled
       };
 
       // Add guidance prompt only if provided
@@ -880,6 +882,30 @@ export default function Unified() {
               {individualGeneration 
                 ? `${scriptCount} separate API calls for maximum quality & diversity (slower, higher cost)` 
                 : `Single API call requesting ${scriptCount} scripts (faster, lower cost)`
+              }
+            </p>
+          </div>
+
+          {/* Slack Notifications Toggle */}
+          <div className="space-y-4 border-t pt-4">
+            <div className="flex items-center justify-center space-x-3">
+              <Label htmlFor="slack-toggle" className="text-sm font-medium">
+                Slack OFF
+              </Label>
+              <Switch
+                id="slack-toggle"
+                checked={slackEnabled}
+                onCheckedChange={setSlackEnabled}
+                data-testid="toggle-slack-notifications"
+              />
+              <Label htmlFor="slack-toggle" className="text-sm font-medium">
+                Slack ON
+              </Label>
+            </div>
+            <p className="text-center text-sm text-gray-500">
+              {slackEnabled 
+                ? "Slack notifications enabled - Videos will be sent for approval after generation" 
+                : "Slack notifications disabled - Testing mode, no approval workflow"
               }
             </p>
           </div>
