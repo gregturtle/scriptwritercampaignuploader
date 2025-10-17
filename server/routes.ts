@@ -129,7 +129,45 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.get('/api/elevenlabs/voices', async (req, res) => {
     try {
       const voices = await elevenLabsService.getVoices();
-      res.json({ voices });
+      
+      // Add curated German female voices from the shared library
+      const germanFemaleVoices = [
+        {
+          voice_id: 'KbSC2XTZL12xT3fm2fcD',
+          name: 'Julia (German Female)',
+          category: 'professional',
+          description: 'Young German female voice with a natural, conversational tone'
+        },
+        {
+          voice_id: 'AnvlJBAqSLDzEevYr9Ap',
+          name: 'Ava (German Female)',
+          category: 'high_quality',
+          description: 'Youthful and well-spoken female German voice, perfect for narration'
+        },
+        {
+          voice_id: 'PmkWuBgfgyHPLOeC499E',
+          name: 'Frida (German Female)',
+          category: 'professional',
+          description: 'Friendly German female voice - warm, natural, and trustworthy'
+        },
+        {
+          voice_id: 'f6ogvurdTLlnXgwa7bko',
+          name: 'Kiri (German Female)',
+          category: 'professional',
+          description: 'Informative, educational, narrative female voice'
+        },
+        {
+          voice_id: 'nF7t9cuYo0u3kuVI9q4B',
+          name: 'Dana (German Female)',
+          category: 'professional',
+          description: 'Engaging confident German female with warm tone'
+        }
+      ];
+      
+      // Combine default voices with German voices
+      const allVoices = [...voices, ...germanFemaleVoices];
+      
+      res.json({ voices: allVoices });
     } catch (error: any) {
       console.error('Error fetching voices:', error);
       res.status(500).json({ 
