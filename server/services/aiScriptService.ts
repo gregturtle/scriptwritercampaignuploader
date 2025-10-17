@@ -66,7 +66,8 @@ class AIScriptService {
       'mr': 'Marathi',
       'gu': 'Gujarati',
       'ur': 'Urdu',
-      'pa': 'Punjabi'
+      'pa': 'Punjabi',
+      'kn': 'Kannada'
     };
     return languageNames[code] || code.toUpperCase();
   }

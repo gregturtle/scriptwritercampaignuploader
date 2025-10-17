@@ -183,8 +183,15 @@ class ElevenLabsService {
         // Use native content for multilingual scripts, otherwise use regular content
         const textToSpeak = suggestion.nativeContent || suggestion.content;
         
-        // Use multilingual model for non-English languages
-        const modelId = isMultilingual ? 'eleven_multilingual_v2' : 'eleven_monolingual_v1';
+        // Select appropriate model based on language
+        let modelId = 'eleven_monolingual_v1'; // Default for English
+        if (language === 'kn') {
+          // Kannada requires Eleven v3 model
+          modelId = 'eleven_turbo_v2_5'; // Using the latest v3 model that supports Kannada
+        } else if (isMultilingual) {
+          // Other non-English languages use multilingual v2
+          modelId = 'eleven_multilingual_v2';
+        }
         
         console.log(`Generating voice for suggestion ${i + 1} in ${language || 'en'} using model ${modelId}`);
         
