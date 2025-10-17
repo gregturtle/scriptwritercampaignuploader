@@ -124,7 +124,7 @@ Write voice-only scripts with three parts:
 - PRODUCT EXPLANATION: Briefly and clearly explain what three words
 - CLOSING CALL-TO-ACTION: End with a call to action, with an optional nod to the opening line.
 
-## CONSTRAINTS:
+## CONSTRAINTS (ENGLISH LANGUAGE SCRIPTS):
 - Never mention a rooftop or similar, as what3words doesn't work vertically
 
 - A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
@@ -132,6 +132,17 @@ Write voice-only scripts with three parts:
 - Use '3 meter square' if referring to area and never '3 meter squared' or any other area measurement
 
 - Never mention or show any specific or example what3words address itself
+
+- If the selected script language is not English, no English words or phrases except for specifically 'what three words' should be used
+
+## NON-ENGLISH LANGUAGE SPECIFIC CONSTRAINTS (when requested script language does not equal 'English'):
+- Never use English words unless they are very common in the selected script language (e.g. 'cool' in German). The exception is 'what three words' as this is the brand name and is consistent across languages
+
+- Never mention a rooftop or similar, as what3words doesn't work vertically
+
+- Where in English, a what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier", in Non-English languages these should be translated, whilst only retaining 'what three words' where appropriate
+
+- Use 'three meter square' if referring to area and never 'three meter squared' or any other area measurement. However this should never be written in English if the selected script is non-English, please translate into the selected language.
 
 ## ADDITIONAL CREATIVE INSPIRATION:
 ${creativeInspirationSection}
@@ -141,6 +152,8 @@ ${creativeInspirationSection ? 'Incorporate this guidance into your script creat
 
 ## GUIDANCE PRIMER – PERFORMANCE PATTERNS CSV:
 ${primerCSVContent}
+
+Where there are phrases in the guidance primer in English, if the selected language does not equal English, these phrases should only be used as a guide and translated into the selected language. "What three words" can be used in non-English language, but no other English words can be used in non-English scripts.
 
 ## Proportion of Scripts to follow or deviate from primer guidance: 
 ### ${experimentalPercentage}% of scripts should be EXPERIMENTAL/CURVEBALL scripts that can deviate from the primer, trying novel approaches that might not be covered in the primer, for example:
@@ -152,6 +165,7 @@ ${primerCSVContent}
 
 ### ${100 - experimentalPercentage}% of scripts should FOLLOW the primer guidance closely
 - Use the data provided as to which themes help or hinder performance to try to create winning scripts.
+- For non-English scripts, the primer can be used for guidance, but English phrases or words other than specifically 'what three words' should never be used. Phrases should be translated into selected script language if they are being used as guidance.
 
 # TASK:
 Write ${scriptCount} new voiceover ${scriptCount === 1 ? 'script' : 'scripts'} with maximum creative diversity:
