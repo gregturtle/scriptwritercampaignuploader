@@ -213,6 +213,17 @@ Respond in JSON format:
           // Log the role/behavior instruction (first 500 chars)
           console.log(`[API Call ${callIndex + 1}] Role instruction: ${fullContent.substring(0, 500)}...`);
           
+          // Log key sections to verify prompt changes
+          if (fullContent.includes('NON-ENGLISH LANGUAGE SPECIFIC CONSTRAINTS')) {
+            console.log('✓ Non-English constraints section included');
+          }
+          if (fullContent.includes('these phrases should only be used as a guide and translated')) {
+            console.log('✓ PRIMER translation guidance included');
+          }
+          if (fullContent.includes('the primer can be used for guidance, but English phrases')) {
+            console.log('✓ Follow-primer translation reminder included');
+          }
+          
           return openai.chat.completions.create({
             model: "gpt-5",
             messages: [
