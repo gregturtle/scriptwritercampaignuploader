@@ -92,27 +92,14 @@ export default function Unified() {
         const response = await fetch('/api/elevenlabs/voices');
         if (response.ok) {
           const data = await response.json();
-          // Filter for commonly used voices
-          const commonVoices = [
-            { voice_id: 'I8vyadnJFaMFR0zgn147', name: 'Hybrid Voice 1' },
-            { voice_id: 'huvDR9lwwSKC0zEjZUox', name: 'Ellara (Ellabot 2.0)' },
-            { voice_id: 'flq6f7yk4E4fJM5XTYuZ', name: 'Mark (Alternative)' }
-          ];
+          // Use all voices from API
+          const allVoices = data.voices.map((voice: any) => ({
+            voice_id: voice.voice_id,
+            name: voice.name
+          }));
           
-          // Find Samara X in the returned voices
-          const samaraVoice = data.voices.find((voice: any) => 
-            voice.name && voice.name.toLowerCase().includes('samara')
-          );
-          
-          if (samaraVoice) {
-            commonVoices.push({ 
-              voice_id: samaraVoice.voice_id, 
-              name: `${samaraVoice.name} (New)` 
-            });
-          }
-          
-          setAvailableVoices(commonVoices);
-          console.log('Loaded voices:', commonVoices);
+          setAvailableVoices(allVoices);
+          console.log('Loaded voices:', allVoices);
         }
       } catch (error) {
         console.error('Error loading voices:', error);

@@ -128,6 +128,11 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // ElevenLabs voices endpoint
   app.get('/api/elevenlabs/voices', async (req, res) => {
     try {
+      // Disable caching for this endpoint
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const voices = await elevenLabsService.getVoices();
       
       // Add curated German female voices from the shared library
