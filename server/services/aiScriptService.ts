@@ -116,67 +116,62 @@ class AIScriptService {
       // Build the creative inspiration section
       const creativeInspirationSection = guidancePrompt ? guidancePrompt.trim() : '';
 
-      const prompt = `# OBJECTIVE
+      const prompt = `OBJECTIVE
 You are a copywriter specialising in advertising voiceovers for video ads to run on Meta social platforms, goal of the user downloading the what3words app and then going on to do a key what3words metric action. The background visuals are constant - you only write the spoken narration. Your task is to write voiceover scripts, guided by proven performance patterns from our 'Guidance Primer'. 
 
-## SCRIPT STRUCTURE:
+SCRIPT STRUCTURE:
 Write voice-only scripts with three parts:
-- OPENING: Start with an attention-grabbing or intriguing line
-- PRODUCT EXPLANATION: Briefly and clearly explain what three words
-- CLOSING CALL-TO-ACTION: End with a call to action, with an optional nod to the opening line.
+OPENING: Start with an attention-grabbing or intriguing line
 
-## CONSTRAINTS (ENGLISH LANGUAGE SCRIPTS):
-- Never mention a rooftop or similar, as what3words doesn't work vertically
+PRODUCT EXPLANATION: Briefly and clearly explain what three words
 
-- A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
+CLOSING CALL-TO-ACTION: End with a call to action, with an optional nod to the opening line.
 
-- Use '3 meter square' if referring to area and never '3 meter squared' or any other area measurement
+CONSTRAINTS (ALL LANGUAGES):
+Never mention a rooftop or similar, as what3words doesn't work vertically
+Because a what3words square is 3m x 3m, use '3 meter square' (or similar) if referring to area and never '3 meter squared' which is the incorrect area.
+Never mention or show any specific or example what3words address itself
+The app name "what three words" should always appear in every ad, and it should always be written exactly like that, and only written in English (never localised).
+Other than the phrase "what three words", don't use any language other than the selected script language for the script.
 
-- Never mention or show any specific or example what3words address itself
+CONSTRAINTS (ENGLISH LANGUAGE SCRIPTS):
+A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
 
-- If the selected script language is not English, no English words or phrases except for specifically 'what three words' should be used
+NON-ENGLISH LANGUAGE SPECIFIC CONSTRAINTS (when requested script language does not equal 'English'):
+No current constraints.
 
-## NON-ENGLISH LANGUAGE SPECIFIC CONSTRAINTS (when requested script language does not equal 'English'):
-- Never use English words unless they are very common in the selected script language (e.g. 'cool' in German). The exception is 'what three words' as this is the brand name and is consistent across languages
-
-- Never mention a rooftop or similar, as what3words doesn't work vertically
-
-- Where in English, a what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier", in Non-English languages these should be translated, whilst only retaining 'what three words' where appropriate
-
-- Use 'three meter square' if referring to area and never 'three meter squared' or any other area measurement. However this should never be written in English if the selected script is non-English, please translate into the selected language.
-
-## ADDITIONAL CREATIVE INSPIRATION:
+ADDITIONAL CREATIVE INSPIRATION:
 ${creativeInspirationSection}
-${creativeInspirationSection ? 'Incorporate this guidance into your script creation too.' : ''}
-
-# PRIMER
-
-## GUIDANCE PRIMER – PERFORMANCE PATTERNS CSV:
+PRIMER
+GUIDANCE PRIMER – PERFORMANCE PATTERNS CSV:
 ${primerCSVContent}
 
-Where there are phrases in the guidance primer in English, if the selected language does not equal English, these phrases should only be used as a guide and translated into the selected language. "What three words" can be used in non-English language, but no other English words can be used in non-English scripts.
+Where there are phrases in the guidance primer in a specific language, if the selected language is different, consider it conceptually in the target language rather than literally.
+Proportion of Scripts to follow or deviate from primer guidance:
+40% of scripts should be EXPERIMENTAL/CURVEBALL scripts that can deviate from the primer, trying novel approaches that might not be covered in the primer, for example:
+Push creative boundaries with unusual angles, concepts, or approaches
 
-## Proportion of Scripts to follow or deviate from primer guidance: 
-### ${experimentalPercentage}% of scripts should be EXPERIMENTAL/CURVEBALL scripts that can deviate from the primer, trying novel approaches that might not be covered in the primer, for example:
-- Push creative boundaries with unusual angles, concepts, or approaches
-- Use unexpected metaphors, statements, perspectives
-- Experiment with different tones: mysterious, urgent, playful, philosophical, provocative etc (not an exhaustive list, can use your own judgement)
-- Try unconventional structures not covered in the primer
-- Explore creative edges that humans might not consider
+Use unexpected metaphors, statements, perspectives
 
-### ${100 - experimentalPercentage}% of scripts should FOLLOW the primer guidance closely
-- Use the data provided as to which themes help or hinder performance to try to create winning scripts.
-- For non-English scripts, the primer can be used for guidance, but English phrases or words other than specifically 'what three words' should never be used. Phrases should be translated into selected script language if they are being used as guidance.
+Experiment with different tones: mysterious, urgent, playful, philosophical, provocative etc (not an exhaustive list, can use your own judgement)
 
-# TASK:
+Explore creative edges that humans might not consider
+
+60% of scripts should FOLLOW the primer guidance closely
+Use the data provided as to which themes help or hinder performance to try to create winning scripts.
+TASK:
 Write ${scriptCount} new voiceover ${scriptCount === 1 ? 'script' : 'scripts'} with maximum creative diversity:
-- Vary tone, structure, opening style, and creative approach dramatically between scripts
-- Are only spoken narration (no visual descriptions)
-- Must be exactly 40–46 words (never exceed 14–15 seconds when spoken naturally)
-- Always write "what three words" instead of "what3words" for proper voice pronunciation
-- Scripts over 46 words will be rejected
+Vary tone, structure, opening style, and creative approach dramatically between scripts
 
-# OUTPUT FORMAT:
+Are only spoken narration (no visual descriptions)
+
+Must be exactly 40–46 words (never exceed 14–15 seconds when spoken naturally)
+
+Always write "what three words" instead of "what3words" for proper voice pronunciation
+
+Scripts over 46 words will be rejected
+
+OUTPUT FORMAT:
 Respond in JSON format:
 {
   "suggestions": [
@@ -215,14 +210,17 @@ Respond in JSON format:
           console.log(`[API Call ${callIndex + 1}] Role instruction: ${fullContent.substring(0, 500)}...`);
           
           // Log key sections to verify prompt changes
+          if (fullContent.includes('CONSTRAINTS (ALL LANGUAGES)')) {
+            console.log('✓ All languages constraints section included');
+          }
           if (fullContent.includes('NON-ENGLISH LANGUAGE SPECIFIC CONSTRAINTS')) {
             console.log('✓ Non-English constraints section included');
           }
-          if (fullContent.includes('these phrases should only be used as a guide and translated')) {
-            console.log('✓ PRIMER translation guidance included');
+          if (fullContent.includes('consider it conceptually in the target language')) {
+            console.log('✓ PRIMER conceptual translation guidance included');
           }
-          if (fullContent.includes('the primer can be used for guidance, but English phrases')) {
-            console.log('✓ Follow-primer translation reminder included');
+          if (fullContent.includes('40% of scripts should be EXPERIMENTAL')) {
+            console.log('✓ 40/60 proportion guidance included');
           }
           
           return openai.chat.completions.create({
@@ -278,8 +276,8 @@ Respond in JSON format:
             {
               role: "user",
               content: isMultilingual 
-                ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice. CRITICAL: Always write scripts DIRECTLY in ${targetLanguage} first, thinking in that language's cultural context, then provide English translations.\n\n${prompt}`
-                : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${prompt}`,
+                ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n${prompt}`
+                : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n${prompt}`,
             },
           ],
           response_format: { type: "json_object" },
