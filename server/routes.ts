@@ -135,44 +135,27 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       const voices = await elevenLabsService.getVoices();
       
-      // Add curated German female voices from the shared library
-      const germanFemaleVoices = [
-        {
-          voice_id: 'KbSC2XTZL12xT3fm2fcD',
-          name: 'Julia (German Female)',
-          category: 'professional',
-          description: 'Young German female voice with a natural, conversational tone'
-        },
-        {
-          voice_id: 'AnvlJBAqSLDzEevYr9Ap',
-          name: 'Ava (German Female)',
-          category: 'high_quality',
-          description: 'Youthful and well-spoken female German voice, perfect for narration'
-        },
-        {
-          voice_id: 'PmkWuBgfgyHPLOeC499E',
-          name: 'Frida (German Female)',
-          category: 'professional',
-          description: 'Friendly German female voice - warm, natural, and trustworthy'
-        },
-        {
-          voice_id: 'f6ogvurdTLlnXgwa7bko',
-          name: 'Kiri (German Female)',
-          category: 'professional',
-          description: 'Informative, educational, narrative female voice'
-        },
-        {
-          voice_id: 'nF7t9cuYo0u3kuVI9q4B',
-          name: 'Dana (German Female)',
-          category: 'professional',
-          description: 'Engaging confident German female with warm tone'
+      // Add German language indicator to German voices
+      const enhancedVoices = voices.map((voice: any) => {
+        // Check if voice has German language label
+        const isGerman = voice.labels?.language === 'de';
+        
+        // Add German flag to name if it's a German voice and doesn't already have the flag
+        if (isGerman && !voice.name.includes('🇩🇪')) {
+          return {
+            ...voice,
+            name: `${voice.name} 🇩🇪`,
+            isGerman: true
+          };
         }
-      ];
+        
+        return {
+          ...voice,
+          isGerman
+        };
+      });
       
-      // Combine default voices with German voices
-      const allVoices = [...voices, ...germanFemaleVoices];
-      
-      res.json({ voices: allVoices });
+      res.json({ voices: enhancedVoices });
     } catch (error: any) {
       console.error('Error fetching voices:', error);
       res.status(500).json({ 
@@ -1527,19 +1510,6 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       res.status(500).json({ 
         configured: false,
         error: 'Failed to check ElevenLabs status',
-        details: error.message 
-      });
-    }
-  });
-
-  app.get('/api/elevenlabs/voices', async (req, res) => {
-    try {
-      const voices = await elevenLabsService.getVoices();
-      res.json(voices);
-    } catch (error: any) {
-      console.error('Error fetching voices:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch voices',
         details: error.message 
       });
     }
