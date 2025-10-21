@@ -148,7 +148,7 @@ ${primerCSVContent}
 
 Where there are phrases in the guidance primer in a specific language, if the selected language is different, consider it conceptually in the target language rather than literally.
 Proportion of Scripts to follow or deviate from primer guidance:
-40% of scripts should be EXPERIMENTAL/CURVEBALL scripts that can deviate from the primer, trying novel approaches that might not be covered in the primer, for example:
+${experimentalPercentage}% of scripts should be EXPERIMENTAL/CURVEBALL scripts that can deviate from the primer, trying novel approaches that might not be covered in the primer, for example:
 Push creative boundaries with unusual angles, concepts, or approaches
 
 Use unexpected metaphors, statements, perspectives
@@ -157,7 +157,7 @@ Experiment with different tones: mysterious, urgent, playful, philosophical, pro
 
 Explore creative edges that humans might not consider
 
-60% of scripts should FOLLOW the primer guidance closely
+${100 - experimentalPercentage}% of scripts should FOLLOW the primer guidance closely
 Use the data provided as to which themes help or hinder performance to try to create winning scripts.
 TASK:
 Write ${scriptCount} new voiceover ${scriptCount === 1 ? 'script' : 'scripts'} with maximum creative diversity:
@@ -219,8 +219,8 @@ Respond in JSON format:
           if (fullContent.includes('consider it conceptually in the target language')) {
             console.log('✓ PRIMER conceptual translation guidance included');
           }
-          if (fullContent.includes('40% of scripts should be EXPERIMENTAL')) {
-            console.log('✓ 40/60 proportion guidance included');
+          if (fullContent.includes('% of scripts should be EXPERIMENTAL')) {
+            console.log('✓ Dynamic proportion guidance included');
           }
           
           return openai.chat.completions.create({
