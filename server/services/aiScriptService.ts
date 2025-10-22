@@ -12,6 +12,7 @@ interface ScriptSuggestion {
   nativeContent?: string;  // Native language version when multilingual
   englishContent?: string; // English translation when multilingual
   language?: string;       // Language code when multilingual
+  notableAdjustments?: string; // Translation notes for localization decisions
   reasoning: string;
   targetMetrics?: string[];
   audioFile?: string;
