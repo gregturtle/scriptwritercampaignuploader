@@ -1172,6 +1172,186 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Get available Google Sheets tabs
+  app.get('/api/google-sheets/tabs', async (req, res) => {
+    try {
+      const { spreadsheetId } = req.query;
+      
+      if (!spreadsheetId || typeof spreadsheetId !== 'string') {
+        return res.status(400).json({ error: 'Spreadsheet ID is required' });
+      }
+
+      const tabs = await googleSheetsService.getAvailableTabs(spreadsheetId);
+      res.json({ tabs });
+    } catch (error: any) {
+      console.error('Error getting Google Sheets tabs:', error);
+      res.status(500).json({ 
+        error: 'Failed to get tabs from Google Sheets',
+        details: error.message 
+      });
+    }
+  });
+
+  // Read scripts from a specific Google Sheets tab
+  app.post('/api/google-sheets/read-scripts', async (req, res) => {
+    try {
+      const { spreadsheetId, tabName } = req.body;
+      
+      if (!spreadsheetId || !tabName) {
+        return res.status(400).json({ error: 'Spreadsheet ID and tab name are required' });
+      }
+
+      const scripts = await googleSheetsService.readScriptsFromTab(spreadsheetId, tabName);
+      res.json({ scripts });
+    } catch (error: any) {
+      console.error('Error reading scripts from Google Sheets:', error);
+      res.status(500).json({ 
+        error: 'Failed to read scripts from Google Sheets',
+        details: error.message 
+      });
+    }
+  });
+
+  // Process existing scripts into videos and send to Slack
+  app.post('/api/scripts/process-to-videos', async (req, res) => {
+    try {
+      const { 
+        scripts, 
+        voiceId, 
+        language = 'en',
+        backgroundVideo,
+        sendToSlack,
+        slackNotificationDelay = 0
+      } = req.body;
+      
+      if (!scripts || !Array.isArray(scripts)) {
+        return res.status(400).json({ error: 'Scripts array is required' });
+      }
+
+      console.log(`Processing ${scripts.length} existing scripts into videos`);
+
+      // Transform the scripts from Google Sheets format to the format expected by our services
+      const formattedScripts = scripts.map(script => ({
+        title: script.scriptTitle,
+        content: script.content || script.nativeContent, // Use English content if available, otherwise native
+        nativeContent: script.nativeContent,
+        language: script.recordingLanguage === 'English' ? 'en' : language,
+        reasoning: script.reasoning,
+        notableAdjustments: script.translationNotes
+      }));
+
+      // Generate audio for the scripts
+      const voiceIdToUse = voiceId || 'huvDR9lwwSKC0zEjZUox'; // Default to Ella AI
+      const scriptsWithAudio = await elevenLabsService.generateScriptVoiceovers(
+        formattedScripts,
+        voiceIdToUse
+      );
+
+      console.log(`Generated audio for ${scriptsWithAudio.length} scripts`);
+
+      // Generate videos if background video is available
+      let scriptsWithVideos = scriptsWithAudio;
+      const backgroundVideos = videoService.getAvailableBackgroundVideos();
+      const videoToUse = backgroundVideo || backgroundVideos[0];
+      
+      if (videoToUse) {
+        try {
+          scriptsWithVideos = await videoService.createVideosForScripts(
+            scriptsWithAudio,
+            videoToUse
+          );
+          console.log(`Created videos for ${scriptsWithVideos.filter(s => s.videoUrl).length} scripts`);
+        } catch (videoError) {
+          console.error('Video creation failed:', videoError);
+        }
+      }
+
+      // Send to Slack if requested
+      if (sendToSlack) {
+        const timestamp = new Date().toISOString();
+        const batchName = `processed_batch_${Date.now()}`;
+        
+        // Upload videos to Google Drive first
+        const driveFolder = await googleDriveService.createVideoBatchFolder(batchName);
+        
+        // Upload each video to Drive
+        const scriptsWithDriveLinks = await Promise.all(scriptsWithVideos.map(async (script) => {
+          if (script.videoFile) {
+            try {
+              const uploadResult = await googleDriveService.uploadVideoToDrive(
+                script.videoFile,
+                script.fileName || `${script.title.replace(/\s+/g, '_')}.mp4`,
+                driveFolder.id
+              );
+              return {
+                ...script,
+                videoUrl: uploadResult.webViewLink,
+                videoFileId: uploadResult.id
+              };
+            } catch (uploadError) {
+              console.error(`Failed to upload video for ${script.title}:`, uploadError);
+              return script;
+            }
+          }
+          return script;
+        }));
+
+        // Handle Slack notification with optional delay
+        if (slackNotificationDelay > 0) {
+          // Send immediate notification about batch creation
+          await slackService.sendBatchCreationNotification(
+            batchName,
+            scriptsWithDriveLinks.length,
+            slackNotificationDelay
+          );
+          
+          // Schedule the actual batch approval messages
+          setTimeout(async () => {
+            await slackService.sendVideoBatchForApproval({
+              batchName,
+              videoCount: scriptsWithDriveLinks.length,
+              scripts: scriptsWithDriveLinks,
+              driveFolder: driveFolder.webViewLink,
+              timestamp
+            });
+          }, slackNotificationDelay * 60 * 1000);
+        } else {
+          // Send immediately
+          await slackService.sendVideoBatchForApproval({
+            batchName,
+            videoCount: scriptsWithDriveLinks.length,
+            scripts: scriptsWithDriveLinks,
+            driveFolder: driveFolder.webViewLink,
+            timestamp
+          });
+        }
+
+        res.json({
+          success: true,
+          processedCount: scriptsWithVideos.length,
+          videosGenerated: scriptsWithVideos.filter(s => s.videoUrl).length,
+          sentToSlack: true,
+          driveFolder: driveFolder.webViewLink,
+          message: `Processed ${scriptsWithVideos.length} scripts successfully`
+        });
+      } else {
+        res.json({
+          success: true,
+          processedCount: scriptsWithVideos.length,
+          videosGenerated: scriptsWithVideos.filter(s => s.videoUrl).length,
+          scripts: scriptsWithVideos,
+          message: `Processed ${scriptsWithVideos.length} scripts successfully`
+        });
+      }
+    } catch (error: any) {
+      console.error('Error processing scripts to videos:', error);
+      res.status(500).json({ 
+        error: 'Failed to process scripts to videos',
+        details: error.message 
+      });
+    }
+  });
+
   // Audio generation for selected scripts only
   app.post('/api/ai/generate-audio-only', async (req, res) => {
     try {
