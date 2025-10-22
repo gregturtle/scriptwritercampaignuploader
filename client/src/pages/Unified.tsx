@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload, Video, User } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Zap, Calendar, ExternalLink, CheckCircle, Mic, Upload, Video, User, RefreshCw, FileText } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaAuth } from '@/hooks/useMetaAuth';
@@ -59,6 +60,16 @@ export default function Unified() {
   const [experimentalPercentage, setExperimentalPercentage] = useState(40);
   const [individualGeneration, setIndividualGeneration] = useState(false);
   const [slackEnabled, setSlackEnabled] = useState(true);
+  
+  // States for processing existing scripts
+  const [activeTab, setActiveTab] = useState<'generate' | 'process'>('generate');
+  const [availableTabs, setAvailableTabs] = useState<string[]>([]);
+  const [selectedTab, setSelectedTab] = useState<string>('');
+  const [existingScripts, setExistingScripts] = useState<any[]>([]);
+  const [selectedExistingScripts, setSelectedExistingScripts] = useState<Set<number>>(new Set());
+  const [isLoadingTabs, setIsLoadingTabs] = useState(false);
+  const [isLoadingScripts, setIsLoadingScripts] = useState(false);
+  const [isProcessingScripts, setIsProcessingScripts] = useState(false);
 
   const { toast } = useToast();
 
@@ -116,6 +127,144 @@ export default function Unified() {
     
     loadVoices();
   }, []);
+
+  // Load available tabs when spreadsheet ID changes and activeTab is 'process'
+  useEffect(() => {
+    if (spreadsheetId && activeTab === 'process') {
+      loadAvailableTabs();
+    }
+  }, [spreadsheetId, activeTab]);
+
+  // Load available tabs from Google Sheets
+  const loadAvailableTabs = async () => {
+    if (!spreadsheetId) return;
+    
+    setIsLoadingTabs(true);
+    try {
+      const response = await fetch(`/api/google-sheets/tabs?spreadsheetId=${encodeURIComponent(spreadsheetId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTabs(data.tabs);
+        if (data.tabs.length > 0 && !selectedTab) {
+          setSelectedTab(data.tabs[0]);
+        }
+      } else {
+        toast({
+          title: "Failed to load tabs",
+          description: "Could not get tabs from Google Sheets",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading tabs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to connect to Google Sheets",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingTabs(false);
+    }
+  };
+
+  // Load scripts from selected tab
+  const loadScriptsFromTab = async () => {
+    if (!spreadsheetId || !selectedTab) return;
+    
+    setIsLoadingScripts(true);
+    try {
+      const response = await fetch('/api/google-sheets/read-scripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spreadsheetId, tabName: selectedTab })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setExistingScripts(data.scripts);
+        setSelectedExistingScripts(new Set()); // Reset selection
+        toast({
+          title: "Scripts loaded",
+          description: `Found ${data.scripts.length} scripts in "${selectedTab}"`,
+        });
+      } else {
+        toast({
+          title: "Failed to load scripts",
+          description: "Could not read scripts from the selected tab",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading scripts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load scripts from Google Sheets",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingScripts(false);
+    }
+  };
+
+  // Process selected existing scripts into videos
+  const handleProcessExistingScripts = async () => {
+    if (selectedExistingScripts.size === 0) {
+      toast({
+        title: "No scripts selected",
+        description: "Please select at least one script to process",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsProcessingScripts(true);
+    try {
+      const scriptsToProcess = Array.from(selectedExistingScripts).map(index => existingScripts[index]);
+      
+      const response = await fetch('/api/scripts/process-to-videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scripts: scriptsToProcess,
+          voiceId: selectedVoice,
+          language: selectedLanguage,
+          backgroundVideo: selectedBackgroundVideo,
+          sendToSlack: slackEnabled,
+          slackNotificationDelay: slackEnabled ? 15 : 0 // 15 minute delay if Slack is enabled
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast({
+          title: "Scripts processed successfully",
+          description: result.message,
+        });
+        
+        // Reset selection
+        setSelectedExistingScripts(new Set());
+        
+        // Optionally reload scripts to see any updates
+        await loadScriptsFromTab();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Processing failed",
+          description: error.details || "Failed to process scripts",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error processing scripts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process scripts into videos",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingScripts(false);
+    }
+  };
 
   const handleScriptSelection = (index: number, checked: boolean) => {
     setSelectedScripts(prev => {
@@ -415,13 +564,27 @@ export default function Unified() {
           </h1>
         </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Generate AI script suggestions using proven patterns from the Guidance Primer and control creative experimentation.
+          Generate new AI scripts or process existing scripts from Google Sheets into videos
         </p>
-
       </div>
 
-      {/* Configuration Form */}
-      <Card>
+      {/* Tabs for Generate vs Process */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'generate' | 'process')}>
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="generate" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Generate New Scripts
+          </TabsTrigger>
+          <TabsTrigger value="process" className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Process Existing Scripts
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Generate Tab Content */}
+        <TabsContent value="generate" className="space-y-6">
+          {/* Configuration Form */}
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
