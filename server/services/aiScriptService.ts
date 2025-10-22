@@ -243,13 +243,24 @@ Respond in JSON format:
 
             // Process all scripts from this call
             return result.suggestions.map((suggestion: any) => {
-              if (isMultilingual && suggestion.englishContent) {
-                return {
-                  ...suggestion,
-                  nativeContent: suggestion.content,
-                  content: suggestion.englishContent,
-                  language: language
-                };
+              // For multilingual, preserve the native content properly
+              if (isMultilingual) {
+                if (suggestion.englishContent) {
+                  // If OpenAI provided English translation, use it
+                  return {
+                    ...suggestion,
+                    nativeContent: suggestion.content, // Native stays in nativeContent
+                    content: suggestion.englishContent, // English in content
+                    language: language
+                  };
+                } else {
+                  // If no English provided yet, keep native in content for now
+                  // Translation step will fix this later
+                  return {
+                    ...suggestion,
+                    language: language
+                  };
+                }
               }
               return suggestion;
             });
@@ -294,17 +305,36 @@ Respond in JSON format:
         
         // Process multilingual responses
         suggestions = result.suggestions.map((suggestion: any) => {
-          if (isMultilingual && suggestion.englishContent) {
-            return {
-              ...suggestion,
-              nativeContent: suggestion.content,
-              content: suggestion.englishContent,
-              language: language
-            };
+          // For multilingual, preserve the native content properly
+          if (isMultilingual) {
+            if (suggestion.englishContent) {
+              // If OpenAI provided English translation, use it
+              return {
+                ...suggestion,
+                nativeContent: suggestion.content, // Native stays in nativeContent
+                content: suggestion.englishContent, // English in content
+                language: language
+              };
+            } else {
+              // If no English provided yet, keep native in content for now
+              // Translation step will fix this later
+              return {
+                ...suggestion,
+                language: language
+              };
+            }
           }
           return suggestion;
         });
       }
+      
+      // Translate non-English scripts to English for compliance audit
+      if (isMultilingual && suggestions.length > 0) {
+        console.log('Starting translation of non-English scripts for compliance audit');
+        suggestions = await this.translateToEnglish(suggestions, language);
+        console.log('Translation complete. Scripts now have both native and English versions');
+      }
+      
       let voiceGenerated = false;
 
       // Generate voice recordings if requested and ElevenLabs is configured
@@ -335,6 +365,104 @@ Respond in JSON format:
     } catch (error) {
       console.error("Error generating script suggestions:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Translate non-English scripts to English for compliance audit
+   */
+  private async translateToEnglish(
+    scripts: ScriptSuggestion[],
+    sourceLanguage: string
+  ): Promise<ScriptSuggestion[]> {
+    try {
+      const sourceLanguageName = this.getLanguageName(sourceLanguage);
+      console.log(`Translating ${scripts.length} scripts from ${sourceLanguageName} to English for compliance audit`);
+
+      // Check if any scripts already have English translations - if so, skip translation
+      const needsTranslation = scripts.some(s => !s.nativeContent || s.nativeContent === s.content);
+      if (!needsTranslation) {
+        console.log('All scripts already have translations, skipping API call');
+        return scripts;
+      }
+
+      // For scripts that have nativeContent already, use that as source
+      // Otherwise use content field as the native source
+      const scriptsToTranslate = scripts.map((s, index) => ({
+        index,
+        title: s.title,
+        content: s.nativeContent || s.content  // Use nativeContent if available, otherwise content
+      }));
+
+      const translationPrompt = `You are an advertising script translator and compliance auditor.
+
+Goal: produce a maximally faithful English translation of the provided non-English ad voiceover scripts so an English-speaking creative director can review them. Accuracy > style. Do NOT optimize, rewrite, shorten, localize, or "improve" the copy.
+
+Translation rules:
+- Translate literally while preserving meaning
+- Preserve brand/product "what three words" verbatim
+- Do not invent or omit content. Reflect any slang, profanity, or edgy claims as-is
+
+Source Language: ${sourceLanguageName}
+
+Scripts to translate:
+${JSON.stringify(scriptsToTranslate, null, 2)}
+
+Output format (JSON):
+{
+  "translations": [
+    {
+      "index": 0,
+      "englishTranslation": "Complete English translation of script"
+    }
+  ]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "user",
+            content: translationPrompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        reasoning_effort: "low" // Translation doesn't need high reasoning
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || "{}");
+      
+      if (!result.translations || !Array.isArray(result.translations)) {
+        console.error("Invalid translation response format");
+        return scripts;
+      }
+
+      // Map translations back to original scripts
+      const translationMap = new Map<number, string>();
+      result.translations.forEach((t: any) => {
+        translationMap.set(t.index, t.englishTranslation);
+      });
+
+      // Update scripts with English translations
+      return scripts.map((script, index) => {
+        const englishTranslation = translationMap.get(index);
+        if (englishTranslation) {
+          // Preserve the original native content
+          const nativeText = script.nativeContent || script.content;
+          return {
+            ...script,
+            nativeContent: nativeText, // Keep the original native text
+            content: englishTranslation, // English translation for compatibility
+            language: sourceLanguage
+          };
+        }
+        return script;
+      });
+
+    } catch (error) {
+      console.error("Error translating scripts to English:", error);
+      // Return original scripts if translation fails
+      return scripts;
     }
   }
 

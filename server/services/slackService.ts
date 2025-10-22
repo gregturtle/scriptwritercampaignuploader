@@ -125,7 +125,9 @@ export class SlackService {
       videoCount: number;
       scripts: Array<{ 
         title: string; 
-        content: string; 
+        content: string;
+        nativeContent?: string;
+        language?: string;
         fileName?: string;
         videoUrl?: string;
         videoFileId?: string;
@@ -196,7 +198,31 @@ export class SlackService {
         
         let adText = `🎬 AD ${scriptNumber}: ${script.title}\n`;
         adText += `📁 File: ${fileName}\n`;
-        adText += `💬 Script: "${script.content}"\n`;
+        
+        // Show both native and English versions if available
+        if (script.nativeContent && script.language && script.language !== 'en') {
+          // Get language name from language code
+          const languageNames: { [key: string]: string } = {
+            'de': 'German',
+            'hi': 'Hindi', 
+            'kn': 'Kannada',
+            'es': 'Spanish',
+            'fr': 'French',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'ru': 'Russian',
+            'zh': 'Chinese',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'ar': 'Arabic'
+          };
+          const languageName = languageNames[script.language] || script.language.toUpperCase();
+          
+          adText += `🌍 ${languageName} Script: "${script.nativeContent}"\n`;
+          adText += `🇬🇧 English Translation: "${script.content}"\n`;
+        } else {
+          adText += `💬 Script: "${script.content}"\n`;
+        }
 
         // Add Google Drive video link with proper formatting
         if (videoLink) {
