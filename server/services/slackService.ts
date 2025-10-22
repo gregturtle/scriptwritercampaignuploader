@@ -128,6 +128,7 @@ export class SlackService {
         content: string;
         nativeContent?: string;
         language?: string;
+        notableAdjustments?: string;
         fileName?: string;
         videoUrl?: string;
         videoFileId?: string;
@@ -220,6 +221,11 @@ export class SlackService {
           
           adText += `🌍 ${languageName} Script: "${script.nativeContent}"\n`;
           adText += `🇬🇧 English Translation: "${script.content}"\n`;
+          
+          // Add translation notes if present
+          if (script.notableAdjustments) {
+            adText += `📝 Translation Notes: ${script.notableAdjustments}\n`;
+          }
         } else {
           adText += `💬 Script: "${script.content}"\n`;
         }
