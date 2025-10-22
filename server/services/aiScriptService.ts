@@ -506,6 +506,7 @@ Output format (JSON):
         "Recording Language",
         "Native Language Script",
         "English Script",
+        "Translation Notes",
         "AI Reasoning",
       ];
       const generatedDate = new Date().toISOString().split("T")[0];
@@ -525,6 +526,7 @@ Output format (JSON):
           languageName, // Recording Language
           suggestion.nativeContent || suggestion.content, // Native Language Script (or English if not multilingual)
           suggestion.content, // English Script (always the English version or translation)
+          suggestion.notableAdjustments || '', // Translation notes (empty if none)
           suggestion.reasoning,
         ];
       });
