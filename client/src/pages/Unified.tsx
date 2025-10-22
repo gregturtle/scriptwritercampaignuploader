@@ -1240,6 +1240,215 @@ export default function Unified() {
           </Card>
         </div>
       )}
+      </TabsContent>
+
+      {/* Process Existing Scripts Tab Content */}
+      <TabsContent value="process" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Process Existing Scripts
+            </CardTitle>
+            <CardDescription>
+              Load scripts from Google Sheets and convert them into videos
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Google Sheets URL */}
+            <div className="space-y-2">
+              <Label htmlFor="process-spreadsheet">Google Sheets URL or ID</Label>
+              <Input
+                id="process-spreadsheet"
+                value={spreadsheetId}
+                onChange={(e) => setSpreadsheetId(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit or just the sheet ID"
+              />
+            </div>
+
+            {/* Tab Selection */}
+            {spreadsheetId && (
+              <div className="space-y-2">
+                <Label htmlFor="tab-selector">Select Google Sheets Tab</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedTab}
+                    onValueChange={setSelectedTab}
+                    disabled={isLoadingTabs || availableTabs.length === 0}
+                  >
+                    <SelectTrigger id="tab-selector">
+                      <SelectValue placeholder={isLoadingTabs ? "Loading tabs..." : "Select a tab"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTabs.map((tab) => (
+                        <SelectItem key={tab} value={tab}>
+                          {tab}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={loadScriptsFromTab}
+                    disabled={!selectedTab || isLoadingScripts}
+                    variant="outline"
+                  >
+                    {isLoadingScripts ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Load Scripts
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Voice Selection */}
+            {availableVoices.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="voice-selector-process">Voice Selection</Label>
+                <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                  <SelectTrigger id="voice-selector-process">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    {availableVoices.map((voice) => {
+                      const isGerman = voice.name.toLowerCase().includes('markus') || 
+                                       voice.name.toLowerCase().includes('carl') || 
+                                       voice.name.toLowerCase().includes('julia');
+                      return (
+                        <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                          {isGerman && '🇩🇪 '}{voice.name}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Slack Toggle */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="slack-toggle-process">Send to Slack for Approval</Label>
+                <p className="text-xs text-gray-500">
+                  Videos will be uploaded to Google Drive and sent to Slack for team approval
+                </p>
+              </div>
+              <Switch
+                id="slack-toggle-process"
+                checked={slackEnabled}
+                onCheckedChange={setSlackEnabled}
+              />
+            </div>
+
+            {/* Process Button */}
+            {existingScripts.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    Selected {selectedExistingScripts.size} of {existingScripts.length} scripts
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedExistingScripts.size === existingScripts.length) {
+                        setSelectedExistingScripts(new Set());
+                      } else {
+                        setSelectedExistingScripts(new Set(existingScripts.map((_, i) => i)));
+                      }
+                    }}
+                  >
+                    {selectedExistingScripts.size === existingScripts.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </div>
+                
+                <Button
+                  onClick={handleProcessExistingScripts}
+                  disabled={isProcessingScripts || selectedExistingScripts.size === 0}
+                  className="w-full"
+                >
+                  {isProcessingScripts ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing Scripts...
+                    </>
+                  ) : (
+                    <>
+                      <Video className="mr-2 h-4 w-4" />
+                      Process Selected Scripts to Videos
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Display Existing Scripts */}
+            {existingScripts.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Available Scripts</h3>
+                {existingScripts.map((script, index) => (
+                  <Card key={index} className="border">
+                    <CardContent className="pt-4">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id={`existing-script-${index}`}
+                          checked={selectedExistingScripts.has(index)}
+                          onCheckedChange={(checked) => {
+                            const newSet = new Set(selectedExistingScripts);
+                            if (checked) {
+                              newSet.add(index);
+                            } else {
+                              newSet.delete(index);
+                            }
+                            setSelectedExistingScripts(newSet);
+                          }}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <h4 className="font-medium mb-2">{script.scriptTitle}</h4>
+                          {script.nativeContent && script.recordingLanguage !== 'English' ? (
+                            <div className="mb-3">
+                              <p className="text-sm text-gray-900 mb-1 font-medium italic">
+                                {script.recordingLanguage}: "{script.nativeContent}"
+                              </p>
+                              {script.content && (
+                                <>
+                                  <p className="text-xs text-gray-600 mb-1">English translation:</p>
+                                  <p className="text-sm text-gray-700 italic">"{script.content}"</p>
+                                </>
+                              )}
+                              {script.translationNotes && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  📝 {script.translationNotes}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-700 mb-3 italic">
+                              "{script.content || script.nativeContent}"
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            Generated: {script.generatedDate}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+      </Tabs>
       </div>
     </div>
   );
