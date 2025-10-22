@@ -306,6 +306,67 @@ class GoogleSheetsService {
   }
 
   /**
+   * Get all available tabs/sheets in a spreadsheet
+   */
+  async getAvailableTabs(spreadsheetId: string): Promise<string[]> {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId: cleanSpreadsheetId,
+      });
+      
+      if (response.data.sheets) {
+        return response.data.sheets
+          .map(sheet => sheet.properties?.title || '')
+          .filter(title => title);
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error getting tabs from spreadsheet:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Read scripts from a specific tab in the spreadsheet
+   */
+  async readScriptsFromTab(spreadsheetId: string, tabName: string): Promise<any[]> {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      
+      // Read all data from the specified tab
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: cleanSpreadsheetId,
+        range: `${tabName}!A:H`, // Read columns A through H (including Translation Notes)
+      });
+      
+      const rows = response.data.values || [];
+      if (rows.length < 2) {
+        return []; // No data or only headers
+      }
+      
+      // Skip the header row and map the data
+      const scripts = rows.slice(1).map((row, index) => ({
+        rowIndex: index + 2, // +2 because we skip header and sheets are 1-indexed
+        generatedDate: row[0] || '',
+        fileTitle: row[1] || '',
+        scriptTitle: row[2] || '',
+        recordingLanguage: row[3] || 'English',
+        nativeContent: row[4] || '',
+        content: row[5] || '', // English content
+        translationNotes: row[6] || '',
+        reasoning: row[7] || '',
+      }));
+      
+      return scripts;
+    } catch (error) {
+      console.error('Error reading scripts from tab:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create a new tab/sheet in an existing spreadsheet
    */
   async createTab(spreadsheetId: string, tabName: string, headers: string[]) {
