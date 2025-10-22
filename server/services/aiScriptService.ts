@@ -439,21 +439,25 @@ Output format (JSON):
       }
 
       // Map translations back to original scripts
-      const translationMap = new Map<number, string>();
+      const translationMap = new Map<number, { englishTranslation: string; notableAdjustments?: string }>();
       result.translations.forEach((t: any) => {
-        translationMap.set(t.index, t.englishTranslation);
+        translationMap.set(t.index, { 
+          englishTranslation: t.englishTranslation,
+          notableAdjustments: t.notableAdjustments 
+        });
       });
 
       // Update scripts with English translations
       return scripts.map((script, index) => {
-        const englishTranslation = translationMap.get(index);
-        if (englishTranslation) {
+        const translationData = translationMap.get(index);
+        if (translationData) {
           // Preserve the original native content
           const nativeText = script.nativeContent || script.content;
           return {
             ...script,
             nativeContent: nativeText, // Keep the original native text
-            content: englishTranslation, // English translation for compatibility
+            content: translationData.englishTranslation, // English translation for compatibility
+            notableAdjustments: translationData.notableAdjustments, // Translation notes
             language: sourceLanguage
           };
         }
