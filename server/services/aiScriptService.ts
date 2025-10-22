@@ -396,12 +396,12 @@ Respond in JSON format:
 
       const translationPrompt = `You are an advertising script translator and compliance auditor.
 
-Goal: produce a maximally faithful English translation of the provided non-English ad voiceover scripts so an English-speaking creative director can review them. Accuracy > style. Do NOT optimize, rewrite, shorten, localize, or "improve" the copy.
+Goal: Localise ad copy into English for creative review. You should remain faithful to the original sentiment and meaning. For example, find an English equivalent of an expression that would sound odd (or not what is meant in the original language) in English if translated literally.
 
-Translation rules:
-- Translate literally while preserving meaning
+Rules:
 - Preserve brand/product "what three words" verbatim
-- Do not invent or omit content. Reflect any slang, profanity, or edgy claims as-is
+- Do not optimize, shorten, or improve the copy
+- Keep any slang, profanity, or edgy claims, as we would want to review these
 
 Source Language: ${sourceLanguageName}
 
@@ -413,7 +413,8 @@ Output format (JSON):
   "translations": [
     {
       "index": 0,
-      "englishTranslation": "Complete English translation of script"
+      "englishTranslation": "Complete English translation of script",
+      "notableAdjustments": "Any notable turns of phrase (cite local and EN text and brief summary of original meaning) which particularly deviate from the literal translation"
     }
   ]
 }`;
