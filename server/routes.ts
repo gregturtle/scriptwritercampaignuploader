@@ -22,6 +22,7 @@ import { elevenLabsService } from "./services/elevenLabsService";
 import { videoService } from "./services/videoService";
 import { googleDriveService } from "./services/googleDriveService";
 import { slackService } from "./services/slackService";
+import { googleSheetsService } from "./services/googleSheetsService";
 
 // Helper function to get access token
 async function getAccessToken(): Promise<string> {
