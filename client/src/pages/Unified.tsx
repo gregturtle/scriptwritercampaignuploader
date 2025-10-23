@@ -1332,6 +1332,25 @@ export default function Unified() {
               </div>
             )}
 
+            {/* Background Video Selection */}
+            {backgroundVideos.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="video-selector-process">Background Video</Label>
+                <Select value={selectedBackgroundVideo} onValueChange={setSelectedBackgroundVideo}>
+                  <SelectTrigger id="video-selector-process">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    {backgroundVideos.map((video) => (
+                      <SelectItem key={video.path} value={video.path}>
+                        {video.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Slack Toggle */}
             <div className="flex items-center justify-between">
               <div className="space-y-1">
