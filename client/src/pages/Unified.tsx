@@ -58,7 +58,7 @@ export default function Unified() {
   const [selectedLanguage, setSelectedLanguage] = useState('en'); // Default to English
   const [primerFile, setPrimerFile] = useState<File | null>(null);
   const [experimentalPercentage, setExperimentalPercentage] = useState(40);
-  const [individualGeneration, setIndividualGeneration] = useState(false);
+  const [individualGeneration, setIndividualGeneration] = useState(true);
   const [slackEnabled, setSlackEnabled] = useState(false);
   
   // States for processing existing scripts
