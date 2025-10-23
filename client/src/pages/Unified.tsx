@@ -36,7 +36,7 @@ interface ScriptResult {
 
 export default function Unified() {
   const [spreadsheetId, setSpreadsheetId] = useState('');
-  const [withAudio, setWithAudio] = useState(true);
+  const [withAudio, setWithAudio] = useState(false);
   const [scriptCount, setScriptCount] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<ScriptResult | null>(null);
