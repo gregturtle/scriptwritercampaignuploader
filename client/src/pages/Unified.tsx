@@ -59,7 +59,7 @@ export default function Unified() {
   const [primerFile, setPrimerFile] = useState<File | null>(null);
   const [experimentalPercentage, setExperimentalPercentage] = useState(40);
   const [individualGeneration, setIndividualGeneration] = useState(false);
-  const [slackEnabled, setSlackEnabled] = useState(true);
+  const [slackEnabled, setSlackEnabled] = useState(false);
   
   // States for processing existing scripts
   const [activeTab, setActiveTab] = useState<'generate' | 'process'>('generate');
