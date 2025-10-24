@@ -1,14 +1,14 @@
 # Deployment Instructions
 
-## Build Process
+## Build Process - FIXED ✅
 The application uses a two-step build process:
 1. **Vite** builds the client application → `dist/public/`
-2. **esbuild** bundles the server → `dist/index.js`
+2. **esbuild** bundles the server → `dist/index.js` (using `--outfile` for correct location)
 
 ## File Structure After Build
 ```
 dist/
-├── index.js           # Bundled server (runs in production)
+├── index.js           # Bundled server (0.22 MB)
 └── public/            # Client assets
     ├── index.html
     └── assets/        # JS, CSS bundles
@@ -16,24 +16,35 @@ dist/
 
 ## Deployment Commands
 
-### Standard Build & Start
+### Recommended for Deployment
 ```bash
-# Build the application
-npm run build
+# Option 1: Use the deployment start script (RECOMMENDED)
+node deploy-start.js
 
-# Start in production mode
+# Option 2: Use the production wrapper
+node start-production.js
+
+# Option 3: Build manually with fix, then start
+node scripts/fix-build.js
 NODE_ENV=production node dist/index.js
 ```
 
-### Alternative Start Script
-If the standard start command fails during deployment, use:
-```bash
-node start-production.js
-```
-This wrapper script will:
-- Verify the build output exists
-- Run the build if needed
-- Start the production server
+### Build Scripts Available
+1. **deploy-start.js** - Main deployment entry point that:
+   - Checks if build exists
+   - Runs the corrected build automatically if needed
+   - Starts the production server
+   - Uses `--outfile` for correct server bundle location
+
+2. **scripts/fix-build.js** - Standalone build that:
+   - Builds client with Vite
+   - Builds server with correct `--outfile=dist/index.js`
+   - Verifies all outputs exist
+
+3. **start-production.js** - Production wrapper that:
+   - Verifies the build output exists
+   - Attempts to run build if missing
+   - Starts the production server
 
 ## Important Notes
 

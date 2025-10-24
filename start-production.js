@@ -16,11 +16,11 @@ const distIndexPath = join(__dirname, 'dist', 'index.js');
 if (!existsSync(distIndexPath)) {
   console.error('ERROR: dist/index.js not found!');
   console.error('The build has not been run or failed.');
-  console.error('Please ensure "npm run build" completes successfully before starting.');
+  console.error('Will attempt to run build with corrected output paths...');
   
-  // Try to run build
+  // Try to run build with the corrected script
   console.log('\nAttempting to run build now...');
-  const buildProcess = spawn('npm', ['run', 'build'], { 
+  const buildProcess = spawn('node', ['scripts/fix-build.js'], { 
     stdio: 'inherit',
     shell: true 
   });
