@@ -16,17 +16,19 @@ dist/
 
 ## Deployment Commands
 
-### Recommended for Deployment
+### For Replit Deployment Settings ⚙️
+**Build Command:** `node scripts/build.js`  
+**Run Command:** `node deploy-start.js`
+
+### Alternative Commands
 ```bash
-# Option 1: Use the deployment start script (RECOMMENDED)
-node deploy-start.js
+# Option 1: Use NPM wrappers (if changing deployment settings doesn't work)
+Build: node npm-build-wrapper.js
+Run: node npm-start-wrapper.js
 
-# Option 2: Use the production wrapper
-node start-production.js
-
-# Option 3: Build manually with fix, then start
-node scripts/fix-build.js
-NODE_ENV=production node dist/index.js
+# Option 2: Direct commands
+Build: npx vite build && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/index.js
+Run: NODE_ENV=production node dist/index.js
 ```
 
 ### Build Scripts Available
