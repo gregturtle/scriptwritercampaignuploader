@@ -439,7 +439,8 @@ OUTPUT FORMAT (strict JSON):
       "title": "Brief creative title",
       "content": "${isMultilingual ? `Native ${targetLanguage} voiceover script` : 'Complete English voiceover script'}",
       ${isMultilingual ? `"englishContent": "English translation for compliance review",\n      ` : ''}"reasoning": "Explain what creative approach this iteration takes and how it differs from the source",
-      "sourceScript": "The original script this is based on"
+      "sourceScriptTitle": "Title of the source script",
+      "sourceScript": "The original script content this is based on"
     }
   ]
 }`;
@@ -475,6 +476,7 @@ OUTPUT FORMAT (strict JSON):
               allSuggestions.push({
                 ...suggestion,
                 fileName: `${sourceScript.scriptTitle || `source${scriptIndex + 1}`}_iter${iterIndex + 1}`,
+                sourceScriptTitle: sourceScript.scriptTitle || sourceScript.title || `Script ${scriptIndex + 1}`,
                 sourceScript: sourceScript.content || sourceScript.nativeContent
               });
             });
@@ -712,6 +714,8 @@ Output format (JSON):
         "English Script",
         "Translation Notes",
         "AI Reasoning",
+        "Source Script Title",
+        "Source Script Copy",
       ];
       const generatedDate = new Date().toISOString().split("T")[0];
 
@@ -732,6 +736,8 @@ Output format (JSON):
           suggestion.content, // English Script (always the English version or translation)
           suggestion.notableAdjustments || '', // Translation notes (empty if none)
           suggestion.reasoning,
+          suggestion.sourceScriptTitle || '', // Source Script Title
+          suggestion.sourceScript || '', // Source Script Copy
         ];
       });
 
