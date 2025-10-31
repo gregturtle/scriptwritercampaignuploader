@@ -401,10 +401,6 @@ Respond in JSON format:
     } = options;
 
     try {
-      // Load raw CSV content for the primer
-      const primerCSVContent = await primerService.loadPrimerCSVContent(primerContent);
-      console.log('Loaded primer CSV content for iterations');
-
       const targetLanguage = this.getLanguageName(language);
       const isMultilingual = language !== 'en';
       console.log(`Generating ${iterationsPerScript} iterations per script in ${targetLanguage}`);
@@ -430,9 +426,6 @@ Never include the English translation within the script
 Don't mention the app name "what three words" more than once in a single voiceover script ad (because the brand name is not localisable)
 
 ${creativeInspirationSection ? `CREATIVE INSPIRATION:\nIncorporate the following thematic guidance into your iterations:\n${creativeInspirationSection}\n` : ''}
-
-GUIDANCE PRIMER:
-${primerCSVContent}
 
 TASK:
 For each source script provided below, write ${iterationsPerScript} creative iterations. Each iteration should explore different tones, openings, emotional triggers, or storytelling approaches, these differences should be subtle ensuring that the core message and product benefits/use cases are retained. It should be quite easy for somebody reading the iterations to recognise the association with the original script. Follow all the constraints listed above
