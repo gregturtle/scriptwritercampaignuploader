@@ -415,6 +415,228 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Generate iterations of existing scripts
+  app.post('/api/ai/generate-iterations', async (req, res) => {
+    try {
+      console.log('AI iteration generation request received:', req.body);
+      const {
+        sourceScripts,
+        iterationsPerScript = 3,
+        generateAudio = true,
+        backgroundVideoPath,
+        voiceId,
+        guidancePrompt,
+        language = 'en',
+        slackEnabled = true,
+        primerContent,
+        experimentalPercentage = 50,
+        individualGeneration = false,
+        spreadsheetId
+      } = req.body;
+
+      if (!sourceScripts || !Array.isArray(sourceScripts) || sourceScripts.length === 0) {
+        return res.status(400).json({ message: 'Source scripts array is required' });
+      }
+
+      if (!spreadsheetId) {
+        return res.status(400).json({ message: 'Spreadsheet ID is required' });
+      }
+
+      console.log(`Generating ${iterationsPerScript} iterations for ${sourceScripts.length} source scripts`);
+
+      // Generate unique batch ID
+      const batchId = `batch_iterations_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      console.log(`Creating iterations batch ${batchId}`);
+
+      const totalIterations = sourceScripts.length * iterationsPerScript;
+
+      // Create batch record in database
+      const batch = await appStorage.createScriptBatch({
+        batchId,
+        spreadsheetId,
+        tabName: 'Script Iterations',
+        voiceId,
+        guidancePrompt,
+        backgroundVideoPath,
+        scriptCount: totalIterations,
+        status: 'generating'
+      });
+
+      // Generate iterations using AI script service
+      const result = await aiScriptService.generateIterations(
+        sourceScripts,
+        {
+          iterationsPerScript,
+          includeVoice: generateAudio,
+          voiceId: voiceId,
+          guidancePrompt: guidancePrompt,
+          language: language,
+          primerContent: primerContent,
+          experimentalPercentage: experimentalPercentage,
+          individualGeneration: individualGeneration
+        }
+      );
+
+      // Store all iterations in batch_scripts table
+      const batchScripts = await appStorage.createBatchScripts(
+        result.suggestions.map((suggestion, index) => {
+          const contentHash = crypto.createHash('sha256')
+            .update(suggestion.content)
+            .digest('hex');
+
+          return {
+            batchId,
+            scriptIndex: index,
+            title: suggestion.title,
+            content: suggestion.content,
+            contentHash,
+            reasoning: suggestion.reasoning,
+            targetMetrics: suggestion.targetMetrics?.join(', '),
+            fileName: suggestion.fileName || `iteration${index + 1}`,
+            audioFile: suggestion.audioFile || null
+          };
+        })
+      );
+
+      console.log(`Stored ${batchScripts.length} iterations for batch ${batchId}`);
+
+      // Auto-generate videos if audio was generated and background videos are available
+      if (generateAudio && result.suggestions.some(s => s.audioFile)) {
+        const backgroundVideos = videoService.getAvailableBackgroundVideos();
+        const selectedBackgroundVideo = backgroundVideoPath && fs.existsSync(backgroundVideoPath)
+          ? backgroundVideoPath
+          : backgroundVideos[0];
+
+        if (selectedBackgroundVideo) {
+          console.log(`Creating videos using background: ${selectedBackgroundVideo}`);
+
+          try {
+            const videosResult = await videoService.createVideosForScripts(
+              result.suggestions,
+              selectedBackgroundVideo
+            );
+
+            // Update batch scripts with video information
+            for (let i = 0; i < videosResult.length; i++) {
+              const videoResult = videosResult[i];
+              if (videoResult && (videoResult.videoUrl || videoResult.videoFile)) {
+                await appStorage.updateBatchScript(batchScripts[i].id, {
+                  videoFile: videoResult.videoFile || null,
+                  videoUrl: videoResult.videoUrl || null,
+                  videoFileId: videoResult.videoFileId || null
+                });
+              }
+            }
+
+            // Merge video information
+            result.suggestions = result.suggestions.map((originalSuggestion, index) => {
+              const videoResult = videosResult[index];
+              return {
+                ...originalSuggestion,
+                videoFile: videoResult?.videoFile,
+                videoUrl: videoResult?.videoUrl,
+                videoFileId: videoResult?.videoFileId,
+                videoError: videoResult?.videoError,
+                folderLink: videoResult?.folderLink
+              };
+            });
+
+            // Update batch record with folder link
+            const folderLink = videosResult.find(v => v.folderLink)?.folderLink;
+            if (folderLink) {
+              await appStorage.updateScriptBatchStatus(batchId, 'videos_generated');
+              await appStorage.updateScriptBatch(batchId, { folderLink });
+            }
+
+            console.log(`Created ${videosResult.filter(v => v.videoUrl).length} videos successfully for batch ${batchId}`);
+          } catch (videoError) {
+            console.error('Video creation failed:', videoError);
+          }
+        }
+      }
+
+      // Save iterations to Google Sheets
+      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "Script Iterations");
+
+      // Send to Slack if enabled
+      let slackScheduled = false;
+      const hasVideosForSlack = result.suggestions.some(s => s.videoUrl);
+      const slackDisabledByEnv = process.env.DISABLE_SLACK_NOTIFICATIONS === 'true';
+      const slackDisabledByUser = !slackEnabled;
+      const slackDisabled = slackDisabledByEnv || slackDisabledByUser;
+
+      if (hasVideosForSlack && !slackDisabled) {
+        try {
+          const timestamp = new Date().toLocaleString('en-CA', {
+            timeZone: 'UTC',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          }).replace(',', '');
+
+          const batchName = `Iterations_${timestamp}`;
+          const videoCount = result.suggestions.filter(s => s.videoUrl).length;
+
+          const batchData = {
+            batchName,
+            videoCount,
+            scripts: result.suggestions.map((s, index) => ({
+              title: s.title,
+              content: s.content,
+              fileName: s.fileName || `iteration${index + 1}`,
+              videoUrl: s.videoUrl,
+              videoFileId: s.videoFileId
+            })),
+            driveFolder: result.suggestions.find(s => s.videoUrl)?.videoUrl || 'Google Drive folder',
+            timestamp
+          };
+
+          // Send immediate notification
+          try {
+            await slackService.sendMessage({
+              channel: process.env.SLACK_CHANNEL_ID!,
+              text: `Batch ${batchName} created with ${videoCount} iteration videos. Approval workflow will begin in 5 minutes.`
+            });
+          } catch (error) {
+            console.error('Error sending immediate notification:', error);
+          }
+
+          // Schedule approval workflow
+          setTimeout(async () => {
+            try {
+              await slackService.sendVideoBatchForApproval(batchData);
+              console.log(`Sent iteration batch to Slack for approval: ${batchName}`);
+            } catch (slackError) {
+              console.error('Failed to send Slack approval workflow:', slackError);
+            }
+          }, 5 * 60 * 1000);
+
+          slackScheduled = true;
+        } catch (slackError) {
+          console.error('Failed to send Slack notifications:', slackError);
+        }
+      }
+
+      res.json({
+        suggestions: result.suggestions,
+        message: `Generated ${result.suggestions.length} iterations (${iterationsPerScript} per source script)`,
+        savedToSheet: true,
+        voiceGenerated: result.voiceGenerated,
+        slackScheduled
+      });
+    } catch (error) {
+      console.error('Error generating iterations:', error);
+
+      res.status(500).json({
+        message: 'Failed to generate iterations',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 
   // Slack webhook endpoint for handling button interactions
   app.post('/api/slack/interactions', express.urlencoded({ extended: true }), async (req, res) => {

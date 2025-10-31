@@ -370,6 +370,237 @@ Respond in JSON format:
   }
 
   /**
+   * Generate iterations/variations of existing scripts
+   */
+  async generateIterations(
+    sourceScripts: any[],
+    options: {
+      iterationsPerScript?: number;
+      voiceId?: string;
+      includeVoice?: boolean;
+      guidancePrompt?: string;
+      language?: string;
+      primerContent?: string;
+      experimentalPercentage?: number;
+      individualGeneration?: boolean;
+    } = {}
+  ): Promise<{
+    suggestions: ScriptSuggestion[];
+    message: string;
+    voiceGenerated?: boolean;
+  }> {
+    const {
+      iterationsPerScript = 3,
+      voiceId,
+      includeVoice = false,
+      guidancePrompt,
+      language = 'en',
+      primerContent,
+      experimentalPercentage = 50,
+      individualGeneration = false
+    } = options;
+
+    try {
+      // Load raw CSV content for the primer
+      const primerCSVContent = await primerService.loadPrimerCSVContent(primerContent);
+      console.log('Loaded primer CSV content for iterations');
+
+      const targetLanguage = this.getLanguageName(language);
+      const isMultilingual = language !== 'en';
+      console.log(`Generating ${iterationsPerScript} iterations per script in ${targetLanguage}`);
+
+      // Build the creative inspiration section
+      const creativeInspirationSection = guidancePrompt ? guidancePrompt.trim() : '';
+
+      const prompt = `OBJECTIVE
+You are a copywriter specializing in creating creative variations and iterations of successful advertising scripts for video ads to run on Meta social platforms. Your goal is to take proven winning scripts and create fresh variations that maintain the core message while exploring different creative approaches.
+
+SCRIPT STRUCTURE:
+Write voice-only scripts with three parts:
+OPENING: Start with an attention-grabbing or intriguing line
+
+PRODUCT EXPLANATION: Briefly and clearly explain what three words
+
+CLOSING CALL-TO-ACTION: End with a call to action, with an optional nod to the opening line.
+
+CONSTRAINTS (ALL LANGUAGES):
+Never mention a rooftop or similar, as what3words doesn't work vertically
+Because a what3words square is 3m x 3m, use '3 meter square' (or similar) if referring to area and never '3 meter squared' which is the incorrect area.
+Never mention or show any specific or example what3words address itself
+The app name "what three words" should always appear in every ad, and it should always be written exactly like that, and only written in English (never localised).
+Other than the phrase "what three words", don't use any language other than the selected script language for the script.
+
+CONSTRAINTS (ENGLISH LANGUAGE SCRIPTS):
+A what three words location can only be written as "what three words address", "what three words location", "three word code", "three word address", or "three word identifier"
+
+NON-ENGLISH LANGUAGE SPECIFIC CONSTRAINTS (when requested script language does not equal 'English'):
+Never include the English translation within the script
+Don't mention the app name "what three words" more than once in a single voiceover script ad (because the brand name is not localisable)
+
+${creativeInspirationSection ? `CREATIVE INSPIRATION:\nIncorporate the following thematic guidance into your iterations:\n${creativeInspirationSection}\n` : ''}
+
+GUIDANCE PRIMER:
+${primerCSVContent}
+
+ITERATION APPROACH:
+You have ${experimentalPercentage}% freedom to explore new creative approaches while staying grounded in proven patterns.
+- At ${experimentalPercentage}%: ${experimentalPercentage < 30 ? 'Stay very close to the source script structure, varying mainly tone and word choice' : experimentalPercentage < 70 ? 'Balance between maintaining the core approach and trying new angles' : 'Be creative and experimental, feel free to significantly reimagine the approach while keeping the core message'}
+- Create ${iterationsPerScript} distinct variations for each source script
+- Each iteration should feel fresh and different from the others
+- Maintain the core messaging and value proposition of the original
+- Explore different tones, openings, emotional triggers, and storytelling approaches
+
+TASK:
+For each source script provided below, write ${iterationsPerScript} creative iterations. Each iteration should:
+1. Maintain the core message and product benefits
+2. Explore a different creative angle or approach
+3. Feel fresh and engaging, not just a word-swap of the original
+4. Follow all the constraints listed above
+
+${isMultilingual ? `IMPORTANT: Write all iterations NATIVELY in ${targetLanguage}. Think and create in ${targetLanguage} first - DO NOT translate from English. After creating the ${targetLanguage} versions, provide English translations for compliance review.\n` : ''}
+
+OUTPUT FORMAT (strict JSON):
+{
+  "suggestions": [
+    {
+      "title": "Brief creative title",
+      "content": "${isMultilingual ? `Native ${targetLanguage} voiceover script` : 'Complete English voiceover script'}",
+      ${isMultilingual ? `"englishContent": "English translation for compliance review",\n      ` : ''}"reasoning": "Explain what creative approach this iteration takes and how it differs from the source",
+      "sourceScript": "The original script this is based on"
+    }
+  ]
+}`;
+
+      let allSuggestions: ScriptSuggestion[] = [];
+
+      if (individualGeneration) {
+        // Individual generation: One API call per source script
+        console.log(`Individual generation mode: ${sourceScripts.length} API calls (${iterationsPerScript} iterations each)`);
+
+        const apiCalls = sourceScripts.map((sourceScript, scriptIndex) => {
+          const scriptPrompt = `${prompt}\n\nSOURCE SCRIPT TO ITERATE:\nTitle: ${sourceScript.scriptTitle || sourceScript.title || `Script ${scriptIndex + 1}`}\nContent: "${sourceScript.content || sourceScript.nativeContent}"\n\nGenerate ${iterationsPerScript} creative variations of this script.`;
+
+          const fullContent = isMultilingual
+            ? `You are a multilingual creative director fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}. ${scriptPrompt}`
+            : scriptPrompt;
+
+          return openai.chat.completions.create({
+            model: "gpt-5",
+            messages: [{ role: "user", content: fullContent }],
+            response_format: { type: "json_object" },
+            reasoning_effort: experimentalPercentage > 70 ? "high" : experimentalPercentage > 30 ? "medium" : "low"
+          });
+        });
+
+        const responses = await Promise.all(apiCalls);
+
+        responses.forEach((response, scriptIndex) => {
+          const result = JSON.parse(response.choices[0].message.content || "{}");
+          if (result.suggestions && Array.isArray(result.suggestions)) {
+            const sourceScript = sourceScripts[scriptIndex];
+            result.suggestions.forEach((suggestion: any, iterIndex: number) => {
+              allSuggestions.push({
+                ...suggestion,
+                fileName: `${sourceScript.scriptTitle || `source${scriptIndex + 1}`}_iter${iterIndex + 1}`,
+                sourceScript: sourceScript.content || sourceScript.nativeContent
+              });
+            });
+          }
+        });
+
+        console.log(`Individual generation complete: ${allSuggestions.length} iterations generated`);
+      } else {
+        // Batch generation: Single API call for all iterations
+        console.log(`Batch generation mode: Single API call for all ${sourceScripts.length} scripts`);
+
+        const scriptsToIterate = sourceScripts.map((script, index) => ({
+          index,
+          title: script.scriptTitle || script.title || `Script ${index + 1}`,
+          content: script.content || script.nativeContent
+        }));
+
+        const batchPrompt = `${prompt}\n\nSOURCE SCRIPTS TO ITERATE:\n${JSON.stringify(scriptsToIterate, null, 2)}\n\nFor each source script, generate ${iterationsPerScript} creative variations (total ${sourceScripts.length * iterationsPerScript} iterations).`;
+
+        const fullContent = isMultilingual
+          ? `You are a multilingual creative director fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}. ${batchPrompt}`
+          : batchPrompt;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [{ role: "user", content: fullContent }],
+          response_format: { type: "json_object" },
+          reasoning_effort: experimentalPercentage > 70 ? "high" : experimentalPercentage > 30 ? "medium" : "low"
+        });
+
+        const result = JSON.parse(response.choices[0].message.content || "{}");
+
+        if (result.suggestions && Array.isArray(result.suggestions)) {
+          allSuggestions = result.suggestions.map((suggestion: any, index: number) => ({
+            ...suggestion,
+            fileName: `iteration_${index + 1}`
+          }));
+        }
+
+        console.log(`Batch generation complete: ${allSuggestions.length} iterations generated`);
+      }
+
+      // Process multilingual responses
+      let suggestions = allSuggestions.map((suggestion: any) => {
+        if (isMultilingual) {
+          if (suggestion.englishContent) {
+            return {
+              ...suggestion,
+              nativeContent: suggestion.content,
+              content: suggestion.englishContent,
+              language: language
+            };
+          } else {
+            return {
+              ...suggestion,
+              language: language
+            };
+          }
+        }
+        return suggestion;
+      });
+
+      // Translate non-English iterations to English for compliance
+      if (isMultilingual && suggestions.length > 0) {
+        console.log('Starting translation of non-English iterations');
+        suggestions = await this.translateToEnglish(suggestions, language);
+        console.log('Translation complete');
+      }
+
+      let voiceGenerated = false;
+
+      // Generate voice recordings if requested
+      if (includeVoice && elevenLabsService.isConfigured()) {
+        console.log('Starting voice generation for', suggestions.length, 'iterations');
+        try {
+          suggestions = await elevenLabsService.generateScriptVoiceovers(
+            suggestions,
+            voiceId,
+            language
+          );
+          voiceGenerated = true;
+          console.log('Voice generation completed');
+        } catch (error) {
+          console.error('Error generating voice recordings:', error);
+        }
+      }
+
+      return {
+        suggestions,
+        message: `Successfully generated ${suggestions.length} script iterations`,
+        voiceGenerated
+      };
+    } catch (error) {
+      console.error("Error generating script iterations:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Translate non-English scripts to English for compliance audit
    */
   private async translateToEnglish(
