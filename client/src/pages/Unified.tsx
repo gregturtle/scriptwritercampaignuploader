@@ -903,34 +903,6 @@ export default function Unified() {
                 </div>
               )}
 
-              {/* Experimental Level Slider */}
-              {iterationsScripts.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Experimentation Level: {experimentalPercentage}%
-                  </Label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={experimentalPercentage}
-                    onChange={(e) => setExperimentalPercentage(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                    data-testid="slider-experimental-percentage"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>Follow Primer Closely</span>
-                    <span>More Experimental</span>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    {experimentalPercentage < 30 && "Scripts will closely follow proven patterns from the Guidance Primer"}
-                    {experimentalPercentage >= 30 && experimentalPercentage < 70 && "Balanced mix of proven patterns and creative experimentation"}
-                    {experimentalPercentage >= 70 && "More experimental and creative, less constrained by primer patterns"}
-                  </p>
-                </div>
-              )}
-
               {/* Language Selection */}
               {iterationsScripts.length > 0 && (
                 <div className="space-y-2">
