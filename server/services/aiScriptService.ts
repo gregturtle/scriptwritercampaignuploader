@@ -409,8 +409,8 @@ Respond in JSON format:
       const creativeInspirationSection = guidancePrompt ? guidancePrompt.trim() : '';
 
       const prompt = `OBJECTIVE
-You are a copywriter specializing in creating creative iterations of successful advertising scripts for video ads to run on Meta social platforms.
-Your goal is to take proven winning scripts and create iterations that will perform better than the original script.
+You are a copywriter specializing in writing creative iterations of successful advertising scripts for video ads to run on Meta social platforms.
+Your objective is to take proven winning scripts and create iterations that will perform better than the original script against the goal of the user downloading the what3words app and then going on to do a key what3words metric action.
 
 CONSTRAINTS (ALL LANGUAGES):
 Never mention a rooftop or similar, as what3words doesn't work vertically
