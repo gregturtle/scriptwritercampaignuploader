@@ -434,14 +434,6 @@ ${creativeInspirationSection ? `CREATIVE INSPIRATION:\nIncorporate the following
 GUIDANCE PRIMER:
 ${primerCSVContent}
 
-ITERATION APPROACH:
-You have ${experimentalPercentage}% freedom to explore new creative approaches while staying grounded in proven patterns.
-- At ${experimentalPercentage}%: ${experimentalPercentage < 30 ? 'Stay very close to the source script structure, varying mainly tone and word choice' : experimentalPercentage < 70 ? 'Balance between maintaining the core approach and trying new angles' : 'Be creative and experimental, feel free to significantly reimagine the approach while keeping the core message'}
-- Create ${iterationsPerScript} distinct variations for each source script
-- Each iteration should feel fresh and different from the others
-- Maintain the core messaging and value proposition of the original
-- Explore different tones, openings, emotional triggers, and storytelling approaches
-
 TASK:
 For each source script provided below, write ${iterationsPerScript} creative iterations. Each iteration should:
 1. Maintain the core message and product benefits
