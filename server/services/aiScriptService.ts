@@ -413,7 +413,7 @@ Respond in JSON format:
       const creativeInspirationSection = guidancePrompt ? guidancePrompt.trim() : '';
 
       const prompt = `OBJECTIVE
-You are a copywriter specializing in creating creative variations and iterations of successful advertising scripts for video ads to run on Meta social platforms. Your goal is to take proven winning scripts and create fresh variations that maintain the core message while exploring different creative approaches.
+You are a copywriter specializing in creating creative variations and iterations of successful advertising scripts for video ads to run on Meta social platforms. Your goal is to take proven winning scripts and create variations that will perform even better than the original script.
 
 CONSTRAINTS (ALL LANGUAGES):
 Never mention a rooftop or similar, as what3words doesn't work vertically
