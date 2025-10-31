@@ -428,7 +428,9 @@ Don't mention the app name "what three words" more than once in a single voiceov
 ${creativeInspirationSection ? `CREATIVE INSPIRATION:\nIncorporate the following thematic guidance into your iterations:\n${creativeInspirationSection}\n` : ''}
 
 TASK:
-For each source script provided below, write ${iterationsPerScript} creative iterations. Each iteration should explore different tones, openings, emotional triggers, or storytelling approaches, these differences should be subtle ensuring that the core message and product benefits/use cases are retained. It should be quite easy for somebody reading the iterations to recognise the association with the original script. Follow all the constraints listed above
+For each source script provided below, write ${iterationsPerScript} creative iterations.
+Each iteration can explore different CTA's, openings and other optimisation opportunities. 
+However, the source script is already a winning script. Therefore iteration differences should be subtle, ensuring that the core message and product benefits/use cases of the source script are retained. Follow all the constraints listed above
 
 ${isMultilingual ? `IMPORTANT: Write all iterations NATIVELY in ${targetLanguage}. Think and create in ${targetLanguage} first - DO NOT translate from English. After creating the ${targetLanguage} versions, provide English translations for compliance review.\n` : ''}
 
