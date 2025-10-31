@@ -74,6 +74,7 @@ export default function Unified() {
   // States for iterations tab
   const [iterationsCount, setIterationsCount] = useState(3);
   const [iterationsSpreadsheetId, setIterationsSpreadsheetId] = useState('');
+  const [iterationsOutputSpreadsheetId, setIterationsOutputSpreadsheetId] = useState('');
   const [iterationsTab, setIterationsTab] = useState<string>('');
   const [iterationsAvailableTabs, setIterationsAvailableTabs] = useState<string[]>([]);
   const [iterationsScripts, setIterationsScripts] = useState<any[]>([]);
@@ -382,6 +383,16 @@ export default function Unified() {
     try {
       const scriptsToIterate = Array.from(selectedIterationsScripts).map(index => iterationsScripts[index]);
       
+      // Validate output spreadsheet is provided
+      if (!iterationsOutputSpreadsheetId || iterationsOutputSpreadsheetId.trim() === '') {
+        toast({
+          title: "Output Spreadsheet Required",
+          description: "Please provide an output Google Sheets URL or ID",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const requestBody: any = {
         sourceScripts: scriptsToIterate,
         iterationsPerScript: iterationsCount,
@@ -392,7 +403,7 @@ export default function Unified() {
         experimentalPercentage: experimentalPercentage,
         individualGeneration: individualGeneration,
         slackEnabled: slackEnabled,
-        spreadsheetId: iterationsSpreadsheetId
+        spreadsheetId: iterationsOutputSpreadsheetId
       };
 
       // Add guidance prompt only if provided
@@ -772,9 +783,9 @@ export default function Unified() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Google Sheets URL */}
+              {/* Source Google Sheets URL */}
               <div className="space-y-2">
-                <Label htmlFor="iterations-spreadsheet">Google Sheets URL or ID</Label>
+                <Label htmlFor="iterations-spreadsheet">Source Google Sheets URL or ID</Label>
                 <Input
                   id="iterations-spreadsheet"
                   value={iterationsSpreadsheetId}
@@ -782,6 +793,24 @@ export default function Unified() {
                   placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit or just the sheet ID"
                   data-testid="input-iterations-spreadsheet"
                 />
+                <p className="text-xs text-gray-500">
+                  Load existing winning scripts from this spreadsheet
+                </p>
+              </div>
+
+              {/* Output Google Sheets URL */}
+              <div className="space-y-2">
+                <Label htmlFor="iterations-output-spreadsheet">Output Google Sheets URL or ID</Label>
+                <Input
+                  id="iterations-output-spreadsheet"
+                  value={iterationsOutputSpreadsheetId}
+                  onChange={(e) => setIterationsOutputSpreadsheetId(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit or just the sheet ID"
+                  data-testid="input-iterations-output-spreadsheet"
+                />
+                <p className="text-xs text-gray-500">
+                  Generated iterations will be saved to this spreadsheet
+                </p>
               </div>
 
               {/* Tab Selection */}
