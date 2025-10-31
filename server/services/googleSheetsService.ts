@@ -330,6 +330,7 @@ class GoogleSheetsService {
 
   /**
    * Read scripts from a specific tab in the spreadsheet
+   * Handles both simple 2-column format and full 8-column format
    */
   async readScriptsFromTab(spreadsheetId: string, tabName: string): Promise<any[]> {
     try {
@@ -338,7 +339,7 @@ class GoogleSheetsService {
       // Read all data from the specified tab
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: cleanSpreadsheetId,
-        range: `${tabName}!A:H`, // Read columns A through H (including Translation Notes)
+        range: `${tabName}!A:H`, // Read columns A through H
       });
       
       const rows = response.data.values || [];
@@ -346,20 +347,45 @@ class GoogleSheetsService {
         return []; // No data or only headers
       }
       
-      // Skip the header row and map the data
-      const scripts = rows.slice(1).map((row, index) => ({
-        rowIndex: index + 2, // +2 because we skip header and sheets are 1-indexed
-        generatedDate: row[0] || '',
-        fileTitle: row[1] || '',
-        scriptTitle: row[2] || '',
-        recordingLanguage: row[3] || 'English',
-        nativeContent: row[4] || '',
-        content: row[5] || '', // English content
-        translationNotes: row[6] || '',
-        reasoning: row[7] || '',
-      }));
+      const headers = rows[0];
+      const dataRows = rows.slice(1);
       
-      return scripts;
+      // Detect format based on headers and column count
+      const isSimpleFormat = headers.length === 2 || 
+                             (headers[0] && headers[1] && !headers[2]) ||
+                             headers.some(h => h && (h.toLowerCase().includes('script name') || h.toLowerCase().includes('script copy')));
+      
+      if (isSimpleFormat) {
+        // Simple 2-column format: Script Name | Script Copy
+        console.log(`Detected simple 2-column format for tab: ${tabName}`);
+        return dataRows
+          .filter(row => row[0] && row[1]) // Filter out empty rows
+          .map((row, index) => ({
+            rowIndex: index + 2,
+            generatedDate: new Date().toISOString().split('T')[0],
+            fileTitle: row[0] || '',
+            scriptTitle: row[0] || '', // Use first column as title
+            recordingLanguage: 'English',
+            nativeContent: row[1] || '', // Use second column as script content
+            content: row[1] || '', // Same content for English
+            translationNotes: '',
+            reasoning: '',
+          }));
+      } else {
+        // Full 8-column format from exported scripts
+        console.log(`Detected full 8-column format for tab: ${tabName}`);
+        return dataRows.map((row, index) => ({
+          rowIndex: index + 2,
+          generatedDate: row[0] || '',
+          fileTitle: row[1] || '',
+          scriptTitle: row[2] || '',
+          recordingLanguage: row[3] || 'English',
+          nativeContent: row[4] || '',
+          content: row[5] || '',
+          translationNotes: row[6] || '',
+          reasoning: row[7] || '',
+        }));
+      }
     } catch (error) {
       console.error('Error reading scripts from tab:', error);
       throw error;
