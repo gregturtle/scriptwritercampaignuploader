@@ -62,7 +62,7 @@ export default function Unified() {
   const [slackEnabled, setSlackEnabled] = useState(false);
   
   // States for processing existing scripts
-  const [activeTab, setActiveTab] = useState<'generate' | 'process'>('generate');
+  const [activeTab, setActiveTab] = useState<'iterations' | 'generate' | 'process'>('iterations');
   const [availableTabs, setAvailableTabs] = useState<string[]>([]);
   const [selectedTab, setSelectedTab] = useState<string>('');
   const [existingScripts, setExistingScripts] = useState<any[]>([]);
@@ -70,6 +70,18 @@ export default function Unified() {
   const [isLoadingTabs, setIsLoadingTabs] = useState(false);
   const [isLoadingScripts, setIsLoadingScripts] = useState(false);
   const [isProcessingScripts, setIsProcessingScripts] = useState(false);
+  
+  // States for iterations tab
+  const [iterationsCount, setIterationsCount] = useState(3);
+  const [iterationsSpreadsheetId, setIterationsSpreadsheetId] = useState('');
+  const [iterationsTab, setIterationsTab] = useState<string>('');
+  const [iterationsAvailableTabs, setIterationsAvailableTabs] = useState<string[]>([]);
+  const [iterationsScripts, setIterationsScripts] = useState<any[]>([]);
+  const [selectedIterationsScripts, setSelectedIterationsScripts] = useState<Set<number>>(new Set());
+  const [isLoadingIterationsTabs, setIsLoadingIterationsTabs] = useState(false);
+  const [isLoadingIterationsScripts, setIsLoadingIterationsScripts] = useState(false);
+  const [isGeneratingIterations, setIsGeneratingIterations] = useState(false);
+  const [iterationsResult, setIterationsResult] = useState<ScriptResult | null>(null);
 
   const { toast } = useToast();
 
@@ -134,6 +146,13 @@ export default function Unified() {
       loadAvailableTabs();
     }
   }, [spreadsheetId, activeTab]);
+
+  // Load available tabs for iterations when spreadsheet ID changes and activeTab is 'iterations'
+  useEffect(() => {
+    if (iterationsSpreadsheetId && activeTab === 'iterations') {
+      loadIterationsTabs();
+    }
+  }, [iterationsSpreadsheetId, activeTab]);
 
   // Load available tabs from Google Sheets
   const loadAvailableTabs = async () => {
@@ -263,6 +282,161 @@ export default function Unified() {
       });
     } finally {
       setIsProcessingScripts(false);
+    }
+  };
+
+  // Load available tabs for iterations
+  const loadIterationsTabs = async () => {
+    if (!iterationsSpreadsheetId) return;
+    
+    setIsLoadingIterationsTabs(true);
+    try {
+      const response = await fetch(`/api/google-sheets/tabs?spreadsheetId=${encodeURIComponent(iterationsSpreadsheetId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setIterationsAvailableTabs(data.tabs);
+        if (data.tabs.length > 0 && !iterationsTab) {
+          setIterationsTab(data.tabs[0]);
+        }
+      } else {
+        toast({
+          title: "Failed to load tabs",
+          description: "Could not get tabs from Google Sheets",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading tabs:', error);
+      toast({
+        title: "Error",
+        description: "Failed to connect to Google Sheets",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingIterationsTabs(false);
+    }
+  };
+
+  // Load scripts from selected tab for iterations
+  const loadIterationsScriptsFromTab = async () => {
+    if (!iterationsSpreadsheetId || !iterationsTab) return;
+    
+    setIsLoadingIterationsScripts(true);
+    try {
+      const response = await fetch('/api/google-sheets/read-scripts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spreadsheetId: iterationsSpreadsheetId, tabName: iterationsTab })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIterationsScripts(data.scripts);
+        setSelectedIterationsScripts(new Set()); // Reset selection
+        toast({
+          title: "Scripts loaded",
+          description: `Found ${data.scripts.length} scripts in "${iterationsTab}"`,
+        });
+      } else {
+        toast({
+          title: "Failed to load scripts",
+          description: "Could not read scripts from the selected tab",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading scripts:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load scripts from Google Sheets",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingIterationsScripts(false);
+    }
+  };
+
+  // Generate iterations for selected scripts
+  const handleGenerateIterations = async () => {
+    if (selectedIterationsScripts.size === 0) {
+      toast({
+        title: "No scripts selected",
+        description: "Please select at least one script to iterate on",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (withAudio && availableBackgroundVideos.length > 0 && !selectedBackgroundVideo) {
+      toast({
+        title: "Background Video Required",
+        description: "Please select a background video for video generation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingIterations(true);
+    setIterationsResult(null);
+    
+    try {
+      const scriptsToIterate = Array.from(selectedIterationsScripts).map(index => iterationsScripts[index]);
+      
+      const requestBody: any = {
+        sourceScripts: scriptsToIterate,
+        iterationsPerScript: iterationsCount,
+        generateAudio: withAudio,
+        backgroundVideoPath: selectedBackgroundVideo,
+        voiceId: selectedVoice,
+        language: selectedLanguage,
+        experimentalPercentage: experimentalPercentage,
+        individualGeneration: individualGeneration,
+        slackEnabled: slackEnabled,
+        spreadsheetId: iterationsSpreadsheetId
+      };
+
+      // Add guidance prompt only if provided
+      if (guidance.trim().length > 0) {
+        requestBody.guidancePrompt = guidance.trim();
+      }
+
+      // Add primer file content if uploaded
+      if (primerFile) {
+        const primerContent = await primerFile.text();
+        requestBody.primerContent = primerContent;
+      }
+
+      const response = await fetch('/api/ai/generate-iterations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate iterations');
+      }
+
+      const result = await response.json();
+      setIterationsResult(result);
+
+      // Clear guidance after successful generation
+      const wasGuidanceUsed = guidance.trim().length > 0;
+      setGuidance('');
+
+      toast({
+        title: "Iterations Generated!",
+        description: `Generated ${result.suggestions.length} script iterations${wasGuidanceUsed ? ' with creative guidance applied' : ''}`,
+      });
+
+    } catch (error) {
+      console.error('Error generating iterations:', error);
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingIterations(false);
     }
   };
 
@@ -568,18 +742,486 @@ export default function Unified() {
         </p>
       </div>
 
-      {/* Tabs for Generate vs Process */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'generate' | 'process')}>
-        <TabsList className="grid w-full grid-cols-2 mb-6">
+      {/* Tabs for Iterations, Generate, and Process */}
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'iterations' | 'generate' | 'process')}>
+        <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsTrigger value="iterations" className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Generate Iterations
+          </TabsTrigger>
           <TabsTrigger value="generate" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Generate New Scripts
           </TabsTrigger>
           <TabsTrigger value="process" className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4" />
+            <Video className="h-4 w-4" />
             Process Existing Scripts
           </TabsTrigger>
         </TabsList>
+
+        {/* Iterations Tab Content */}
+        <TabsContent value="iterations" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5" />
+                Generate Script Iterations
+              </CardTitle>
+              <CardDescription>
+                Load existing scripts from Google Sheets and generate creative variations
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Google Sheets URL */}
+              <div className="space-y-2">
+                <Label htmlFor="iterations-spreadsheet">Google Sheets URL or ID</Label>
+                <Input
+                  id="iterations-spreadsheet"
+                  value={iterationsSpreadsheetId}
+                  onChange={(e) => setIterationsSpreadsheetId(e.target.value)}
+                  placeholder="https://docs.google.com/spreadsheets/d/your-sheet-id/edit or just the sheet ID"
+                  data-testid="input-iterations-spreadsheet"
+                />
+              </div>
+
+              {/* Tab Selection */}
+              {iterationsSpreadsheetId && (
+                <div className="space-y-2">
+                  <Label htmlFor="iterations-tab-selector">Select Google Sheets Tab</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={iterationsTab}
+                      onValueChange={setIterationsTab}
+                      disabled={isLoadingIterationsTabs || iterationsAvailableTabs.length === 0}
+                    >
+                      <SelectTrigger id="iterations-tab-selector">
+                        <SelectValue placeholder={isLoadingIterationsTabs ? "Loading tabs..." : "Select a tab"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {iterationsAvailableTabs.map((tab) => (
+                          <SelectItem key={tab} value={tab}>
+                            {tab}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={loadIterationsScriptsFromTab}
+                      disabled={!iterationsTab || isLoadingIterationsScripts}
+                      variant="outline"
+                      data-testid="button-load-iterations-scripts"
+                    >
+                      {isLoadingIterationsScripts ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Load Scripts
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Iterations Count Selector */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-2 border-t pt-4">
+                  <Label htmlFor="iterations-count">Iterations per Script</Label>
+                  <Select
+                    value={iterationsCount.toString()}
+                    onValueChange={(value) => setIterationsCount(parseInt(value))}
+                  >
+                    <SelectTrigger id="iterations-count" data-testid="select-iterations-count">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num} {num === 1 ? 'iteration' : 'iterations'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Each selected script will generate {iterationsCount} creative {iterationsCount === 1 ? 'variation' : 'variations'}
+                  </p>
+                </div>
+              )}
+
+              {/* AI Creative Inspiration */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="iterations-ai-guidance" className="text-sm font-medium">
+                    AI Creative Inspiration (Optional)
+                  </Label>
+                  <Textarea
+                    id="iterations-ai-guidance"
+                    data-testid="input-iterations-ai-guidance"
+                    value={guidance}
+                    onChange={(e) => setGuidance(e.target.value)}
+                    placeholder="e.g., focus on humor, emphasize urgency, use storytelling approach..."
+                    className="min-h-16 resize-none"
+                    maxLength={2000}
+                  />
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>Provide thematic direction to guide iteration generation</span>
+                    <span>{guidance.length}/2000</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Experimental Level Slider */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Experimentation Level: {experimentalPercentage}%
+                  </Label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={experimentalPercentage}
+                    onChange={(e) => setExperimentalPercentage(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    data-testid="slider-experimental-percentage"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Follow Primer Closely</span>
+                    <span>More Experimental</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {experimentalPercentage < 30 && "Scripts will closely follow proven patterns from the Guidance Primer"}
+                    {experimentalPercentage >= 30 && experimentalPercentage < 70 && "Balanced mix of proven patterns and creative experimentation"}
+                    {experimentalPercentage >= 70 && "More experimental and creative, less constrained by primer patterns"}
+                  </p>
+                </div>
+              )}
+
+              {/* Language Selection */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="iterations-language-selector" className="text-sm font-medium">
+                    Script Language
+                  </Label>
+                  <LanguageSelector
+                    value={selectedLanguage}
+                    onValueChange={setSelectedLanguage}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Iterations will be written natively in the selected language
+                  </p>
+                </div>
+              )}
+
+              {/* Voice Selection */}
+              {iterationsScripts.length > 0 && availableVoices.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="iterations-voice-selector">Voice Selection</Label>
+                  <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                    <SelectTrigger id="iterations-voice-selector">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {availableVoices.map((voice) => {
+                        const isGerman = voice.name.toLowerCase().includes('markus') || 
+                                         voice.name.toLowerCase().includes('carl') || 
+                                         voice.name.toLowerCase().includes('julia');
+                        return (
+                          <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                            {isGerman && '🇩🇪 '}{voice.name}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Background Video Selection */}
+              {iterationsScripts.length > 0 && availableBackgroundVideos.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="iterations-video-selector">Background Video</Label>
+                  <Select value={selectedBackgroundVideo} onValueChange={setSelectedBackgroundVideo}>
+                    <SelectTrigger id="iterations-video-selector">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {availableBackgroundVideos.map((video) => (
+                        <SelectItem key={video.path} value={video.path}>
+                          {video.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Audio/Video Toggle */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center space-x-3">
+                    <Label htmlFor="iterations-audio-toggle" className="text-sm font-medium">
+                      Scripts only
+                    </Label>
+                    <Switch
+                      id="iterations-audio-toggle"
+                      checked={withAudio}
+                      onCheckedChange={setWithAudio}
+                      data-testid="toggle-iterations-audio"
+                    />
+                    <Label htmlFor="iterations-audio-toggle" className="text-sm font-medium">
+                      With audio{availableBackgroundVideos.length > 0 ? ' + video' : ''}
+                    </Label>
+                  </div>
+                  <p className="text-center text-sm text-gray-500">
+                    {withAudio 
+                      ? `Will generate iterations with professional voice recordings${availableBackgroundVideos.length > 0 && selectedBackgroundVideo ? ' and complete video assets' : ''}` 
+                      : 'Will generate iterations without audio recordings'
+                    }
+                  </p>
+                </div>
+              )}
+
+              {/* Individual Generation Toggle */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="flex items-center justify-center space-x-3">
+                    <Label htmlFor="iterations-individual-toggle" className="text-sm font-medium">
+                      Batch generation
+                    </Label>
+                    <Switch
+                      id="iterations-individual-toggle"
+                      checked={individualGeneration}
+                      onCheckedChange={setIndividualGeneration}
+                      data-testid="toggle-iterations-individual-generation"
+                    />
+                    <Label htmlFor="iterations-individual-toggle" className="text-sm font-medium">
+                      Individual calls
+                    </Label>
+                  </div>
+                  <p className="text-center text-sm text-gray-500">
+                    {individualGeneration 
+                      ? 'Separate API calls per source script for maximum quality & diversity (slower, higher cost)' 
+                      : 'Single API call for all iterations (faster, lower cost)'
+                    }
+                  </p>
+                </div>
+              )}
+
+              {/* Slack Toggle */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="flex items-center justify-center space-x-3">
+                    <Label htmlFor="iterations-slack-toggle" className="text-sm font-medium">
+                      Slack OFF
+                    </Label>
+                    <Switch
+                      id="iterations-slack-toggle"
+                      checked={slackEnabled}
+                      onCheckedChange={setSlackEnabled}
+                      data-testid="toggle-iterations-slack"
+                    />
+                    <Label htmlFor="iterations-slack-toggle" className="text-sm font-medium">
+                      Slack ON
+                    </Label>
+                  </div>
+                  <p className="text-center text-sm text-gray-500">
+                    {slackEnabled 
+                      ? "Slack notifications enabled - Videos will be sent for approval after generation" 
+                      : "Slack notifications disabled - Testing mode, no approval workflow"
+                    }
+                  </p>
+                </div>
+              )}
+
+              {/* Display Loaded Scripts with Selection */}
+              {iterationsScripts.length > 0 && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Select Scripts to Iterate</h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedIterationsScripts.size === iterationsScripts.length) {
+                          setSelectedIterationsScripts(new Set());
+                        } else {
+                          setSelectedIterationsScripts(new Set(iterationsScripts.map((_, i) => i)));
+                        }
+                      }}
+                      data-testid="button-select-all-iterations"
+                    >
+                      {selectedIterationsScripts.size === iterationsScripts.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Selected {selectedIterationsScripts.size} of {iterationsScripts.length} scripts • 
+                    Will generate {selectedIterationsScripts.size * iterationsCount} total iterations
+                  </p>
+
+                  <div className="space-y-3">
+                    {iterationsScripts.map((script, index) => (
+                      <Card key={index} className="border">
+                        <CardContent className="pt-4">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              id={`iterations-script-${index}`}
+                              checked={selectedIterationsScripts.has(index)}
+                              onCheckedChange={(checked) => {
+                                const newSet = new Set(selectedIterationsScripts);
+                                if (checked) {
+                                  newSet.add(index);
+                                } else {
+                                  newSet.delete(index);
+                                }
+                                setSelectedIterationsScripts(newSet);
+                              }}
+                              className="mt-1"
+                              data-testid={`checkbox-iterations-script-${index}`}
+                            />
+                            <div className="flex-1">
+                              <h4 className="font-medium mb-2">{script.scriptTitle}</h4>
+                              {script.nativeContent && script.recordingLanguage !== 'English' ? (
+                                <div className="mb-2">
+                                  <p className="text-sm text-gray-900 mb-1 font-medium italic">
+                                    {script.recordingLanguage}: "{script.nativeContent}"
+                                  </p>
+                                  {script.content && (
+                                    <>
+                                      <p className="text-xs text-gray-600 mb-1">English translation:</p>
+                                      <p className="text-sm text-gray-700 italic">"{script.content}"</p>
+                                    </>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-700 mb-2 italic">
+                                  "{script.content || script.nativeContent}"
+                                </p>
+                              )}
+                              <p className="text-xs text-gray-500">
+                                Will generate {iterationsCount} {iterationsCount === 1 ? 'iteration' : 'iterations'}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Generate Iterations Button */}
+                  <Button
+                    onClick={handleGenerateIterations}
+                    disabled={isGeneratingIterations || selectedIterationsScripts.size === 0}
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-generate-iterations"
+                  >
+                    {isGeneratingIterations ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Iterations...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Generate {selectedIterationsScripts.size * iterationsCount} Iterations 
+                        {withAudio && ' + Audio/Video'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Display Generated Iterations Results */}
+          {iterationsResult && (
+            <div className="space-y-6">
+              <Card className="bg-green-50 border-green-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 text-green-800 mb-4">
+                    <CheckCircle className="h-5 w-5" />
+                    <span className="font-medium text-lg">Iterations Generated!</span>
+                  </div>
+                  <div className="text-sm">
+                    <p className="font-medium">Script Iterations:</p>
+                    <p>{iterationsResult.suggestions.length} creative variations generated</p>
+                    <p>Saved to your Google Sheets</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Generated Iterations</CardTitle>
+                  <CardDescription>
+                    Creative variations with optional voiceovers and video assets
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {iterationsResult.suggestions.map((suggestion, index) => (
+                      <Card key={index} className="bg-blue-50 border-blue-200">
+                        <CardContent className="pt-4">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-blue-900 mb-2">{suggestion.title}</h4>
+                            {suggestion.nativeContent ? (
+                              <div className="mb-3">
+                                <p className="text-sm text-gray-900 mb-1 font-medium italic">"{suggestion.nativeContent}"</p>
+                                <p className="text-xs text-gray-600 mb-1">English translation:</p>
+                                <p className="text-sm text-gray-700 italic">"{suggestion.content}"</p>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-700 mb-3 italic">"{suggestion.content}"</p>
+                            )}
+                            <p className="text-xs text-blue-700">{suggestion.reasoning}</p>
+                            
+                            {suggestion.videoUrl && (
+                              <div className="bg-green-100 border border-green-300 rounded-lg p-3 mt-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Video className="h-4 w-4 text-green-600" />
+                                  <span className="text-sm font-medium text-green-800">Complete Video Asset:</span>
+                                </div>
+                                <video controls className="w-full max-h-60 rounded">
+                                  <source src={suggestion.videoUrl} type="video/mp4" />
+                                  Your browser does not support the video element.
+                                </video>
+                              </div>
+                            )}
+
+                            {suggestion.audioUrl && !suggestion.videoUrl && (
+                              <div className="bg-blue-100 border border-blue-300 rounded-lg p-3 mt-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Mic className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm font-medium text-blue-800">AI Voice Recording:</span>
+                                </div>
+                                <audio controls className="w-full">
+                                  <source src={suggestion.audioUrl} type="audio/mpeg" />
+                                  Your browser does not support the audio element.
+                                </audio>
+                              </div>
+                            )}
+
+                            {suggestion.videoError && (
+                              <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-3 mt-3">
+                                <p className="text-xs text-yellow-700">{suggestion.videoError}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
 
         {/* Generate Tab Content */}
         <TabsContent value="generate" className="space-y-6">
