@@ -435,11 +435,7 @@ GUIDANCE PRIMER:
 ${primerCSVContent}
 
 TASK:
-For each source script provided below, write ${iterationsPerScript} creative iterations. Each iteration should:
-1. Maintain the core message and product benefits
-2. Explore a different creative angle or approach
-3. Feel fresh and engaging, not just a word-swap of the original
-4. Follow all the constraints listed above
+For each source script provided below, write ${iterationsPerScript} creative iterations. Each iteration should explore different tones, openings, emotional triggers, or storytelling approaches, these differences should be subtle ensuring that the core message and product benefits/use cases are retained. It should be quite easy for somebody reading the iterations to recognise the association with the original script. Follow all the constraints listed above
 
 ${isMultilingual ? `IMPORTANT: Write all iterations NATIVELY in ${targetLanguage}. Think and create in ${targetLanguage} first - DO NOT translate from English. After creating the ${targetLanguage} versions, provide English translations for compliance review.\n` : ''}
 
