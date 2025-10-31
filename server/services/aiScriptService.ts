@@ -415,14 +415,6 @@ Respond in JSON format:
       const prompt = `OBJECTIVE
 You are a copywriter specializing in creating creative variations and iterations of successful advertising scripts for video ads to run on Meta social platforms. Your goal is to take proven winning scripts and create fresh variations that maintain the core message while exploring different creative approaches.
 
-SCRIPT STRUCTURE:
-Write voice-only scripts with three parts:
-OPENING: Start with an attention-grabbing or intriguing line
-
-PRODUCT EXPLANATION: Briefly and clearly explain what three words
-
-CLOSING CALL-TO-ACTION: End with a call to action, with an optional nod to the opening line.
-
 CONSTRAINTS (ALL LANGUAGES):
 Never mention a rooftop or similar, as what3words doesn't work vertically
 Because a what3words square is 3m x 3m, use '3 meter square' (or similar) if referring to area and never '3 meter squared' which is the incorrect area.
