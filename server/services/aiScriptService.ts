@@ -455,7 +455,7 @@ OUTPUT FORMAT (strict JSON):
         console.log(`Individual generation mode: ${sourceScripts.length} API calls (${iterationsPerScript} iterations each)`);
 
         const apiCalls = sourceScripts.map((sourceScript, scriptIndex) => {
-          const scriptPrompt = `${prompt}\n\nSOURCE SCRIPT TO ITERATE:\nTitle: ${sourceScript.scriptTitle || sourceScript.title || `Script ${scriptIndex + 1}`}\nContent: "${sourceScript.content || sourceScript.nativeContent}"\n\nGenerate ${iterationsPerScript} creative variations of this script.`;
+          const scriptPrompt = `${prompt}\n\nSOURCE SCRIPT TO ITERATE:\n"${sourceScript.content || sourceScript.nativeContent}"\n\nGenerate ${iterationsPerScript} creative variations of this script.`;
 
           const fullContent = isMultilingual
             ? `You are a multilingual creative director fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}. ${scriptPrompt}`
@@ -493,7 +493,6 @@ OUTPUT FORMAT (strict JSON):
 
         const scriptsToIterate = sourceScripts.map((script, index) => ({
           index,
-          title: script.scriptTitle || script.title || `Script ${index + 1}`,
           content: script.content || script.nativeContent
         }));
 
@@ -513,10 +512,23 @@ OUTPUT FORMAT (strict JSON):
         const result = JSON.parse(response.choices[0].message.content || "{}");
 
         if (result.suggestions && Array.isArray(result.suggestions)) {
-          allSuggestions = result.suggestions.map((suggestion: any, index: number) => ({
-            ...suggestion,
-            fileName: `iteration_${index + 1}`
-          }));
+          // Map each suggestion back to its source script using the index
+          let suggestionCounter = 0;
+          result.suggestions.forEach((suggestion: any) => {
+            // Determine which source script this iteration belongs to
+            const sourceScriptIndex = Math.floor(suggestionCounter / iterationsPerScript);
+            const sourceScript = sourceScripts[sourceScriptIndex];
+            const iterationNumber = (suggestionCounter % iterationsPerScript) + 1;
+            
+            allSuggestions.push({
+              ...suggestion,
+              fileName: `${sourceScript.scriptTitle || `source${sourceScriptIndex + 1}`}_iter${iterationNumber}`,
+              sourceScriptTitle: sourceScript.scriptTitle || sourceScript.title || `Script ${sourceScriptIndex + 1}`,
+              sourceScript: sourceScript.content || sourceScript.nativeContent
+            });
+            
+            suggestionCounter++;
+          });
         }
 
         console.log(`Batch generation complete: ${allSuggestions.length} iterations generated`);
