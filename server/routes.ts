@@ -1495,13 +1495,16 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         const batchName = `processed_batch_${Date.now()}`;
         
         // Upload videos to Google Drive first
-        const driveFolder = await googleDriveService.createVideoBatchFolder(batchName);
+        const parentFolderId = '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh'; // AI Generated Videos folder
+        const driveFolderId = await googleDriveService.createTimestampedSubfolder(parentFolderId);
+        const driveFolderLink = `https://drive.google.com/drive/folders/${driveFolderId}`;
+        const driveFolder = { id: driveFolderId, webViewLink: driveFolderLink };
         
         // Upload each video to Drive
         const scriptsWithDriveLinks = await Promise.all(scriptsWithVideos.map(async (script) => {
           if (script.videoFile) {
             try {
-              const uploadResult = await googleDriveService.uploadVideoToDrive(
+              const uploadResult = await googleDriveService.uploadVideoToSpecificFolder(
                 script.videoFile,
                 script.fileName || `${script.title.replace(/\s+/g, '_')}.mp4`,
                 driveFolder.id
