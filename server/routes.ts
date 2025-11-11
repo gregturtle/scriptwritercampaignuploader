@@ -40,6 +40,24 @@ async function getAccessToken(): Promise<string> {
   return token.accessToken;
 }
 
+// Helper function to generate standardized filenames for scripts
+function generateScriptFileName(index: number, title?: string): string {
+  const baseNumber = `script${index + 1}`;
+  
+  if (!title || title.trim().length === 0) {
+    return baseNumber;
+  }
+  
+  // Create a slug from the title: lowercase, replace spaces/special chars with underscores, trim to max 50 chars
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .substring(0, 50);
+  
+  return slug ? `${baseNumber}_${slug}` : baseNumber;
+}
+
 // Setup file upload middleware
 const uploadDir = path.join(process.cwd(), "uploads");
 // Create uploads directory if it doesn't exist
