@@ -264,7 +264,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             contentHash, // Store hash for later verification
             reasoning: suggestion.reasoning,
             targetMetrics: suggestion.targetMetrics?.join(', '),
-            fileName: suggestion.fileName || `script${index + 1}`,
+            fileName: suggestion.fileName || generateScriptFileName(index, suggestion.title),
             audioFile: suggestion.audioFile || null
           };
         })
@@ -375,7 +375,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             scripts: result.suggestions.map((s, index) => ({ 
               title: s.title, 
               content: s.content,
-              fileName: s.fileName || `script${index + 1}`,
+              fileName: s.fileName || generateScriptFileName(index, s.title),
               videoUrl: s.videoUrl,
               videoFileId: s.videoFileId
             })),
@@ -1479,7 +1479,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         language: script.recordingLanguage === 'English' ? 'en' : language,
         reasoning: script.reasoning,
         notableAdjustments: script.translationNotes,
-        fileName: `script${index + 1}`
+        fileName: generateScriptFileName(index, script.scriptTitle)
       }));
 
       // Generate audio for the scripts
@@ -2164,7 +2164,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         scripts: scripts.map(s => ({
           title: s.title,
           content: s.content,
-          fileName: s.fileName || `script${s.scriptIndex + 1}`,
+          fileName: s.fileName || generateScriptFileName(s.scriptIndex, s.title),
           videoUrl: s.videoUrl || undefined,
           videoFileId: s.videoFileId || undefined
         })),
