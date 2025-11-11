@@ -64,7 +64,7 @@ export default function Unified() {
   // States for processing existing scripts
   const [activeTab, setActiveTab] = useState<'iterations' | 'generate' | 'process'>('iterations');
   const [availableTabs, setAvailableTabs] = useState<string[]>([]);
-  const [selectedTab, setSelectedTab] = useState<string>('');
+  const [selectedTabs, setSelectedTabs] = useState<string[]>([]);
   const [existingScripts, setExistingScripts] = useState<any[]>([]);
   const [selectedExistingScripts, setSelectedExistingScripts] = useState<Set<number>>(new Set());
   const [isLoadingTabs, setIsLoadingTabs] = useState(false);
@@ -165,8 +165,15 @@ export default function Unified() {
       if (response.ok) {
         const data = await response.json();
         setAvailableTabs(data.tabs);
-        if (data.tabs.length > 0 && !selectedTab) {
-          setSelectedTab(data.tabs[0]);
+        
+        // Filter out stale tabs that don't exist in the new spreadsheet
+        const validSelectedTabs = selectedTabs.filter(tab => data.tabs.includes(tab));
+        
+        // If no valid tabs remain, default to the first available tab
+        if (validSelectedTabs.length === 0 && data.tabs.length > 0) {
+          setSelectedTabs([data.tabs[0]]);
+        } else {
+          setSelectedTabs(validSelectedTabs);
         }
       } else {
         toast({
@@ -187,33 +194,47 @@ export default function Unified() {
     }
   };
 
-  // Load scripts from selected tab
+  // Load scripts from selected tabs (multiple tabs)
   const loadScriptsFromTab = async () => {
-    if (!spreadsheetId || !selectedTab) return;
+    if (!spreadsheetId || selectedTabs.length === 0) return;
     
     setIsLoadingScripts(true);
     try {
-      const response = await fetch('/api/google-sheets/read-scripts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spreadsheetId, tabName: selectedTab })
-      });
+      // Load scripts from all selected tabs
+      const allScripts: any[] = [];
       
-      if (response.ok) {
-        const data = await response.json();
-        setExistingScripts(data.scripts);
-        setSelectedExistingScripts(new Set()); // Reset selection
-        toast({
-          title: "Scripts loaded",
-          description: `Found ${data.scripts.length} scripts in "${selectedTab}"`,
+      for (const tabName of selectedTabs) {
+        const response = await fetch('/api/google-sheets/read-scripts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spreadsheetId, tabName })
         });
-      } else {
-        toast({
-          title: "Failed to load scripts",
-          description: "Could not read scripts from the selected tab",
-          variant: "destructive"
-        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Add tab name to each script for tracking
+          const scriptsWithTab = data.scripts.map((script: any) => ({
+            ...script,
+            sourceTab: tabName
+          }));
+          allScripts.push(...scriptsWithTab);
+        } else {
+          toast({
+            title: "Warning",
+            description: `Could not load scripts from tab "${tabName}"`,
+            variant: "destructive"
+          });
+        }
       }
+      
+      setExistingScripts(allScripts);
+      setSelectedExistingScripts(new Set()); // Reset selection
+      
+      const tabsList = selectedTabs.length === 1 ? `"${selectedTabs[0]}"` : `${selectedTabs.length} tabs`;
+      toast({
+        title: "Scripts loaded",
+        description: `Found ${allScripts.length} scripts from ${tabsList}`,
+      });
     } catch (error) {
       console.error('Error loading scripts:', error);
       toast({
@@ -1909,45 +1930,77 @@ export default function Unified() {
               />
             </div>
 
-            {/* Tab Selection */}
-            {spreadsheetId && (
+            {/* Tab Selection (Multi-select) */}
+            {spreadsheetId && availableTabs.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="tab-selector">Select Google Sheets Tab</Label>
-                <div className="flex gap-2">
-                  <Select
-                    value={selectedTab}
-                    onValueChange={setSelectedTab}
-                    disabled={isLoadingTabs || availableTabs.length === 0}
-                  >
-                    <SelectTrigger id="tab-selector">
-                      <SelectValue placeholder={isLoadingTabs ? "Loading tabs..." : "Select a tab"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableTabs.map((tab) => (
-                        <SelectItem key={tab} value={tab}>
-                          {tab}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    onClick={loadScriptsFromTab}
-                    disabled={!selectedTab || isLoadingScripts}
-                    variant="outline"
-                  >
-                    {isLoadingScripts ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Load Scripts
-                      </>
-                    )}
-                  </Button>
+                <div className="flex items-center justify-between">
+                  <Label>Select Google Sheets Tabs</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (selectedTabs.length === availableTabs.length) {
+                          setSelectedTabs([]);
+                        } else {
+                          setSelectedTabs([...availableTabs]);
+                        }
+                      }}
+                      disabled={isLoadingTabs}
+                    >
+                      {selectedTabs.length === availableTabs.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    <Button
+                      onClick={loadScriptsFromTab}
+                      disabled={selectedTabs.length === 0 || isLoadingScripts}
+                      variant="outline"
+                    >
+                      {isLoadingScripts ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Load Scripts ({selectedTabs.length})
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
+                <Card className="p-4 max-h-60 overflow-y-auto">
+                  <div className="space-y-3">
+                    {availableTabs.map((tab) => (
+                      <div key={tab} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`tab-${tab}`}
+                          checked={selectedTabs.includes(tab)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTabs([...selectedTabs, tab]);
+                            } else {
+                              setSelectedTabs(selectedTabs.filter(t => t !== tab));
+                            }
+                          }}
+                          data-testid={`checkbox-tab-${tab}`}
+                        />
+                        <Label
+                          htmlFor={`tab-${tab}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {tab}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <p className="text-xs text-gray-500">
+                  {selectedTabs.length === 0 
+                    ? "Select one or more tabs to load scripts from"
+                    : `${selectedTabs.length} tab${selectedTabs.length === 1 ? '' : 's'} selected`
+                  }
+                </p>
               </div>
             )}
 
@@ -1976,7 +2029,7 @@ export default function Unified() {
             )}
 
             {/* Background Video Selection */}
-            {backgroundVideos.length > 0 && (
+            {availableBackgroundVideos.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="video-selector-process">Background Video</Label>
                 <Select value={selectedBackgroundVideo} onValueChange={setSelectedBackgroundVideo}>
@@ -1984,7 +2037,7 @@ export default function Unified() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-60 overflow-y-auto">
-                    {backgroundVideos.map((video) => (
+                    {availableBackgroundVideos.map((video) => (
                       <SelectItem key={video.path} value={video.path}>
                         {video.name}
                       </SelectItem>
@@ -2074,7 +2127,14 @@ export default function Unified() {
                           className="mt-1"
                         />
                         <div className="flex-1">
-                          <h4 className="font-medium mb-2">{script.scriptTitle}</h4>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium">{script.scriptTitle}</h4>
+                            {script.sourceTab && selectedTabs.length > 1 && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                {script.sourceTab}
+                              </span>
+                            )}
+                          </div>
                           {script.nativeContent && script.recordingLanguage !== 'English' ? (
                             <div className="mb-3">
                               <p className="text-sm text-gray-900 mb-1 font-medium italic">
