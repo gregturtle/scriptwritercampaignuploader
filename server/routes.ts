@@ -1454,13 +1454,14 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       console.log(`Processing ${scripts.length} existing scripts into videos`);
 
       // Transform the scripts from Google Sheets format to the format expected by our services
-      const formattedScripts = scripts.map(script => ({
+      const formattedScripts = scripts.map((script, index) => ({
         title: script.scriptTitle,
         content: script.content || script.nativeContent, // Use English content if available, otherwise native
         nativeContent: script.nativeContent,
         language: script.recordingLanguage === 'English' ? 'en' : language,
         reasoning: script.reasoning,
-        notableAdjustments: script.translationNotes
+        notableAdjustments: script.translationNotes,
+        fileName: `script${index + 1}`
       }));
 
       // Generate audio for the scripts
@@ -1506,7 +1507,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             try {
               const uploadResult = await googleDriveService.uploadVideoToSpecificFolder(
                 script.videoFile,
-                script.fileName || `${script.title.replace(/\s+/g, '_')}.mp4`,
+                `${script.fileName}.mp4`,
                 driveFolder.id
               );
               return {
