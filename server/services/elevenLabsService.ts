@@ -184,7 +184,7 @@ class ElevenLabsService {
         const textToSpeak = suggestion.nativeContent || suggestion.content;
         
         // Select appropriate model based on language
-        let modelId = 'eleven_monolingual_v1'; // Default for English
+        let modelId = 'eleven_turbo_v2_5'; // Default for English - better accent preservation
         if (language === 'kn') {
           // Kannada requires Eleven v3 model
           modelId = 'eleven_turbo_v2_5'; // Using the latest v3 model that supports Kannada
