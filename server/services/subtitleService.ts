@@ -23,10 +23,11 @@ export class SubtitleService {
    * Convert milliseconds to SRT timestamp format (HH:MM:SS,mmm)
    */
   private msToSrtTime(ms: number): string {
-    const hours = Math.floor(ms / 3600000);
-    const minutes = Math.floor((ms % 3600000) / 60000);
-    const seconds = Math.floor((ms % 60000) / 1000);
-    const milliseconds = ms % 1000;
+    const totalMs = Math.max(0, Math.round(ms));
+    const hours = Math.floor(totalMs / 3600000);
+    const minutes = Math.floor((totalMs % 3600000) / 60000);
+    const seconds = Math.floor((totalMs % 60000) / 1000);
+    const milliseconds = Math.floor(totalMs % 1000);
     
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(milliseconds).padStart(3, '0')}`;
   }
@@ -83,8 +84,8 @@ export class SubtitleService {
       const minDuration = 1000;
       const adjustedDuration = Math.max(segmentDuration, minDuration);
 
-      const start = currentTime;
-      const end = Math.min(currentTime + adjustedDuration, durationMs);
+      const start = Math.round(currentTime);
+      const end = Math.round(Math.min(currentTime + adjustedDuration, durationMs));
 
       segments.push({
         start,
@@ -97,7 +98,7 @@ export class SubtitleService {
 
     // Adjust last segment to end exactly at audio duration
     if (segments.length > 0) {
-      segments[segments.length - 1].end = durationMs;
+      segments[segments.length - 1].end = Math.round(durationMs);
     }
 
     return segments;
