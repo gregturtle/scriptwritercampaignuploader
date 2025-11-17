@@ -37,6 +37,7 @@ interface ScriptResult {
 export default function Unified() {
   const [spreadsheetId, setSpreadsheetId] = useState('');
   const [withAudio, setWithAudio] = useState(false);
+  const [includeSubtitles, setIncludeSubtitles] = useState(false);
   const [scriptCount, setScriptCount] = useState(5);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<ScriptResult | null>(null);
@@ -271,7 +272,8 @@ export default function Unified() {
           language: selectedLanguage,
           backgroundVideo: selectedBackgroundVideo,
           sendToSlack: slackEnabled,
-          slackNotificationDelay: slackEnabled ? 15 : 0 // 15 minute delay if Slack is enabled
+          slackNotificationDelay: slackEnabled ? 15 : 0, // 15 minute delay if Slack is enabled
+          includeSubtitles: includeSubtitles
         })
       });
 
@@ -424,7 +426,8 @@ export default function Unified() {
         experimentalPercentage: experimentalPercentage,
         individualGeneration: individualGeneration,
         slackEnabled: slackEnabled,
-        spreadsheetId: iterationsOutputSpreadsheetId
+        spreadsheetId: iterationsOutputSpreadsheetId,
+        includeSubtitles: includeSubtitles
       };
 
       // Add guidance prompt only if provided
@@ -704,7 +707,8 @@ export default function Unified() {
         language: selectedLanguage,
         experimentalPercentage: experimentalPercentage,
         individualGeneration: individualGeneration,
-        slackEnabled: slackEnabled
+        slackEnabled: slackEnabled,
+        includeSubtitles: includeSubtitles
       };
 
       // Add guidance prompt only if provided
@@ -1006,6 +1010,24 @@ export default function Unified() {
                       : 'Will generate iterations without audio recordings'
                     }
                   </p>
+                  
+                  {/* Subtitle Toggle */}
+                  {withAudio && availableBackgroundVideos.length > 0 && (
+                    <div className="flex items-center justify-center space-x-3 pt-2">
+                      <Label htmlFor="iterations-subtitle-toggle" className="text-sm font-medium">
+                        Without subtitles
+                      </Label>
+                      <Switch
+                        id="iterations-subtitle-toggle"
+                        checked={includeSubtitles}
+                        onCheckedChange={setIncludeSubtitles}
+                        data-testid="toggle-iterations-subtitles"
+                      />
+                      <Label htmlFor="iterations-subtitle-toggle" className="text-sm font-medium">
+                        With burned-in subtitles
+                      </Label>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1674,6 +1696,24 @@ export default function Unified() {
                 : `Will generate ${scriptCount} scripts without audio recordings`
               }
             </p>
+            
+            {/* Subtitle Toggle */}
+            {withAudio && availableBackgroundVideos.length > 0 && (
+              <div className="flex items-center justify-center space-x-3 pt-2">
+                <Label htmlFor="subtitle-toggle" className="text-sm font-medium">
+                  Without subtitles
+                </Label>
+                <Switch
+                  id="subtitle-toggle"
+                  checked={includeSubtitles}
+                  onCheckedChange={setIncludeSubtitles}
+                  data-testid="toggle-subtitles"
+                />
+                <Label htmlFor="subtitle-toggle" className="text-sm font-medium">
+                  With burned-in subtitles
+                </Label>
+              </div>
+            )}
           </div>
 
           {/* Individual Generation Toggle */}
@@ -2044,6 +2084,24 @@ export default function Unified() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {/* Subtitle Toggle */}
+            {availableBackgroundVideos.length > 0 && (
+              <div className="flex items-center justify-center space-x-3 border-t pt-4">
+                <Label htmlFor="subtitle-toggle-process" className="text-sm font-medium">
+                  Without subtitles
+                </Label>
+                <Switch
+                  id="subtitle-toggle-process"
+                  checked={includeSubtitles}
+                  onCheckedChange={setIncludeSubtitles}
+                  data-testid="toggle-process-subtitles"
+                />
+                <Label htmlFor="subtitle-toggle-process" className="text-sm font-medium">
+                  With burned-in subtitles
+                </Label>
               </div>
             )}
 

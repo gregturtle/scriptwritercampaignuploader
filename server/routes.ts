@@ -199,7 +199,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         slackEnabled = true,
         primerContent,
         experimentalPercentage = 50,
-        individualGeneration = false
+        individualGeneration = false,
+        includeSubtitles = false
       } = req.body;
       
       if (!spreadsheetId) {
@@ -285,7 +286,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           try {
             const videosResult = await videoService.createVideosForScripts(
               result.suggestions,
-              selectedBackgroundVideo
+              selectedBackgroundVideo,
+              includeSubtitles
             );
             
             // Update batch scripts with video information
@@ -449,7 +451,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         primerContent,
         experimentalPercentage = 50,
         individualGeneration = false,
-        spreadsheetId
+        spreadsheetId,
+        includeSubtitles = false
       } = req.body;
 
       if (!sourceScripts || !Array.isArray(sourceScripts) || sourceScripts.length === 0) {
@@ -531,7 +534,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           try {
             const videosResult = await videoService.createVideosForScripts(
               result.suggestions,
-              selectedBackgroundVideo
+              selectedBackgroundVideo,
+              includeSubtitles
             );
 
             // Update batch scripts with video information
@@ -1462,7 +1466,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         language = 'en',
         backgroundVideo,
         sendToSlack,
-        slackNotificationDelay = 0
+        slackNotificationDelay = 0,
+        includeSubtitles = false
       } = req.body;
       
       if (!scripts || !Array.isArray(scripts)) {
@@ -1500,7 +1505,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         try {
           scriptsWithVideos = await videoService.createVideosForScripts(
             scriptsWithAudio,
-            videoToUse
+            videoToUse,
+            includeSubtitles
           );
           console.log(`Created videos for ${scriptsWithVideos.filter(s => s.videoUrl).length} scripts`);
         } catch (videoError) {
@@ -1625,7 +1631,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         try {
           const videosResult = await videoService.createVideosForScripts(
             suggestionsWithAudio,
-            backgroundVideos[0] // Use first available background video
+            backgroundVideos[0], // Use first available background video
+            false // No subtitles for audio-only generation
           );
           
           console.log(`Created ${videosResult.filter(v => v.videoUrl).length} videos successfully`);
