@@ -18,6 +18,8 @@ interface VideoOverlayOptions {
   audioDuration?: number;
   fadeInDuration?: number;
   fadeOutDuration?: number;
+  subtitlePath?: string; // Optional SRT file path
+  includeSubtitles?: boolean; // Whether to burn subtitles
 }
 
 interface VideoCreationResult {
@@ -101,7 +103,9 @@ class VideoService {
         audioPath,
         outputPath,
         fadeInDuration = 0.5,
-        fadeOutDuration = 0.5
+        fadeOutDuration = 0.5,
+        subtitlePath,
+        includeSubtitles = false
       } = options;
 
       // Verify input files exist
@@ -122,6 +126,19 @@ class VideoService {
       // Always use the full video duration to maintain original video length
       const targetDuration = videoDuration;
 
+      // Prepare subtitle filter if subtitles are enabled
+      let videoFilters: string[] = [];
+      if (includeSubtitles && subtitlePath && fs.existsSync(subtitlePath)) {
+        // Escape the subtitle path for FFmpeg (replace backslashes and colons)
+        const escapedSubtitlePath = subtitlePath.replace(/\\/g, '/').replace(/:/g, '\\:');
+        
+        // Professional subtitle styling - white text with black background, bottom center
+        const subtitleStyle = "force_style='FontName=Arial,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Outline=2,Shadow=1,MarginV=40,Alignment=2'";
+        
+        videoFilters.push(`subtitles=${escapedSubtitlePath}:${subtitleStyle}`);
+        console.log(`Burning subtitles from: ${subtitlePath}`);
+      }
+
       return new Promise((resolve, reject) => {
         const command = ffmpeg()
           .input(backgroundVideoPath)
@@ -129,15 +146,27 @@ class VideoService {
           .audioFilters([
             `afade=t=in:st=0:d=${fadeInDuration}`,
             `afade=t=out:st=${audioDuration - fadeOutDuration}:d=${fadeOutDuration}`
-          ])
-          .outputOptions([
-            '-c:v copy', // Copy video stream without re-encoding for speed
-            '-c:a aac',  // Encode audio as AAC
-            '-map 0:v:0', // Map video from first input
-            '-map 1:a:0', // Map audio from second input
-            '-avoid_negative_ts make_zero',
-            '-fflags +genpts'
-          ])
+          ]);
+
+        // Apply video filters if subtitles are enabled
+        if (videoFilters.length > 0) {
+          command.videoFilters(videoFilters);
+        }
+
+        // Output options - use copy codec if no video filters, otherwise re-encode
+        const outputOptions = [
+          videoFilters.length > 0 ? '-c:v libx264' : '-c:v copy', // Re-encode video if burning subtitles
+          videoFilters.length > 0 ? '-crf 23' : '', // Quality setting for encoding
+          videoFilters.length > 0 ? '-preset fast' : '', // Encoding speed preset
+          '-c:a aac',  // Encode audio as AAC
+          '-map 0:v:0', // Map video from first input
+          '-map 1:a:0', // Map audio from second input
+          '-avoid_negative_ts make_zero',
+          '-fflags +genpts'
+        ].filter(opt => opt !== ''); // Remove empty options
+
+        command
+          .outputOptions(outputOptions)
           .duration(targetDuration)
           .output(outputPath)
           .on('start', (commandLine) => {
@@ -188,8 +217,12 @@ class VideoService {
   async createVideoForScript(
     scriptTitle: string,
     audioPath: string,
-    backgroundVideoPath: string
+    backgroundVideoPath: string,
+    scriptText?: string,
+    includeSubtitles: boolean = false
   ): Promise<VideoCreationResult> {
+    let subtitlePath: string | undefined;
+    
     try {
       // Generate unique output filename with readable timestamp
       const now = new Date();
@@ -200,12 +233,30 @@ class VideoService {
 
       console.log(`Creating video: ${outputFileName}`);
 
+      // Generate subtitle file if requested
+      if (includeSubtitles && scriptText) {
+        try {
+          const { subtitleService } = await import('./subtitleService');
+          const audioDuration = await this.getAudioDuration(audioPath);
+          subtitlePath = await subtitleService.createSubtitleFile(
+            scriptText,
+            audioDuration,
+            outputFileName
+          );
+          console.log(`Generated subtitle file: ${subtitlePath}`);
+        } catch (subtitleError) {
+          console.warn('Failed to generate subtitles, continuing without:', subtitleError);
+        }
+      }
+
       const result = await this.overlayAudioOnVideo({
         backgroundVideoPath,
         audioPath,
         outputPath,
         fadeInDuration: 0.3,
-        fadeOutDuration: 0.5
+        fadeOutDuration: 0.5,
+        subtitlePath,
+        includeSubtitles: includeSubtitles && !!subtitlePath
       });
 
       // Auto-upload to Google Drive if successful
@@ -256,6 +307,16 @@ class VideoService {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create video'
       };
+    } finally {
+      // Clean up subtitle file
+      if (subtitlePath) {
+        try {
+          const { subtitleService } = await import('./subtitleService');
+          subtitleService.deleteSubtitleFile(subtitlePath);
+        } catch (cleanupError) {
+          console.warn('Failed to clean up subtitle file:', cleanupError);
+        }
+      }
     }
   }
 
@@ -268,8 +329,12 @@ class VideoService {
     backgroundVideoPath: string,
     batchTimestamp: string,
     batchFolderId?: string | null,
-    scriptIndex: number = 0
+    scriptIndex: number = 0,
+    scriptText?: string,
+    includeSubtitles: boolean = false
   ): Promise<VideoCreationResult> {
+    let subtitlePath: string | undefined;
+    
     try {
       const timestamp = batchTimestamp; // Use batch timestamp for consistency
       const safeTitle = scriptTitle.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
@@ -286,12 +351,30 @@ class VideoService {
         throw new Error(`Background video not found: ${backgroundVideoPath}`);
       }
 
+      // Generate subtitle file if requested
+      if (includeSubtitles && scriptText) {
+        try {
+          const { subtitleService } = await import('./subtitleService');
+          const audioDuration = await this.getAudioDuration(audioFilePath);
+          subtitlePath = await subtitleService.createSubtitleFile(
+            scriptText,
+            audioDuration,
+            outputFileName
+          );
+          console.log(`Generated subtitle file: ${subtitlePath}`);
+        } catch (subtitleError) {
+          console.warn('Failed to generate subtitles, continuing without:', subtitleError);
+        }
+      }
+
       const result = await this.overlayAudioOnVideo({
         backgroundVideoPath,
         audioPath: audioFilePath,
         outputPath,
         fadeInDuration: 0.3,
-        fadeOutDuration: 0.5
+        fadeOutDuration: 0.5,
+        subtitlePath,
+        includeSubtitles: includeSubtitles && !!subtitlePath
       });
 
       // Auto-upload to Google Drive batch folder if successful
@@ -339,6 +422,16 @@ class VideoService {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create video'
       };
+    } finally {
+      // Clean up subtitle file
+      if (subtitlePath) {
+        try {
+          const { subtitleService } = await import('./subtitleService');
+          subtitleService.deleteSubtitleFile(subtitlePath);
+        } catch (cleanupError) {
+          console.warn('Failed to clean up subtitle file:', cleanupError);
+        }
+      }
     }
   }
 
@@ -352,7 +445,8 @@ class VideoService {
       audioFile?: string;
       audioUrl?: string;
     }>,
-    backgroundVideoPath: string
+    backgroundVideoPath: string,
+    includeSubtitles: boolean = false
   ): Promise<Array<{
     title: string;
     content: string;
@@ -411,7 +505,9 @@ class VideoService {
         backgroundVideoPath,
         batchTimestamp,
         batchFolderId,
-        i
+        i,
+        suggestion.content, // Pass script text for subtitle generation
+        includeSubtitles
       );
 
       if (videoResult.success) {
