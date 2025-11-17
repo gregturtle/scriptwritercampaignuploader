@@ -132,8 +132,8 @@ class VideoService {
         // Escape the subtitle path for FFmpeg (replace backslashes and colons)
         const escapedSubtitlePath = subtitlePath.replace(/\\/g, '/').replace(/:/g, '\\:');
         
-        // Professional subtitle styling - white text with black background, bottom center
-        const subtitleStyle = "force_style='FontName=Arial,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Outline=2,Shadow=1,MarginV=40,Alignment=2'";
+        // Small subtitle styling in bottom 15% - white text with subtle outline, bottom center
+        const subtitleStyle = "force_style='FontName=Arial,FontSize=14,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Outline=1,Shadow=1,MarginV=80,Alignment=2'";
         
         videoFilters.push(`subtitles=${escapedSubtitlePath}:${subtitleStyle}`);
         console.log(`Burning subtitles from: ${subtitlePath}`);
