@@ -133,7 +133,7 @@ class VideoService {
         const escapedSubtitlePath = subtitlePath.replace(/\\/g, '/').replace(/:/g, '\\:');
         
         // Small subtitle styling at bottom - white text with subtle outline, bottom center
-        const subtitleStyle = "force_style='FontName=Arial,FontSize=8,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Outline=1,Shadow=1,MarginV=15,Alignment=2'";
+        const subtitleStyle = "force_style='FontName=Arial,FontSize=9,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Outline=1,Shadow=1,MarginV=15,Alignment=2'";
         
         videoFilters.push(`subtitles=${escapedSubtitlePath}:${subtitleStyle}`);
         console.log(`Burning subtitles from: ${subtitlePath}`);
