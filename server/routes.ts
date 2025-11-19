@@ -208,8 +208,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       }
 
       // Validate guidancePrompt if provided
-      if (guidancePrompt !== undefined && (typeof guidancePrompt !== 'string' || guidancePrompt.length > 1000)) {
-        return res.status(400).json({ message: 'Guidance prompt must be a string with maximum 1000 characters' });
+      if (guidancePrompt !== undefined && (typeof guidancePrompt !== 'string' || guidancePrompt.length > 5000)) {
+        return res.status(400).json({ message: 'Guidance prompt must be a string with maximum 5000 characters' });
       }
 
       // Validate experimentalPercentage
