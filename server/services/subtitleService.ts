@@ -116,6 +116,14 @@ export class SubtitleService {
   }
 
   /**
+   * Convert audio-optimized text to subtitle-optimized text
+   */
+  private prepareTextForSubtitles(text: string): string {
+    // Replace "what three words" with "what3words" for brand consistency in subtitles
+    return text.replace(/what three words/gi, 'what3words');
+  }
+
+  /**
    * Create SRT subtitle file for a script
    */
   async createSubtitleFile(
@@ -126,8 +134,11 @@ export class SubtitleService {
     try {
       const durationMs = durationSeconds * 1000;
       
+      // Convert text for subtitle display (e.g., "what three words" → "what3words")
+      const subtitleText = this.prepareTextForSubtitles(text);
+      
       // Generate subtitle segments
-      const segments = this.generateSegments(text, durationMs);
+      const segments = this.generateSegments(subtitleText, durationMs);
       
       if (segments.length === 0) {
         throw new Error('No subtitle segments generated - text may be empty');
