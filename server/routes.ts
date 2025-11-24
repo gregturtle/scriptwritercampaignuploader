@@ -1714,42 +1714,78 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  app.post('/api/video/upload-background', upload.single('video'), async (req, res) => {
+  app.post('/api/video/upload-background', upload.array('videos', 20), async (req, res) => {
     try {
-      const file = req.file;
+      const files = req.files as Express.Multer.File[];
       
-      if (!file) {
-        return res.status(400).json({ message: 'No video file uploaded' });
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: 'No video files uploaded' });
       }
       
       const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv'];
-      const isValidVideo = videoExtensions.some(ext => 
-        file.originalname.toLowerCase().endsWith(ext)
-      );
-      
-      if (!isValidVideo) {
-        return res.status(400).json({ 
-          message: 'Only video files (.mp4, .mov, .avi, .mkv) are allowed' 
-        });
-      }
-      
-      // Move file to backgrounds directory
       const backgroundsDir = path.join(process.cwd(), 'uploads', 'backgrounds');
       if (!fs.existsSync(backgroundsDir)) {
         fs.mkdirSync(backgroundsDir, { recursive: true });
       }
       
-      const newPath = path.join(backgroundsDir, file.originalname);
-      fs.renameSync(file.path, newPath);
+      const uploadedFiles = [];
+      const failedFiles = [];
+      
+      for (const file of files) {
+        try {
+          const isValidVideo = videoExtensions.some(ext => 
+            file.originalname.toLowerCase().endsWith(ext)
+          );
+          
+          if (!isValidVideo) {
+            failedFiles.push({
+              filename: file.originalname,
+              reason: 'Invalid file type (only .mp4, .mov, .avi, .mkv allowed)'
+            });
+            fs.unlinkSync(file.path);
+            continue;
+          }
+          
+          // Move file to backgrounds directory
+          const newPath = path.join(backgroundsDir, file.originalname);
+          
+          // If file already exists, skip
+          if (fs.existsSync(newPath)) {
+            uploadedFiles.push({
+              filename: file.originalname,
+              path: newPath,
+              status: 'already_exists'
+            });
+            fs.unlinkSync(file.path);
+            continue;
+          }
+          
+          fs.renameSync(file.path, newPath);
+          
+          uploadedFiles.push({
+            filename: file.originalname,
+            path: newPath,
+            status: 'uploaded'
+          });
+        } catch (fileError) {
+          failedFiles.push({
+            filename: file.originalname,
+            reason: fileError instanceof Error ? fileError.message : 'Unknown error'
+          });
+        }
+      }
       
       res.json({
-        message: 'Background video uploaded successfully',
-        filename: file.originalname,
-        path: newPath
+        message: `Uploaded ${uploadedFiles.filter(f => f.status === 'uploaded').length} video(s) successfully`,
+        uploaded: uploadedFiles,
+        failed: failedFiles,
+        totalCount: files.length,
+        successCount: uploadedFiles.length,
+        failedCount: failedFiles.length
       });
     } catch (error) {
       console.error('Background video upload error:', error);
-      res.status(500).json({ message: 'Failed to upload background video' });
+      res.status(500).json({ message: 'Failed to upload background videos' });
     }
   });
 

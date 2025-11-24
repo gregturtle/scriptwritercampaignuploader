@@ -632,11 +632,13 @@ export default function Unified() {
   };
 
   const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
     const formData = new FormData();
-    formData.append('video', file);
+    Array.from(files).forEach(file => {
+      formData.append('videos', file);
+    });
 
     setIsUploadingVideo(true);
     try {
@@ -646,14 +648,29 @@ export default function Unified() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload video');
+        throw new Error('Failed to upload videos');
       }
 
       const result = await response.json();
       
+      const uploadedCount = result.uploaded?.filter((f: any) => f.status === 'uploaded').length || 0;
+      const existingCount = result.uploaded?.filter((f: any) => f.status === 'already_exists').length || 0;
+      const failedCount = result.failed?.length || 0;
+      
+      let description = '';
+      if (uploadedCount > 0) {
+        description += `${uploadedCount} video${uploadedCount > 1 ? 's' : ''} uploaded successfully. `;
+      }
+      if (existingCount > 0) {
+        description += `${existingCount} video${existingCount > 1 ? 's' : ''} already existed. `;
+      }
+      if (failedCount > 0) {
+        description += `${failedCount} video${failedCount > 1 ? 's' : ''} failed.`;
+      }
+      
       toast({
-        title: "Video Uploaded!",
-        description: `Background video "${result.filename}" uploaded successfully`,
+        title: files.length === 1 ? "Video Uploaded!" : "Videos Uploaded!",
+        description: description.trim(),
       });
 
       // Refresh the background videos list
@@ -664,7 +681,7 @@ export default function Unified() {
     } catch (error) {
       toast({
         title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload video",
+        description: error instanceof Error ? error.message : "Failed to upload videos",
         variant: "destructive",
       });
     } finally {
@@ -1448,6 +1465,7 @@ export default function Unified() {
                   id="video-upload"
                   type="file"
                   accept=".mp4,.mov,.avi,.mkv"
+                  multiple
                   onChange={handleVideoUpload}
                   disabled={isUploadingVideo}
                   className="hidden"
@@ -1468,7 +1486,7 @@ export default function Unified() {
                   ) : (
                     <>
                       <Upload className="mr-2 h-3 w-3" />
-                      UPLOAD VIDEO
+                      UPLOAD VIDEO(S)
                     </>
                   )}
                 </Button>
