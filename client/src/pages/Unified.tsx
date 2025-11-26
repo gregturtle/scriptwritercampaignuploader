@@ -673,8 +673,15 @@ export default function Unified() {
         description: description.trim(),
       });
 
-      // Refresh the background videos list
+      // Refresh both background videos lists
       await fetchBackgroundVideos();
+      
+      // Also refresh the dropdown list (availableBackgroundVideos)
+      const bgResponse = await fetch('/api/video/background-videos');
+      if (bgResponse.ok) {
+        const bgData = await bgResponse.json();
+        setAvailableBackgroundVideos(bgData.videos);
+      }
       
       // Clear the input
       event.target.value = '';
