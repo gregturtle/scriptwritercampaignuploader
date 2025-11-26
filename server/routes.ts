@@ -1464,7 +1464,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         scripts, 
         voiceId, 
         language = 'en',
-        backgroundVideo,
+        backgroundVideos: selectedBackgroundVideos = [],
         sendToSlack,
         slackNotificationDelay = 0,
         includeSubtitles = false
@@ -1474,7 +1474,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         return res.status(400).json({ error: 'Scripts array is required' });
       }
 
-      console.log(`Processing ${scripts.length} existing scripts into videos`);
+      console.log(`Processing ${scripts.length} existing scripts into videos with ${selectedBackgroundVideos.length} background videos`);
 
       // Transform the scripts from Google Sheets format to the format expected by our services
       const formattedScripts = scripts.map((script, index) => ({
@@ -1487,7 +1487,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         fileName: generateScriptFileName(index, script.scriptTitle)
       }));
 
-      // Generate audio for the scripts
+      // Generate audio for the scripts (once per script)
       const voiceIdToUse = voiceId || 'huvDR9lwwSKC0zEjZUox'; // Default to Ella AI
       const scriptsWithAudio = await elevenLabsService.generateScriptVoiceovers(
         formattedScripts,
@@ -1496,23 +1496,49 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       console.log(`Generated audio for ${scriptsWithAudio.length} scripts`);
 
-      // Generate videos if background video is available
-      let scriptsWithVideos = scriptsWithAudio;
-      const backgroundVideos = videoService.getAvailableBackgroundVideos();
-      const videoToUse = backgroundVideo || backgroundVideos[0];
+      // Generate videos for each script with each selected background video
+      let allScriptsWithVideos: any[] = [];
+      const availableBackgrounds = videoService.getAvailableBackgroundVideos();
+      const videosToUse = selectedBackgroundVideos.length > 0 
+        ? selectedBackgroundVideos 
+        : (availableBackgrounds.length > 0 ? [availableBackgrounds[0]] : []);
       
-      if (videoToUse) {
-        try {
-          scriptsWithVideos = await videoService.createVideosForScripts(
-            scriptsWithAudio,
-            videoToUse,
-            includeSubtitles
-          );
-          console.log(`Created videos for ${scriptsWithVideos.filter(s => s.videoUrl).length} scripts`);
-        } catch (videoError) {
-          console.error('Video creation failed:', videoError);
+      if (videosToUse.length > 0) {
+        for (const bgVideo of videosToUse) {
+          try {
+            // Get just the filename for the video suffix
+            const bgVideoName = path.basename(bgVideo, path.extname(bgVideo)).replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+            
+            // Create scripts with video-specific filenames (using formattedScripts for base fileName)
+            const scriptsForThisVideo = scriptsWithAudio.map((script, idx) => ({
+              ...script,
+              fileName: `${formattedScripts[idx].fileName}_${bgVideoName}`
+            }));
+            
+            const scriptsWithVideos = await videoService.createVideosForScripts(
+              scriptsForThisVideo,
+              bgVideo,
+              includeSubtitles
+            );
+            
+            // Add the background video name to each result for reference
+            const scriptsWithBgInfo = scriptsWithVideos.map(s => ({
+              ...s,
+              backgroundVideoName: path.basename(bgVideo)
+            }));
+            
+            allScriptsWithVideos.push(...scriptsWithBgInfo);
+            console.log(`Created ${scriptsWithVideos.filter(s => s.videoUrl).length} videos with background: ${path.basename(bgVideo)}`);
+          } catch (videoError) {
+            console.error(`Video creation failed for ${bgVideo}:`, videoError);
+          }
         }
+      } else {
+        // No videos to use, just keep the audio scripts
+        allScriptsWithVideos = scriptsWithAudio;
       }
+      
+      let scriptsWithVideos = allScriptsWithVideos;
 
       // Send to Slack if requested
       if (sendToSlack) {

@@ -71,6 +71,7 @@ export default function Unified() {
   const [isLoadingTabs, setIsLoadingTabs] = useState(false);
   const [isLoadingScripts, setIsLoadingScripts] = useState(false);
   const [isProcessingScripts, setIsProcessingScripts] = useState(false);
+  const [selectedBackgroundVideosMulti, setSelectedBackgroundVideosMulti] = useState<string[]>([]);
   
   // States for iterations tab
   const [iterationsCount, setIterationsCount] = useState(3);
@@ -270,7 +271,7 @@ export default function Unified() {
           scripts: scriptsToProcess,
           voiceId: selectedVoice,
           language: selectedLanguage,
-          backgroundVideo: selectedBackgroundVideo,
+          backgroundVideos: selectedBackgroundVideosMulti,
           sendToSlack: slackEnabled,
           slackNotificationDelay: slackEnabled ? 15 : 0, // 15 minute delay if Slack is enabled
           includeSubtitles: includeSubtitles
@@ -2093,22 +2094,58 @@ export default function Unified() {
               </div>
             )}
 
-            {/* Background Video Selection */}
+            {/* Background Video Selection (Multi-select) */}
             {availableBackgroundVideos.length > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="video-selector-process">Background Video</Label>
-                <Select value={selectedBackgroundVideo} onValueChange={setSelectedBackgroundVideo}>
-                  <SelectTrigger id="video-selector-process">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <Label>Background Videos</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedBackgroundVideosMulti.length === availableBackgroundVideos.length) {
+                        setSelectedBackgroundVideosMulti([]);
+                      } else {
+                        setSelectedBackgroundVideosMulti(availableBackgroundVideos.map(v => v.path));
+                      }
+                    }}
+                  >
+                    {selectedBackgroundVideosMulti.length === availableBackgroundVideos.length ? 'Deselect All' : 'Select All'}
+                  </Button>
+                </div>
+                <Card className="p-4 max-h-48 overflow-y-auto">
+                  <div className="space-y-3">
                     {availableBackgroundVideos.map((video) => (
-                      <SelectItem key={video.path} value={video.path}>
-                        {video.name}
-                      </SelectItem>
+                      <div key={video.path} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`video-${video.path}`}
+                          checked={selectedBackgroundVideosMulti.includes(video.path)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedBackgroundVideosMulti([...selectedBackgroundVideosMulti, video.path]);
+                            } else {
+                              setSelectedBackgroundVideosMulti(selectedBackgroundVideosMulti.filter(p => p !== video.path));
+                            }
+                          }}
+                          data-testid={`checkbox-video-${video.name}`}
+                        />
+                        <Label
+                          htmlFor={`video-${video.path}`}
+                          className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                        >
+                          <Video className="h-4 w-4 text-purple-600" />
+                          {video.name}
+                        </Label>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </Card>
+                <p className="text-xs text-gray-500">
+                  {selectedBackgroundVideosMulti.length === 0 
+                    ? "Select one or more background videos"
+                    : `${selectedBackgroundVideosMulti.length} video${selectedBackgroundVideosMulti.length === 1 ? '' : 's'} selected - each script will be created with each video`
+                  }
+                </p>
               </div>
             )}
 
