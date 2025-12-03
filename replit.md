@@ -28,9 +28,9 @@ Video Generation: Automatic video overlay using fluent-ffmpeg when background vi
 - **Database**: Drizzle ORM with PostgreSQL (Neon).
 - **Authentication**: Session-based authentication using Meta OAuth.
 - **AI Script Generation**: Analyzes Meta campaign performance data to generate optimized scripts following a structured three-part format (opening, product explanation, call-to-action) and specific word count constraints. Supports multiple LLM providers:
-  - **OpenAI GPT-4o**: High quality reasoning (requires OPENAI_API_KEY)
-  - **Groq Llama 3.1 70B**: Fast inference (requires GROQ_API_KEY)
-  - **Google Gemini 2.5 Pro**: Uses Replit AI credits (no API key needed, uses Replit AI Integrations)
+  - **OpenAI GPT-5.1**: High quality reasoning (requires OPENAI_API_KEY)
+  - **Groq Llama 3.3 70B**: Fast inference (requires GROQ_API_KEY)
+  - **Google Gemini 3.0**: Uses Replit AI credits (no API key needed, uses Replit AI Integrations)
 - **Voice Synthesis**: Uses ElevenLabs API to convert scripts into professional voice recordings.
 - **Video Creation**: Leverages FFmpeg (fluent-ffmpeg) to combine AI voiceovers with background videos, creating complete ad assets.
 - **Google Sheets Integration**: Exports scripts and metadata to timestamped Google Sheets tabs, supporting performance data export with configurable date ranges.
