@@ -140,7 +140,7 @@ async function generateWithGroq(request: LLMRequest): Promise<LLMResponse> {
 
 async function generateWithGemini(request: LLMRequest): Promise<LLMResponse> {
   const ai = getGeminiClient();
-  const model = "gemini-3.0";
+  const model = "gemini-2.5-pro";
 
   const fullPrompt = request.systemPrompt 
     ? `${request.systemPrompt}\n\n${request.prompt}`
@@ -162,9 +162,7 @@ async function generateWithGemini(request: LLMRequest): Promise<LLMResponse> {
   let content = "{}";
   if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
     content = response.candidates[0].content.parts[0].text;
-  } else if (typeof response.text === 'function') {
-    content = response.text() || "{}";
-  } else if (typeof response.text === 'string') {
+  } else if (response.text) {
     content = response.text || "{}";
   }
   
@@ -211,6 +209,6 @@ export function getAvailableProviders(): { id: string; name: string; available: 
   return [
     { id: 'openai', name: 'OpenAI', available: isProviderAvailable('openai'), model: 'GPT-5.1' },
     { id: 'groq', name: 'Groq', available: isProviderAvailable('groq'), model: 'Llama 3.3 70B' },
-    { id: 'gemini', name: 'Gemini', available: isProviderAvailable('gemini'), model: 'Gemini 3.0' },
+    { id: 'gemini', name: 'Gemini', available: isProviderAvailable('gemini'), model: 'Gemini 2.5 Pro' },
   ];
 }
