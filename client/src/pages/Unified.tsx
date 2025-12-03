@@ -61,6 +61,8 @@ export default function Unified() {
   const [experimentalPercentage, setExperimentalPercentage] = useState(40);
   const [individualGeneration, setIndividualGeneration] = useState(true);
   const [slackEnabled, setSlackEnabled] = useState(false);
+  const [llmProvider, setLlmProvider] = useState<'openai' | 'groq' | 'gemini'>('openai');
+  const [availableLlmProviders, setAvailableLlmProviders] = useState<{id: string, name: string, available: boolean}[]>([]);
   
   // States for processing existing scripts
   const [activeTab, setActiveTab] = useState<'iterations' | 'generate' | 'process'>('iterations');
@@ -141,6 +143,27 @@ export default function Unified() {
     };
     
     loadVoices();
+  }, []);
+
+  // Load available LLM providers
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        const response = await fetch('/api/ai/providers');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableLlmProviders(data.providers);
+          // Default to first available provider
+          const firstAvailable = data.providers.find((p: any) => p.available);
+          if (firstAvailable && llmProvider !== firstAvailable.id) {
+            setLlmProvider(firstAvailable.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading LLM providers:', error);
+      }
+    };
+    loadProviders();
   }, []);
 
   // Load available tabs when spreadsheet ID changes and activeTab is 'process'
@@ -428,7 +451,8 @@ export default function Unified() {
         individualGeneration: individualGeneration,
         slackEnabled: slackEnabled,
         spreadsheetId: iterationsOutputSpreadsheetId,
-        includeSubtitles: includeSubtitles
+        includeSubtitles: includeSubtitles,
+        llmProvider: llmProvider
       };
 
       // Add guidance prompt only if provided
@@ -733,7 +757,8 @@ export default function Unified() {
         experimentalPercentage: experimentalPercentage,
         individualGeneration: individualGeneration,
         slackEnabled: slackEnabled,
-        includeSubtitles: includeSubtitles
+        includeSubtitles: includeSubtitles,
+        llmProvider: llmProvider
       };
 
       // Add guidance prompt only if provided
@@ -1078,6 +1103,45 @@ export default function Unified() {
                       ? 'Separate API calls per source script for maximum quality & diversity (slower, higher cost)' 
                       : 'Single API call for all iterations (faster, lower cost)'
                     }
+                  </p>
+                </div>
+              )}
+
+              {/* LLM Provider Selection */}
+              {iterationsScripts.length > 0 && availableLlmProviders.length > 0 && (
+                <div className="space-y-4 border-t pt-4">
+                  <div className="flex items-center justify-center space-x-3">
+                    <Label htmlFor="iterations-llm-provider" className="text-sm font-medium">
+                      AI Model
+                    </Label>
+                    <Select
+                      value={llmProvider}
+                      onValueChange={(value) => setLlmProvider(value as 'openai' | 'groq' | 'gemini')}
+                    >
+                      <SelectTrigger 
+                        id="iterations-llm-provider"
+                        className="w-[180px]"
+                        data-testid="select-iterations-llm-provider"
+                      >
+                        <SelectValue placeholder="Select AI model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableLlmProviders.map((provider) => (
+                          <SelectItem 
+                            key={provider.id} 
+                            value={provider.id}
+                            disabled={!provider.available}
+                          >
+                            {provider.name} {!provider.available && '(Not configured)'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-center text-sm text-gray-500">
+                    {llmProvider === 'openai' && 'OpenAI GPT-4o - High quality reasoning'}
+                    {llmProvider === 'groq' && 'Groq Llama 3.1 70B - Fast inference (requires API key)'}
+                    {llmProvider === 'gemini' && 'Google Gemini 2.5 Pro - Uses Replit credits (no API key needed)'}
                   </p>
                 </div>
               )}
@@ -1765,6 +1829,45 @@ export default function Unified() {
               }
             </p>
           </div>
+
+          {/* LLM Provider Selection */}
+          {availableLlmProviders.length > 0 && (
+            <div className="space-y-4 border-t pt-4">
+              <div className="flex items-center justify-center space-x-3">
+                <Label htmlFor="generate-llm-provider" className="text-sm font-medium">
+                  AI Model
+                </Label>
+                <Select
+                  value={llmProvider}
+                  onValueChange={(value) => setLlmProvider(value as 'openai' | 'groq' | 'gemini')}
+                >
+                  <SelectTrigger 
+                    id="generate-llm-provider"
+                    className="w-[180px]"
+                    data-testid="select-generate-llm-provider"
+                  >
+                    <SelectValue placeholder="Select AI model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableLlmProviders.map((provider) => (
+                      <SelectItem 
+                        key={provider.id} 
+                        value={provider.id}
+                        disabled={!provider.available}
+                      >
+                        {provider.name} {!provider.available && '(Not configured)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-center text-sm text-gray-500">
+                {llmProvider === 'openai' && 'OpenAI GPT-4o - High quality reasoning'}
+                {llmProvider === 'groq' && 'Groq Llama 3.1 70B - Fast inference (requires API key)'}
+                {llmProvider === 'gemini' && 'Google Gemini 2.5 Pro - Uses Replit credits (no API key needed)'}
+              </p>
+            </div>
+          )}
 
           {/* Slack Notifications Toggle */}
           <div className="space-y-4 border-t pt-4">

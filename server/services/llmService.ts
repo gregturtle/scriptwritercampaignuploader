@@ -65,7 +65,14 @@ function parseJsonResponse(content: string): any {
 }
 
 async function generateWithOpenAI(request: LLMRequest): Promise<LLMResponse> {
-  const model = "gpt-5";
+  const model = "gpt-4o";
+  
+  const temperatureMap = {
+    'low': 0.3,
+    'medium': 0.5,
+    'high': 0.7
+  };
+  const temperature = temperatureMap[request.reasoningEffort || 'medium'];
   
   const response = await openai.chat.completions.create({
     model,
@@ -78,7 +85,7 @@ async function generateWithOpenAI(request: LLMRequest): Promise<LLMResponse> {
       },
     ],
     response_format: { type: "json_object" },
-    reasoning_effort: request.reasoningEffort || "high",
+    temperature,
   });
 
   const content = response.choices[0].message.content || "{}";
@@ -93,14 +100,14 @@ async function generateWithOpenAI(request: LLMRequest): Promise<LLMResponse> {
 
 async function generateWithGroq(request: LLMRequest): Promise<LLMResponse> {
   const groq = getGroqClient();
-  const model = "llama-3.3-70b-versatile";
+  const model = "llama-3.1-70b-versatile";
   
   const temperatureMap = {
     'low': 0.3,
     'medium': 0.5,
     'high': 0.7
   };
-  const temperature = temperatureMap[request.reasoningEffort || 'high'];
+  const temperature = temperatureMap[request.reasoningEffort || 'medium'];
 
   const response = await groq.chat.completions.create({
     model,
@@ -141,13 +148,25 @@ async function generateWithGemini(request: LLMRequest): Promise<LLMResponse> {
 
   const response = await ai.models.generateContent({
     model,
-    contents: fullPrompt,
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: fullPrompt }],
+      },
+    ],
     config: {
       responseMimeType: "application/json",
     },
   });
 
-  const content = response.text || "{}";
+  let content = "{}";
+  if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
+    content = response.candidates[0].content.parts[0].text;
+  } else if (typeof response.text === 'function') {
+    content = response.text() || "{}";
+  } else if (typeof response.text === 'string') {
+    content = response.text || "{}";
+  }
   
   return {
     content,
@@ -188,10 +207,10 @@ export function isProviderAvailable(provider: LLMProvider): boolean {
   }
 }
 
-export function getAvailableProviders(): { provider: LLMProvider; available: boolean; model: string }[] {
+export function getAvailableProviders(): { id: string; name: string; available: boolean; model: string }[] {
   return [
-    { provider: 'openai', available: isProviderAvailable('openai'), model: 'GPT-5' },
-    { provider: 'groq', available: isProviderAvailable('groq'), model: 'Llama 3.3 70B' },
-    { provider: 'gemini', available: isProviderAvailable('gemini'), model: 'Gemini 2.5 Pro' },
+    { id: 'openai', name: 'OpenAI', available: isProviderAvailable('openai'), model: 'GPT-4o' },
+    { id: 'groq', name: 'Groq', available: isProviderAvailable('groq'), model: 'Llama 3.1 70B' },
+    { id: 'gemini', name: 'Gemini', available: isProviderAvailable('gemini'), model: 'Gemini 2.5 Pro' },
   ];
 }
