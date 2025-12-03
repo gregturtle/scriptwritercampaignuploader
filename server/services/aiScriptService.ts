@@ -2,8 +2,8 @@ import OpenAI from "openai";
 import { googleSheetsService } from "./googleSheetsService";
 import { elevenLabsService } from "./elevenLabsService";
 import { primerService, PrimerPattern } from "./primerService";
+import { generateJsonResponse, LLMProvider } from "./llmService";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface ScriptSuggestion {
@@ -87,6 +87,7 @@ class AIScriptService {
       primerContent?: string;
       experimentalPercentage?: number;
       individualGeneration?: boolean;
+      llmProvider?: LLMProvider;
     } = {}
   ): Promise<{
     suggestions: ScriptSuggestion[];
@@ -101,7 +102,8 @@ class AIScriptService {
       language = 'en',
       primerContent,
       experimentalPercentage = 50,
-      individualGeneration = false
+      individualGeneration = false,
+      llmProvider = 'openai'
     } = options;
     
     try {
@@ -202,40 +204,19 @@ Respond in JSON format:
         );
         
         // Create array of promises for concurrent execution
+        const systemPrompt = isMultilingual 
+          ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.`
+          : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.`;
+
         const apiCalls = Array.from({ length: numCalls }, (_, callIndex) => {
-          const fullContent = isMultilingual 
-            ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`
-            : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n\n${individualPrompt}`;
+          console.log(`[API Call ${callIndex + 1}] Using ${llmProvider} for individual generation`);
           
-          // Log the role/behavior instruction (first 500 chars)
-          console.log(`[API Call ${callIndex + 1}] Role instruction: ${fullContent.substring(0, 500)}...`);
-          
-          // Log key sections to verify prompt changes
-          if (fullContent.includes('CONSTRAINTS (ALL LANGUAGES)')) {
-            console.log('✓ All languages constraints section included');
-          }
-          if (fullContent.includes('NON-ENGLISH LANGUAGE SPECIFIC CONSTRAINTS')) {
-            console.log('✓ Non-English constraints section included');
-          }
-          if (fullContent.includes('consider it conceptually in the target language')) {
-            console.log('✓ PRIMER conceptual translation guidance included');
-          }
-          if (fullContent.includes('% of scripts should be EXPERIMENTAL')) {
-            console.log('✓ Dynamic proportion guidance included');
-          }
-          
-          return openai.chat.completions.create({
-            model: "gpt-5",
-            messages: [
-              {
-                role: "user",
-                content: fullContent,
-              },
-            ],
-            response_format: { type: "json_object" },
-            reasoning_effort: "high",
-          }).then(response => {
-            const result = JSON.parse(response.choices[0].message.content || "{}");
+          return generateJsonResponse(llmProvider, {
+            prompt: individualPrompt,
+            systemPrompt,
+            reasoningEffort: "high",
+          }).then(llmResponse => {
+            const result = llmResponse.parsed;
             
             if (!result.suggestions || !Array.isArray(result.suggestions)) {
               console.warn(`Invalid or empty response for API call ${callIndex + 1}`);
@@ -247,7 +228,7 @@ Respond in JSON format:
               // For multilingual, preserve the native content properly
               if (isMultilingual) {
                 if (suggestion.englishContent) {
-                  // If OpenAI provided English translation, use it
+                  // If provided English translation, use it
                   return {
                     ...suggestion,
                     nativeContent: suggestion.content, // Native stays in nativeContent
@@ -280,36 +261,32 @@ Respond in JSON format:
         console.log(`Individual generation complete: ${suggestions.length} scripts generated concurrently from ${numCalls} calls`);
       } else {
         // Batch generation mode: Single API call requesting all scripts
-        console.log(`Batch generation mode: Making 1 API call for ${scriptCount} scripts`);
+        console.log(`Batch generation mode: Making 1 API call for ${scriptCount} scripts using ${llmProvider}`);
         
-        const response = await openai.chat.completions.create({
-          model: "gpt-5",
-          messages: [
-            {
-              role: "user",
-              content: isMultilingual 
-                ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n${prompt}`
-                : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.\n${prompt}`,
-            },
-          ],
-          response_format: { type: "json_object" },
-          reasoning_effort: "high",
+        const systemPrompt = isMultilingual 
+          ? `You are a multilingual creative director and experimental copywriter fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}, not through translation. You use data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.`
+          : `You are a creative director and experimental copywriter who uses data-driven insights from the Guidance Primer while maintaining creative flexibility. You excel at balancing proven patterns with experimental approaches based on the specified experimentation level. Your goal is maximum creative variety - never repeat the same approach twice.`;
+
+        const llmResponse = await generateJsonResponse(llmProvider, {
+          prompt,
+          systemPrompt,
+          reasoningEffort: "high",
         });
 
-        const result = JSON.parse(response.choices[0].message.content || "{}");
+        const result = llmResponse.parsed;
 
         if (!result.suggestions || !Array.isArray(result.suggestions)) {
-          throw new Error("Invalid response format from OpenAI");
+          throw new Error(`Invalid response format from ${llmProvider}`);
         }
 
-        console.log(`Generated ${result.suggestions.length} script suggestions in ${targetLanguage}`);
+        console.log(`Generated ${result.suggestions.length} script suggestions in ${targetLanguage} using ${llmProvider}`);
         
         // Process multilingual responses
         suggestions = result.suggestions.map((suggestion: any) => {
           // For multilingual, preserve the native content properly
           if (isMultilingual) {
             if (suggestion.englishContent) {
-              // If OpenAI provided English translation, use it
+              // If provided English translation, use it
               return {
                 ...suggestion,
                 nativeContent: suggestion.content, // Native stays in nativeContent
@@ -383,6 +360,7 @@ Respond in JSON format:
       primerContent?: string;
       experimentalPercentage?: number;
       individualGeneration?: boolean;
+      llmProvider?: LLMProvider;
     } = {}
   ): Promise<{
     suggestions: ScriptSuggestion[];
@@ -397,7 +375,8 @@ Respond in JSON format:
       language = 'en',
       primerContent,
       experimentalPercentage = 50,
-      individualGeneration = false
+      individualGeneration = false,
+      llmProvider = 'openai'
     } = options;
 
     try {
@@ -452,27 +431,33 @@ OUTPUT FORMAT (strict JSON):
 
       if (individualGeneration) {
         // Individual generation: One API call per source script
-        console.log(`Individual generation mode: ${sourceScripts.length} API calls (${iterationsPerScript} iterations each)`);
+        console.log(`Individual generation mode: ${sourceScripts.length} API calls (${iterationsPerScript} iterations each) using ${llmProvider}`);
+
+        const systemPrompt = isMultilingual
+          ? `You are a multilingual creative director fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}.`
+          : undefined;
+
+        const reasoningMap: { [key: string]: 'low' | 'medium' | 'high' } = {
+          high: 'high',
+          medium: 'medium',
+          low: 'low'
+        };
+        const reasoningLevel = experimentalPercentage > 70 ? 'high' : experimentalPercentage > 30 ? 'medium' : 'low';
 
         const apiCalls = sourceScripts.map((sourceScript, scriptIndex) => {
           const scriptPrompt = `${prompt}\n\nSOURCE SCRIPT TO ITERATE:\n"${sourceScript.content || sourceScript.nativeContent}"\n\nGenerate ${iterationsPerScript} creative variations of this script.`;
 
-          const fullContent = isMultilingual
-            ? `You are a multilingual creative director fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}. ${scriptPrompt}`
-            : scriptPrompt;
-
-          return openai.chat.completions.create({
-            model: "gpt-5",
-            messages: [{ role: "user", content: fullContent }],
-            response_format: { type: "json_object" },
-            reasoning_effort: experimentalPercentage > 70 ? "high" : experimentalPercentage > 30 ? "medium" : "low"
+          return generateJsonResponse(llmProvider, {
+            prompt: scriptPrompt,
+            systemPrompt,
+            reasoningEffort: reasoningLevel,
           });
         });
 
         const responses = await Promise.all(apiCalls);
 
-        responses.forEach((response, scriptIndex) => {
-          const result = JSON.parse(response.choices[0].message.content || "{}");
+        responses.forEach((llmResponse, scriptIndex) => {
+          const result = llmResponse.parsed;
           if (result.suggestions && Array.isArray(result.suggestions)) {
             const sourceScript = sourceScripts[scriptIndex];
             result.suggestions.forEach((suggestion: any, iterIndex: number) => {
@@ -486,10 +471,10 @@ OUTPUT FORMAT (strict JSON):
           }
         });
 
-        console.log(`Individual generation complete: ${allSuggestions.length} iterations generated`);
+        console.log(`Individual generation complete: ${allSuggestions.length} iterations generated using ${llmProvider}`);
       } else {
         // Batch generation: Single API call for all iterations
-        console.log(`Batch generation mode: Single API call for all ${sourceScripts.length} scripts`);
+        console.log(`Batch generation mode: Single API call for all ${sourceScripts.length} scripts using ${llmProvider}`);
 
         const scriptsToIterate = sourceScripts.map((script, index) => ({
           index,
@@ -498,18 +483,19 @@ OUTPUT FORMAT (strict JSON):
 
         const batchPrompt = `${prompt}\n\nSOURCE SCRIPTS TO ITERATE:\n${JSON.stringify(scriptsToIterate, null, 2)}\n\nFor each source script, generate ${iterationsPerScript} creative variations (total ${sourceScripts.length * iterationsPerScript} iterations).`;
 
-        const fullContent = isMultilingual
-          ? `You are a multilingual creative director fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}. ${batchPrompt}`
-          : batchPrompt;
+        const systemPrompt = isMultilingual
+          ? `You are a multilingual creative director fluent in ${targetLanguage}. You think and create NATIVELY in ${targetLanguage}.`
+          : undefined;
 
-        const response = await openai.chat.completions.create({
-          model: "gpt-5",
-          messages: [{ role: "user", content: fullContent }],
-          response_format: { type: "json_object" },
-          reasoning_effort: experimentalPercentage > 70 ? "high" : experimentalPercentage > 30 ? "medium" : "low"
+        const reasoningLevel = experimentalPercentage > 70 ? 'high' : experimentalPercentage > 30 ? 'medium' : 'low';
+
+        const llmResponse = await generateJsonResponse(llmProvider, {
+          prompt: batchPrompt,
+          systemPrompt,
+          reasoningEffort: reasoningLevel as 'low' | 'medium' | 'high',
         });
 
-        const result = JSON.parse(response.choices[0].message.content || "{}");
+        const result = llmResponse.parsed;
 
         if (result.suggestions && Array.isArray(result.suggestions)) {
           // Map each suggestion back to its source script using the index
