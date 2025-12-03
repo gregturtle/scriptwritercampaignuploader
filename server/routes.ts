@@ -185,6 +185,18 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
+  // Get available LLM providers
+  app.get('/api/ai/providers', async (req, res) => {
+    try {
+      const { getAvailableProviders } = await import('./services/llmService');
+      const providers = getAvailableProviders();
+      res.json({ providers });
+    } catch (error) {
+      console.error('Error fetching LLM providers:', error);
+      res.status(500).json({ error: 'Failed to fetch LLM providers' });
+    }
+  });
+
   app.post('/api/ai/generate-scripts', async (req, res) => {
     try {
       console.log('AI script generation request received:', req.body);
@@ -200,7 +212,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         primerContent,
         experimentalPercentage = 50,
         individualGeneration = false,
-        includeSubtitles = false
+        includeSubtitles = false,
+        llmProvider = 'openai'
       } = req.body;
       
       if (!spreadsheetId) {
@@ -245,7 +258,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           language: language,
           primerContent: primerContent,
           experimentalPercentage: experimentalPercentage,
-          individualGeneration: individualGeneration
+          individualGeneration: individualGeneration,
+          llmProvider: llmProvider
         }
       );
       
@@ -452,7 +466,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         experimentalPercentage = 50,
         individualGeneration = false,
         spreadsheetId,
-        includeSubtitles = false
+        includeSubtitles = false,
+        llmProvider = 'openai'
       } = req.body;
 
       if (!sourceScripts || !Array.isArray(sourceScripts) || sourceScripts.length === 0) {
@@ -494,7 +509,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           language: language,
           primerContent: primerContent,
           experimentalPercentage: experimentalPercentage,
-          individualGeneration: individualGeneration
+          individualGeneration: individualGeneration,
+          llmProvider: llmProvider
         }
       );
 
@@ -1360,7 +1376,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // AI Script Generation endpoints
   app.post('/api/ai-scripts/generate', async (req, res) => {
     try {
-      const { spreadsheetId, voiceId, includeVoice = false } = req.body;
+      const { spreadsheetId, voiceId, includeVoice = false, llmProvider = 'openai' } = req.body;
 
       if (!spreadsheetId) {
         return res.status(400).json({ error: 'Spreadsheet ID is required' });
@@ -1368,7 +1384,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       const result = await aiScriptService.generateScriptSuggestions(spreadsheetId, {
         voiceId,
-        includeVoice
+        includeVoice,
+        llmProvider
       });
       res.json(result);
     } catch (error: any) {
@@ -1383,7 +1400,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   // Unified workflow endpoint
   app.post('/api/unified/generate', async (req, res) => {
     try {
-      const { dateRange, campaignIds, spreadsheetId } = req.body;
+      const { dateRange, campaignIds, spreadsheetId, llmProvider = 'openai' } = req.body;
 
       if (!spreadsheetId) {
         return res.status(400).json({ error: 'Spreadsheet ID is required' });
@@ -1401,7 +1418,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       // Generate AI scripts with voice
       const aiResult = await aiScriptService.generateScriptSuggestions(spreadsheetId, {
-        includeVoice: true // Always include voice in unified workflow
+        includeVoice: true, // Always include voice in unified workflow
+        llmProvider
       });
       
       return res.json({
