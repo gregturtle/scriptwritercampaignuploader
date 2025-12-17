@@ -24,6 +24,9 @@ interface ScriptSuggestion {
   videoFileId?: string;
   videoError?: string;
   folderLink?: string;
+  llmModel?: string;       // The LLM model used to generate this script
+  sourceScriptTitle?: string; // For iterations: title of the source script
+  sourceScript?: string;      // For iterations: content of the source script
 }
 
 class AIScriptService {
@@ -217,6 +220,7 @@ Respond in JSON format:
             reasoningEffort: "high",
           }).then(llmResponse => {
             const result = llmResponse.parsed;
+            const modelUsed = llmResponse.model;
             
             if (!result.suggestions || !Array.isArray(result.suggestions)) {
               console.warn(`Invalid or empty response for API call ${callIndex + 1}`);
@@ -233,18 +237,20 @@ Respond in JSON format:
                     ...suggestion,
                     nativeContent: suggestion.content, // Native stays in nativeContent
                     content: suggestion.englishContent, // English in content
-                    language: language
+                    language: language,
+                    llmModel: modelUsed
                   };
                 } else {
                   // If no English provided yet, keep native in content for now
                   // Translation step will fix this later
                   return {
                     ...suggestion,
-                    language: language
+                    language: language,
+                    llmModel: modelUsed
                   };
                 }
               }
-              return suggestion;
+              return { ...suggestion, llmModel: modelUsed };
             });
           }).catch(error => {
             console.error(`Error in API call ${callIndex + 1}:`, error);
@@ -274,12 +280,13 @@ Respond in JSON format:
         });
 
         const result = llmResponse.parsed;
+        const modelUsed = llmResponse.model;
 
         if (!result.suggestions || !Array.isArray(result.suggestions)) {
           throw new Error(`Invalid response format from ${llmProvider}`);
         }
 
-        console.log(`Generated ${result.suggestions.length} script suggestions in ${targetLanguage} using ${llmProvider}`);
+        console.log(`Generated ${result.suggestions.length} script suggestions in ${targetLanguage} using ${llmProvider} (model: ${modelUsed})`);
         
         // Process multilingual responses
         suggestions = result.suggestions.map((suggestion: any) => {
@@ -291,18 +298,20 @@ Respond in JSON format:
                 ...suggestion,
                 nativeContent: suggestion.content, // Native stays in nativeContent
                 content: suggestion.englishContent, // English in content
-                language: language
+                language: language,
+                llmModel: modelUsed
               };
             } else {
               // If no English provided yet, keep native in content for now
               // Translation step will fix this later
               return {
                 ...suggestion,
-                language: language
+                language: language,
+                llmModel: modelUsed
               };
             }
           }
-          return suggestion;
+          return { ...suggestion, llmModel: modelUsed };
         });
       }
       
@@ -458,6 +467,7 @@ OUTPUT FORMAT (strict JSON):
 
         responses.forEach((llmResponse, scriptIndex) => {
           const result = llmResponse.parsed;
+          const modelUsed = llmResponse.model;
           if (result.suggestions && Array.isArray(result.suggestions)) {
             const sourceScript = sourceScripts[scriptIndex];
             result.suggestions.forEach((suggestion: any, iterIndex: number) => {
@@ -465,7 +475,8 @@ OUTPUT FORMAT (strict JSON):
                 ...suggestion,
                 fileName: `${sourceScript.scriptTitle || `source${scriptIndex + 1}`}_iter${iterIndex + 1}`,
                 sourceScriptTitle: sourceScript.scriptTitle || sourceScript.title || `Script ${scriptIndex + 1}`,
-                sourceScript: sourceScript.content || sourceScript.nativeContent
+                sourceScript: sourceScript.content || sourceScript.nativeContent,
+                llmModel: modelUsed
               });
             });
           }
@@ -496,6 +507,7 @@ OUTPUT FORMAT (strict JSON):
         });
 
         const result = llmResponse.parsed;
+        const modelUsed = llmResponse.model;
 
         if (result.suggestions && Array.isArray(result.suggestions)) {
           // Map each suggestion back to its source script using the index
@@ -510,14 +522,15 @@ OUTPUT FORMAT (strict JSON):
               ...suggestion,
               fileName: `${sourceScript.scriptTitle || `source${sourceScriptIndex + 1}`}_iter${iterationNumber}`,
               sourceScriptTitle: sourceScript.scriptTitle || sourceScript.title || `Script ${sourceScriptIndex + 1}`,
-              sourceScript: sourceScript.content || sourceScript.nativeContent
+              sourceScript: sourceScript.content || sourceScript.nativeContent,
+              llmModel: modelUsed
             });
             
             suggestionCounter++;
           });
         }
 
-        console.log(`Batch generation complete: ${allSuggestions.length} iterations generated`);
+        console.log(`Batch generation complete: ${allSuggestions.length} iterations generated (model: ${modelUsed})`);
       }
 
       // Process multilingual responses
@@ -715,6 +728,7 @@ Output format (JSON):
         "English Script",
         "Translation Notes",
         "AI Reasoning",
+        "LLM Model",
         "Source Script Title",
         "Source Script Copy",
       ];
@@ -737,6 +751,7 @@ Output format (JSON):
           suggestion.content, // English Script (always the English version or translation)
           suggestion.notableAdjustments || '', // Translation notes (empty if none)
           suggestion.reasoning,
+          suggestion.llmModel || '', // LLM Model used
           suggestion.sourceScriptTitle || '', // Source Script Title
           suggestion.sourceScript || '', // Source Script Copy
         ];
