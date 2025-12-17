@@ -1141,7 +1141,7 @@ export default function Unified() {
                   <p className="text-center text-sm text-gray-500">
                     {llmProvider === 'openai' && 'OpenAI GPT-5.1 - High quality reasoning'}
                     {llmProvider === 'groq' && 'Groq Llama 3.3 70B - Fast inference (requires API key)'}
-                    {llmProvider === 'gemini' && 'Google Gemini 2.5 Pro - Uses Replit credits (no API key needed)'}
+                    {llmProvider === 'gemini' && 'Google Gemini 3 Pro - Uses Replit credits (no API key needed)'}
                   </p>
                 </div>
               )}
@@ -1864,7 +1864,7 @@ export default function Unified() {
               <p className="text-center text-sm text-gray-500">
                 {llmProvider === 'openai' && 'OpenAI GPT-5.1 - High quality reasoning'}
                 {llmProvider === 'groq' && 'Groq Llama 3.3 70B - Fast inference (requires API key)'}
-                {llmProvider === 'gemini' && 'Google Gemini 2.5 Pro - Uses Replit credits (no API key needed)'}
+                {llmProvider === 'gemini' && 'Google Gemini 3 Pro - Uses Replit credits (no API key needed)'}
               </p>
             </div>
           )}
