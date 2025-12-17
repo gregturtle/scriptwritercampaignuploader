@@ -1392,11 +1392,9 @@ export default function Unified() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1">1</SelectItem>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
+                  {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => (
+                    <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
