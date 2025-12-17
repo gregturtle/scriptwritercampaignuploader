@@ -479,9 +479,8 @@ export default function Unified() {
       const result = await response.json();
       setIterationsResult(result);
 
-      // Clear guidance after successful generation
+      // Check if guidance was used for the toast message
       const wasGuidanceUsed = guidance.trim().length > 0;
-      setGuidance('');
 
       toast({
         title: "Iterations Generated!",
@@ -786,9 +785,8 @@ export default function Unified() {
 
       setResult(scriptResult);
 
-      // Clear guidance after successful generation
+      // Check if guidance was used for the toast message
       const wasGuidanceUsed = guidance.trim().length > 0;
-      setGuidance('');
 
       toast({
         title: "Complete Success!",
@@ -1429,7 +1427,7 @@ export default function Unified() {
               maxLength={2000}
             />
             <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Provide thematic direction to guide script generation. This will be cleared after each batch.</span>
+              <span>Provide thematic direction to guide script generation.</span>
               <span>{guidance.length}/2000</span>
             </div>
           </div>
