@@ -699,6 +699,7 @@ Output format (JSON):
     spreadsheetId: string,
     suggestions: ScriptSuggestion[],
     tabName: string = "New Scripts",
+    guidancePrompt: string = "",
   ): Promise<void> {
     try {
       const cleanSpreadsheetId =
@@ -717,6 +718,9 @@ Output format (JSON):
         hour12: false
       }).replace(',', '');
       const timestampedTabName = `${tabName} ${timestamp}`;
+
+      // Generate unique batch ID for ScriptDatabase
+      const batchId = `BATCH_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
       // Prepare data for sheets
       const headers = [
@@ -766,6 +770,25 @@ Output format (JSON):
       console.log(
         `Saved ${suggestions.length} suggestions to sheet tab "${timestampedTabName}"`,
       );
+
+      // Also write to ScriptDatabase tab
+      const scriptDatabaseEntries = suggestions.map((suggestion, index) => {
+        const languageName = suggestion.language ? this.getLanguageName(suggestion.language) : 'English';
+        const scriptId = `${batchId}_SCRIPT_${(index + 1).toString().padStart(3, '0')}`;
+        
+        return {
+          batchId,
+          scriptId,
+          language: languageName,
+          scriptCopy: suggestion.nativeContent || suggestion.content,
+          aiPrompt: guidancePrompt,
+          aiModel: suggestion.llmModel || '',
+        };
+      });
+
+      await googleSheetsService.appendToScriptDatabase(cleanSpreadsheetId, scriptDatabaseEntries);
+      console.log(`Also saved ${suggestions.length} scripts to ScriptDatabase tab`);
+
     } catch (error) {
       console.error("Error saving suggestions to Google Sheets:", error);
       throw error;

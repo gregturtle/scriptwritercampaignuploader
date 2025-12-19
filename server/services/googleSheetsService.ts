@@ -519,6 +519,91 @@ class GoogleSheetsService {
       throw error;
     }
   }
+
+  /**
+   * Ensure ScriptDatabase tab exists with proper headers
+   */
+  async ensureScriptDatabaseTab(spreadsheetId: string): Promise<void> {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      const tabName = "ScriptDatabase";
+      const headers = [
+        "ScriptBatchID",
+        "ScriptID",
+        "MKJobID",
+        "DateTimestampCreated",
+        "ScriptLanguage",
+        "ScriptCopy",
+        "ScriptAIPrompt",
+        "AIModel"
+      ];
+
+      // Check if tab exists
+      try {
+        await this.sheets.spreadsheets.values.get({
+          spreadsheetId: cleanSpreadsheetId,
+          range: `${tabName}!A1`,
+        });
+        console.log(`ScriptDatabase tab already exists`);
+      } catch (error: any) {
+        // Tab doesn't exist, create it
+        if (error.code === 400 || error.message?.includes('Unable to parse range')) {
+          console.log(`Creating ScriptDatabase tab with headers`);
+          await this.createTab(cleanSpreadsheetId, tabName, headers);
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error('Error ensuring ScriptDatabase tab:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Append scripts to the ScriptDatabase tab
+   */
+  async appendToScriptDatabase(
+    spreadsheetId: string,
+    scripts: Array<{
+      batchId: string;
+      scriptId: string;
+      language: string;
+      scriptCopy: string;
+      aiPrompt: string;
+      aiModel: string;
+    }>
+  ): Promise<void> {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      const tabName = "ScriptDatabase";
+
+      // Ensure the tab exists
+      await this.ensureScriptDatabaseTab(cleanSpreadsheetId);
+
+      // Generate timestamp
+      const timestamp = new Date().toISOString();
+
+      // Prepare rows
+      const rows = scripts.map(script => [
+        script.batchId,
+        script.scriptId,
+        "0", // MKJobID always 0 for AI-generated
+        timestamp,
+        script.language,
+        script.scriptCopy,
+        script.aiPrompt,
+        script.aiModel
+      ]);
+
+      // Append to the tab
+      await this.appendDataToTab(cleanSpreadsheetId, tabName, rows);
+      console.log(`Added ${scripts.length} scripts to ScriptDatabase tab`);
+    } catch (error) {
+      console.error('Error appending to ScriptDatabase:', error);
+      throw error;
+    }
+  }
 }
 
 export const googleSheetsService = new GoogleSheetsService();

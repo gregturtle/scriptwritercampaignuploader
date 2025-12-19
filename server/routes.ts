@@ -346,8 +346,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       console.log(`Generated ${result.suggestions.length} suggestions`);
 
-      // Save suggestions to "New Scripts" tab
-      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts");
+      // Save suggestions to "New Scripts" tab (with guidance prompt for ScriptDatabase)
+      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "New Scripts", guidancePrompt || "");
 
       // Debug: Check what's in the suggestions
       console.log('Checking suggestions for Slack notification:');
@@ -593,8 +593,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         }
       }
 
-      // Save iterations to Google Sheets
-      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "Script Iterations");
+      // Save iterations to Google Sheets (with guidance prompt for ScriptDatabase)
+      await aiScriptService.saveSuggestionsToSheet(spreadsheetId, result.suggestions, "Script Iterations", guidancePrompt || "");
 
       // Send to Slack if enabled
       let slackScheduled = false;

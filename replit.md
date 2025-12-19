@@ -33,7 +33,7 @@ Video Generation: Automatic video overlay using fluent-ffmpeg when background vi
   - **Google Gemini 2.5 Pro**: Uses Replit AI credits (no API key needed, uses Replit AI Integrations)
 - **Voice Synthesis**: Uses ElevenLabs API to convert scripts into professional voice recordings.
 - **Video Creation**: Leverages FFmpeg (fluent-ffmpeg) to combine AI voiceovers with background videos, creating complete ad assets.
-- **Google Sheets Integration**: Exports scripts and metadata to timestamped Google Sheets tabs, supporting performance data export with configurable date ranges.
+- **Google Sheets Integration**: Exports scripts and metadata to timestamped Google Sheets tabs, supporting performance data export with configurable date ranges. Additionally, all generated scripts are logged to a "ScriptDatabase" tab with fields: ScriptBatchID, ScriptID, MKJobID (0 for AI-generated), DateTimestampCreated, ScriptLanguage, ScriptCopy, ScriptAIPrompt (from AI Creative Inspiration field), and AIModel.
 - **Slack Integration**: Comprehensive workflow for sending video batches for approval, including a 15-minute delay for Google Drive processing, button-based approvals, and automatic deletion of rejected videos from Google Drive.
 
 ### System Design Choices
