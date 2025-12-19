@@ -561,13 +561,61 @@ class GoogleSheetsService {
   }
 
   /**
-   * Append scripts to the ScriptDatabase tab
+   * Get the latest BatchID and ScriptID from ScriptDatabase tab
+   */
+  async getLatestScriptDatabaseIds(spreadsheetId: string): Promise<{ lastBatchId: number; lastScriptId: number }> {
+    try {
+      const cleanSpreadsheetId = this.extractSpreadsheetId(spreadsheetId);
+      const tabName = "ScriptDatabase";
+
+      // Read columns A and B (BatchID and ScriptID)
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: cleanSpreadsheetId,
+        range: `${tabName}!A:B`,
+      });
+
+      const rows = response.data.values || [];
+      
+      if (rows.length <= 1) {
+        // Only header or empty, start from 10000
+        return { lastBatchId: 10000, lastScriptId: 10000 };
+      }
+
+      // Get the last row with data
+      let lastBatchId = 10000;
+      let lastScriptId = 10000;
+
+      for (let i = rows.length - 1; i >= 1; i--) {
+        const row = rows[i];
+        if (row[0] && row[1]) {
+          const batchNum = parseInt(row[0], 10);
+          const scriptNum = parseInt(row[1], 10);
+          if (!isNaN(batchNum) && batchNum > lastBatchId) {
+            lastBatchId = batchNum;
+          }
+          if (!isNaN(scriptNum) && scriptNum > lastScriptId) {
+            lastScriptId = scriptNum;
+          }
+        }
+      }
+
+      return { lastBatchId, lastScriptId };
+    } catch (error: any) {
+      // If tab doesn't exist yet, return starting values
+      if (error.code === 400 || error.message?.includes('Unable to parse range')) {
+        return { lastBatchId: 10000, lastScriptId: 10000 };
+      }
+      console.error('Error getting latest ScriptDatabase IDs:', error);
+      return { lastBatchId: 10000, lastScriptId: 10000 };
+    }
+  }
+
+  /**
+   * Append scripts to the ScriptDatabase tab with sequential IDs
    */
   async appendToScriptDatabase(
     spreadsheetId: string,
     scripts: Array<{
-      batchId: string;
-      scriptId: string;
       language: string;
       scriptCopy: string;
       aiPrompt: string;
@@ -581,24 +629,36 @@ class GoogleSheetsService {
       // Ensure the tab exists
       await this.ensureScriptDatabaseTab(cleanSpreadsheetId);
 
+      // Get the latest IDs from the sheet
+      const { lastBatchId, lastScriptId } = await this.getLatestScriptDatabaseIds(cleanSpreadsheetId);
+
+      // New batch ID is last batch + 1
+      const newBatchId = lastBatchId + 1;
+      // Script IDs start from last script + 1
+      let nextScriptId = lastScriptId + 1;
+
       // Generate timestamp
       const timestamp = new Date().toISOString();
 
-      // Prepare rows
-      const rows = scripts.map(script => [
-        script.batchId,
-        script.scriptId,
-        "0", // MKJobID always 0 for AI-generated
-        timestamp,
-        script.language,
-        script.scriptCopy,
-        script.aiPrompt,
-        script.aiModel
-      ]);
+      // Prepare rows with sequential IDs
+      const rows = scripts.map(script => {
+        const scriptId = nextScriptId;
+        nextScriptId++;
+        return [
+          newBatchId.toString(),
+          scriptId.toString(),
+          "0", // MKJobID always 0 for AI-generated
+          timestamp,
+          script.language,
+          script.scriptCopy,
+          script.aiPrompt,
+          script.aiModel
+        ];
+      });
 
       // Append to the tab
       await this.appendDataToTab(cleanSpreadsheetId, tabName, rows);
-      console.log(`Added ${scripts.length} scripts to ScriptDatabase tab`);
+      console.log(`Added ${scripts.length} scripts to ScriptDatabase tab (BatchID: ${newBatchId}, ScriptIDs: ${lastScriptId + 1}-${nextScriptId - 1})`);
     } catch (error) {
       console.error('Error appending to ScriptDatabase:', error);
       throw error;

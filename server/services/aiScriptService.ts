@@ -719,9 +719,6 @@ Output format (JSON):
       }).replace(',', '');
       const timestampedTabName = `${tabName} ${timestamp}`;
 
-      // Generate unique batch ID for ScriptDatabase
-      const batchId = `BATCH_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
       // Prepare data for sheets
       const headers = [
         "Generated Date",
@@ -771,14 +768,11 @@ Output format (JSON):
         `Saved ${suggestions.length} suggestions to sheet tab "${timestampedTabName}"`,
       );
 
-      // Also write to ScriptDatabase tab
-      const scriptDatabaseEntries = suggestions.map((suggestion, index) => {
+      // Also write to ScriptDatabase tab (IDs are auto-generated sequentially)
+      const scriptDatabaseEntries = suggestions.map((suggestion) => {
         const languageName = suggestion.language ? this.getLanguageName(suggestion.language) : 'English';
-        const scriptId = `${batchId}_SCRIPT_${(index + 1).toString().padStart(3, '0')}`;
         
         return {
-          batchId,
-          scriptId,
           language: languageName,
           scriptCopy: suggestion.nativeContent || suggestion.content,
           aiPrompt: guidancePrompt,
