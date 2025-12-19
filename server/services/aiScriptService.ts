@@ -770,10 +770,12 @@ Output format (JSON):
 
       // Also write to ScriptDatabase tab (IDs are auto-generated sequentially)
       const scriptDatabaseEntries = suggestions.map((suggestion) => {
-        const languageName = suggestion.language ? this.getLanguageName(suggestion.language) : 'English';
+        // Use ISO 639-1 language code (e.g., 'en', 'hi', 'es') - capitalize first letter
+        const langCode = suggestion.language || 'en';
+        const formattedCode = langCode.charAt(0).toUpperCase() + langCode.slice(1).toLowerCase();
         
         return {
-          language: languageName,
+          language: formattedCode,
           scriptCopy: suggestion.nativeContent || suggestion.content,
           aiPrompt: guidancePrompt,
           aiModel: suggestion.llmModel || '',
