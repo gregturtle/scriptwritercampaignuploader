@@ -286,6 +286,16 @@ class VideoService {
             console.log(`Video uploaded to service account folder: ${driveResult.webViewLink}`);
           }
           
+          // Clean up local video file after successful upload
+          try {
+            if (result.outputPath && fs.existsSync(result.outputPath)) {
+              fs.unlinkSync(result.outputPath);
+              console.log(`Cleaned up local video file: ${result.outputPath}`);
+            }
+          } catch (cleanupError) {
+            console.warn('Failed to clean up local video file:', cleanupError);
+          }
+          
           // Add Drive link to result and include folder info
           return {
             ...result,
@@ -395,6 +405,16 @@ class VideoService {
             webViewLink: driveResult.webViewLink,
             name: driveResult.name
           });
+
+          // Clean up local video file after successful upload
+          try {
+            if (result.outputPath && fs.existsSync(result.outputPath)) {
+              fs.unlinkSync(result.outputPath);
+              console.log(`Cleaned up local video file: ${result.outputPath}`);
+            }
+          } catch (cleanupError) {
+            console.warn('Failed to clean up local video file:', cleanupError);
+          }
 
           return {
             ...result,
