@@ -2472,9 +2472,119 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     });
   });
 
+  // List videos from a Google Drive folder URL (requires Meta auth)
+  app.post('/api/drive/list-folder-videos', async (req, res) => {
+    try {
+      // Require authentication to prevent unauthorized access
+      await getAccessToken();
+      
+      const { folderUrl } = req.body;
+      
+      if (!folderUrl) {
+        return res.status(400).json({ error: 'Folder URL is required' });
+      }
+      
+      if (!googleDriveService.isConfigured()) {
+        return res.status(503).json({ error: 'Google Drive service is not configured' });
+      }
+      
+      // Extract folder ID from URL
+      let folderId = folderUrl;
+      
+      // Handle various Google Drive URL formats
+      if (folderUrl.includes('drive.google.com')) {
+        const match = folderUrl.match(/folders\/([a-zA-Z0-9_-]+)/);
+        if (match) {
+          folderId = match[1];
+        } else {
+          return res.status(400).json({ error: 'Could not extract folder ID from URL' });
+        }
+      }
+      
+      console.log(`Listing videos from folder: ${folderId}`);
+      const videos = await googleDriveService.listVideosFromFolder(folderId);
+      
+      res.json({ 
+        videos: videos.map((v: { id: string; name: string; size?: string; mimeType?: string }) => ({
+          id: v.id,
+          name: v.name,
+          size: v.size ? formatBytes(parseInt(v.size)) : undefined,
+          mimeType: v.mimeType
+        }))
+      });
+    } catch (error: any) {
+      console.error('Error listing folder videos:', error);
+      res.status(500).json({ 
+        error: error.message || 'Failed to list videos from folder' 
+      });
+    }
+  });
+  
+  // Upload a video from Google Drive to Meta Ad Account (requires Meta auth)
+  app.post('/api/meta/upload-from-drive', async (req, res) => {
+    try {
+      // Get access token first to authenticate request
+      const accessToken = await getAccessToken();
+      
+      const { driveFileId, fileName } = req.body;
+      
+      if (!driveFileId || !fileName) {
+        return res.status(400).json({ error: 'driveFileId and fileName are required' });
+      }
+      
+      if (!googleDriveService.isConfigured()) {
+        return res.status(503).json({ error: 'Google Drive service is not configured' });
+      }
+      
+      console.log(`Downloading ${fileName} from Drive for Meta upload...`);
+      
+      // Download the video from Google Drive
+      const downloadResult = await googleDriveService.downloadVideoFile(driveFileId, fileName);
+      
+      if (!downloadResult.success || !downloadResult.filePath) {
+        return res.status(500).json({ error: downloadResult.error || 'Failed to download from Drive' });
+      }
+      
+      const localFilePath = downloadResult.filePath;
+      console.log(`Downloaded to ${localFilePath}, uploading to Meta...`);
+      
+      // Upload to Meta
+      const metaResult = await fileService.uploadFileToMeta(accessToken, localFilePath);
+      
+      console.log(`Successfully uploaded ${fileName} to Meta with ID: ${metaResult.id}`);
+      
+      // Clean up temp file
+      try {
+        fs.unlinkSync(localFilePath);
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup temp file:', cleanupError);
+      }
+      
+      res.json({
+        success: true,
+        metaVideoId: metaResult.id,
+        fileName
+      });
+    } catch (error: any) {
+      console.error('Error uploading to Meta:', error);
+      res.status(500).json({ 
+        error: error.message || 'Failed to upload to Meta' 
+      });
+    }
+  });
+
   // Serve static files for uploads (backgrounds folder)
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Helper function to format bytes
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
