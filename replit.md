@@ -19,7 +19,7 @@ Video Generation: Automatic video overlay using fluent-ffmpeg when background vi
 - **Framework**: React 18 with TypeScript
 - **Styling**: Tailwind CSS with custom theme configuration
 - **Components**: shadcn/ui built on Radix UI primitives
-- **Single-Page Interface**: Main entry point is a unified "Video Creator" interface, encompassing video generation, script creation, and Google Sheets integration.
+- **Single-Page Interface**: Main entry point is a unified "Video Creator" interface with four tabs: Generate Iterations (variations of winning scripts), Generate New Scripts (original AI script generation), Process Existing Scripts (process scripts from Google Sheets), and Upload Creative to Meta (bulk upload videos from Google Drive to Meta Ad Account).
 - **Timestamped Organization**: Google Sheets tabs and Google Drive folders are timestamped for better tracking and batch management.
 
 ### Technical Implementations
