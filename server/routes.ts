@@ -204,7 +204,9 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         spreadsheetId, 
         generateAudio = true, 
         scriptCount = 5, 
-        backgroundVideoPath, 
+        backgroundVideoPath,
+        backgroundVideoDriveId,
+        backgroundVideoName,
         voiceId, 
         guidancePrompt, 
         language = 'en',
@@ -287,12 +289,23 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
       
       console.log(`Stored ${batchScripts.length} scripts for batch ${batchId}`);
 
-      // Auto-generate videos if audio was generated and background videos are available
+      // Auto-generate videos if audio was generated and background video is selected
       if (generateAudio && result.suggestions.some(s => s.audioFile)) {
-        const backgroundVideos = videoService.getAvailableBackgroundVideos();
-        const selectedBackgroundVideo = backgroundVideoPath && fs.existsSync(backgroundVideoPath) 
-          ? backgroundVideoPath 
-          : backgroundVideos[0]; // Fallback to first available
+        let selectedBackgroundVideo: string | null = null;
+        
+        // Download base film from Google Drive if driveId is provided
+        if (backgroundVideoDriveId && backgroundVideoName) {
+          console.log(`Downloading base film from Drive: ${backgroundVideoName} (${backgroundVideoDriveId})`);
+          const downloadResult = await googleDriveService.downloadBaseFilmToTemp(backgroundVideoDriveId, backgroundVideoName);
+          if (downloadResult.success && downloadResult.filePath) {
+            selectedBackgroundVideo = downloadResult.filePath;
+            console.log(`Base film downloaded to: ${selectedBackgroundVideo}`);
+          } else {
+            console.error('Failed to download base film from Drive:', downloadResult.error);
+          }
+        } else if (backgroundVideoPath && fs.existsSync(backgroundVideoPath)) {
+          selectedBackgroundVideo = backgroundVideoPath;
+        }
           
         if (selectedBackgroundVideo) {
           console.log(`Creating videos using background: ${selectedBackgroundVideo}`);
@@ -341,6 +354,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
             console.error('Video creation failed:', videoError);
             // Continue without videos - don't fail the entire request
           }
+        } else if (backgroundVideoDriveId && !selectedBackgroundVideo) {
+          console.warn('Video generation skipped: failed to download base film from Google Drive');
         }
       }
 
@@ -458,6 +473,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         iterationsPerScript = 3,
         generateAudio = true,
         backgroundVideoPath,
+        backgroundVideoDriveId,
+        backgroundVideoName,
         voiceId,
         guidancePrompt,
         language = 'en',
@@ -537,12 +554,23 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       console.log(`Stored ${batchScripts.length} iterations for batch ${batchId}`);
 
-      // Auto-generate videos if audio was generated and background videos are available
+      // Auto-generate videos if audio was generated and background video is selected
       if (generateAudio && result.suggestions.some(s => s.audioFile)) {
-        const backgroundVideos = videoService.getAvailableBackgroundVideos();
-        const selectedBackgroundVideo = backgroundVideoPath && fs.existsSync(backgroundVideoPath)
-          ? backgroundVideoPath
-          : backgroundVideos[0];
+        let selectedBackgroundVideo: string | null = null;
+        
+        // Download base film from Google Drive if driveId is provided
+        if (backgroundVideoDriveId && backgroundVideoName) {
+          console.log(`Downloading base film from Drive: ${backgroundVideoName} (${backgroundVideoDriveId})`);
+          const downloadResult = await googleDriveService.downloadBaseFilmToTemp(backgroundVideoDriveId, backgroundVideoName);
+          if (downloadResult.success && downloadResult.filePath) {
+            selectedBackgroundVideo = downloadResult.filePath;
+            console.log(`Base film downloaded to: ${selectedBackgroundVideo}`);
+          } else {
+            console.error('Failed to download base film from Drive:', downloadResult.error);
+          }
+        } else if (backgroundVideoPath && fs.existsSync(backgroundVideoPath)) {
+          selectedBackgroundVideo = backgroundVideoPath;
+        }
 
         if (selectedBackgroundVideo) {
           console.log(`Creating videos using background: ${selectedBackgroundVideo}`);
@@ -590,6 +618,8 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
           } catch (videoError) {
             console.error('Video creation failed:', videoError);
           }
+        } else if (backgroundVideoDriveId && !selectedBackgroundVideo) {
+          console.warn('Video generation skipped: failed to download base film from Google Drive');
         }
       }
 
@@ -1483,6 +1513,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         voiceId, 
         language = 'en',
         backgroundVideos: selectedBackgroundVideos = [],
+        backgroundVideosDrive = [],
         sendToSlack,
         slackNotificationDelay = 0,
         includeSubtitles = false
@@ -1492,7 +1523,7 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
         return res.status(400).json({ error: 'Scripts array is required' });
       }
 
-      console.log(`Processing ${scripts.length} existing scripts into videos with ${selectedBackgroundVideos.length} background videos`);
+      console.log(`Processing ${scripts.length} existing scripts into videos with ${backgroundVideosDrive.length || selectedBackgroundVideos.length} background videos`);
 
       // Transform the scripts from Google Sheets format to the format expected by our services
       const formattedScripts = scripts.map((script, index) => ({
@@ -1516,10 +1547,28 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
 
       // Generate videos for each script with each selected background video
       let allScriptsWithVideos: any[] = [];
-      const availableBackgrounds = videoService.getAvailableBackgroundVideos();
-      const videosToUse = selectedBackgroundVideos.length > 0 
-        ? selectedBackgroundVideos 
-        : (availableBackgrounds.length > 0 ? [availableBackgrounds[0]] : []);
+      
+      // Build list of background video paths - download from Drive if needed
+      let videosToUse: string[] = [];
+      
+      if (backgroundVideosDrive && backgroundVideosDrive.length > 0) {
+        // Download each base film from Google Drive
+        for (const driveVideo of backgroundVideosDrive) {
+          if (driveVideo.driveId && driveVideo.name) {
+            console.log(`Downloading base film from Drive: ${driveVideo.name} (${driveVideo.driveId})`);
+            const downloadResult = await googleDriveService.downloadBaseFilmToTemp(driveVideo.driveId, driveVideo.name);
+            if (downloadResult.success && downloadResult.filePath) {
+              videosToUse.push(downloadResult.filePath);
+              console.log(`Base film downloaded to: ${downloadResult.filePath}`);
+            } else {
+              console.error(`Failed to download base film ${driveVideo.name}:`, downloadResult.error);
+            }
+          }
+        }
+      } else if (selectedBackgroundVideos && selectedBackgroundVideos.length > 0) {
+        // Use local paths (legacy support)
+        videosToUse = selectedBackgroundVideos;
+      }
       
       if (videosToUse.length > 0) {
         for (const bgVideo of videosToUse) {
@@ -1714,20 +1763,36 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
   app.get('/api/video/status', async (req, res) => {
     try {
       const ffmpegAvailable = await videoService.checkFfmpegAvailability();
-      const backgroundVideos = videoService.getAvailableBackgroundVideos();
       const driveConfigured = googleDriveService.isConfigured();
+      
+      // Get base films from Google Drive
+      let backgroundVideosCount = 0;
+      let backgroundVideos: any[] = [];
+      
+      if (driveConfigured) {
+        try {
+          const baseFilmsFolderId = process.env.BASE_FILMS_FOLDER_ID || '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh';
+          const driveVideos = await googleDriveService.listBaseFilms(baseFilmsFolderId);
+          backgroundVideosCount = driveVideos.length;
+          backgroundVideos = driveVideos.map(video => ({
+            id: video.id,
+            name: video.name,
+            size: video.size,
+            driveId: video.id
+          }));
+        } catch (driveError) {
+          console.warn('Failed to list base films from Drive:', driveError);
+        }
+      }
       
       res.json({
         ffmpegAvailable,
-        backgroundVideosCount: backgroundVideos.length,
-        backgroundVideos: backgroundVideos.map(videoPath => ({
-          path: videoPath,
-          name: path.basename(videoPath),
-          url: `/uploads/backgrounds/${path.basename(videoPath)}`
-        })),
+        backgroundVideosCount,
+        backgroundVideos,
         driveConfigured,
+        source: 'google_drive',
         message: ffmpegAvailable 
-          ? `Video service ready with ${backgroundVideos.length} background video${backgroundVideos.length !== 1 ? 's' : ''}${driveConfigured ? ' + Google Drive access' : ''}`
+          ? `Video service ready with ${backgroundVideosCount} base film${backgroundVideosCount !== 1 ? 's' : ''} from Google Drive`
           : 'FFmpeg not available - video creation disabled'
       });
     } catch (error: any) {
@@ -1741,20 +1806,66 @@ export async function registerRoutes(app: express.Express): Promise<Server> {
     }
   });
 
-  // Get available background videos for selection
-  app.get("/api/video/background-videos", (req, res) => {
+  // Get available background videos from Google Drive
+  app.get("/api/video/background-videos", async (req, res) => {
     try {
-      const backgroundVideos = videoService.getAvailableBackgroundVideos();
+      // Base films folder ID in Google Drive - can be set via env var
+      const baseFilmsFolderId = process.env.BASE_FILMS_FOLDER_ID || '1AIe9UvmYnBJiJyD1rMzLZRNqKDw-BWJh';
+      
+      if (!googleDriveService.isConfigured()) {
+        return res.status(503).json({ 
+          error: 'Google Drive not configured',
+          videos: []
+        });
+      }
+      
+      const driveVideos = await googleDriveService.listBaseFilms(baseFilmsFolderId);
+      
       res.json({
-        videos: backgroundVideos.map(videoPath => ({
-          path: videoPath,
-          name: path.basename(videoPath),
-          url: `/uploads/backgrounds/${path.basename(videoPath)}`
+        source: 'google_drive',
+        folderId: baseFilmsFolderId,
+        videos: driveVideos.map(video => ({
+          id: video.id,
+          name: video.name,
+          size: video.size,
+          driveId: video.id
         }))
       });
     } catch (error) {
-      console.error('Error getting background videos:', error);
-      res.status(500).json({ error: 'Failed to get background videos' });
+      console.error('Error getting background videos from Drive:', error);
+      res.status(500).json({ error: 'Failed to get background videos from Google Drive' });
+    }
+  });
+
+  // Download a base film from Google Drive for video processing
+  app.post("/api/video/download-base-film", async (req, res) => {
+    try {
+      const { driveId, fileName } = req.body;
+      
+      if (!driveId || !fileName) {
+        return res.status(400).json({ error: 'driveId and fileName are required' });
+      }
+      
+      if (!googleDriveService.isConfigured()) {
+        return res.status(503).json({ error: 'Google Drive not configured' });
+      }
+      
+      const result = await googleDriveService.downloadBaseFilmToTemp(driveId, fileName);
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          localPath: result.filePath 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: result.error 
+        });
+      }
+    } catch (error) {
+      console.error('Error downloading base film:', error);
+      res.status(500).json({ error: 'Failed to download base film' });
     }
   });
 

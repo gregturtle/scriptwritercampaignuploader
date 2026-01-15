@@ -763,6 +763,140 @@ class GoogleDriveService {
       errors
     };
   }
+
+  /**
+   * List base films from a dedicated folder in Google Drive
+   * Base films are background videos used for creating ad content
+   */
+  async listBaseFilms(folderId: string): Promise<{
+    id: string;
+    name: string;
+    size?: string;
+    modifiedTime?: string;
+  }[]> {
+    if (!this.isConfigured()) {
+      throw new Error('Google Drive service is not properly configured');
+    }
+
+    try {
+      console.log(`Listing base films from Google Drive folder: ${folderId}`);
+      
+      const response = await this.drive.files.list({
+        q: `'${folderId}' in parents and mimeType contains 'video/' and trashed=false`,
+        fields: 'files(id,name,size,modifiedTime)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        orderBy: 'name'
+      });
+
+      const files = response.data.files || [];
+      console.log(`Found ${files.length} base films in Google Drive folder`);
+      
+      return files.map((file: any) => ({
+        id: file.id!,
+        name: file.name!,
+        size: file.size,
+        modifiedTime: file.modifiedTime
+      }));
+      
+    } catch (error) {
+      console.error('Error listing base films from Google Drive:', error);
+      throw new Error(`Failed to list base films: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Download a base film to a temporary location for video processing
+   * Returns the local file path for use with FFmpeg
+   */
+  async downloadBaseFilmToTemp(fileId: string, fileName: string): Promise<DownloadResult> {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        error: 'Google Drive service not configured'
+      };
+    }
+
+    try {
+      console.log(`Downloading base film ${fileId} (${fileName}) to temp location`);
+      
+      // Create temp directory for base films
+      const tempDir = path.join(process.cwd(), 'uploads', 'temp-base-films');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      // Generate safe filename with file ID to avoid conflicts
+      const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = path.join(tempDir, `${fileId}_${safeFileName}`);
+
+      // Check if already downloaded (cache)
+      if (fs.existsSync(filePath)) {
+        console.log(`Base film already cached: ${filePath}`);
+        return {
+          success: true,
+          filePath
+        };
+      }
+
+      // Download the file
+      console.log(`Downloading base film content for ${fileId}`);
+      const response = await this.drive.files.get({
+        fileId,
+        alt: 'media',
+        supportsAllDrives: true
+      }, {
+        responseType: 'stream'
+      });
+
+      // Write stream to file
+      const writeStream = fs.createWriteStream(filePath);
+      
+      return new Promise((resolve) => {
+        response.data.pipe(writeStream)
+          .on('finish', () => {
+            console.log(`Downloaded base film: ${safeFileName} to ${filePath}`);
+            resolve({
+              success: true,
+              filePath
+            });
+          })
+          .on('error', (error: Error) => {
+            console.error('Error writing base film file:', error);
+            resolve({
+              success: false,
+              error: `Failed to save base film: ${error.message}`
+            });
+          });
+      });
+
+    } catch (error) {
+      console.error('Error downloading base film from Google Drive:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  /**
+   * Clean up temporary base films after processing
+   */
+  cleanupTempBaseFilms(): void {
+    try {
+      const tempDir = path.join(process.cwd(), 'uploads', 'temp-base-films');
+      if (fs.existsSync(tempDir)) {
+        const files = fs.readdirSync(tempDir);
+        for (const file of files) {
+          const filePath = path.join(tempDir, file);
+          fs.unlinkSync(filePath);
+          console.log(`Cleaned up temp base film: ${filePath}`);
+        }
+      }
+    } catch (error) {
+      console.warn('Error cleaning up temp base films:', error);
+    }
+  }
 }
 
 export const googleDriveService = new GoogleDriveService();

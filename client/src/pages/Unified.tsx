@@ -49,8 +49,8 @@ export default function Unified() {
   const [driveVideos, setDriveVideos] = useState<any[]>([]);
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
   const [isDriveConfigured, setIsDriveConfigured] = useState(false);
-  const [availableBackgroundVideos, setAvailableBackgroundVideos] = useState<{path: string, name: string, url: string}[]>([]);
-  const [selectedBackgroundVideo, setSelectedBackgroundVideo] = useState<string>('');
+  const [availableBackgroundVideos, setAvailableBackgroundVideos] = useState<{id: string, name: string, driveId: string, size?: string}[]>([]);
+  const [selectedBackgroundVideo, setSelectedBackgroundVideo] = useState<string>(''); // Now stores driveId
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>('I8vyadnJFaMFR0zgn147'); // Default to Hybrid Voice 1
   const [availableVoices, setAvailableVoices] = useState<{voice_id: string, name: string}[]>([]);
@@ -90,7 +90,7 @@ export default function Unified() {
 
   const { toast } = useToast();
 
-  // Load available background videos
+  // Load available background videos from Google Drive
   useEffect(() => {
     const loadBackgroundVideos = async () => {
       setLoadingVideos(true);
@@ -98,9 +98,10 @@ export default function Unified() {
         const response = await fetch('/api/video/background-videos');
         if (response.ok) {
           const data = await response.json();
-          setAvailableBackgroundVideos(data.videos);
-          if (data.videos.length > 0 && !selectedBackgroundVideo) {
-            setSelectedBackgroundVideo(data.videos[0].path);
+          setAvailableBackgroundVideos(data.videos || []);
+          setIsDriveConfigured(data.source === 'google_drive');
+          if (data.videos && data.videos.length > 0 && !selectedBackgroundVideo) {
+            setSelectedBackgroundVideo(data.videos[0].driveId);
           }
         }
       } catch (error) {
@@ -110,7 +111,7 @@ export default function Unified() {
       }
     };
     loadBackgroundVideos();
-  }, [selectedBackgroundVideo]);
+  }, []);
 
   // Load available voices from ElevenLabs
   useEffect(() => {
@@ -287,6 +288,12 @@ export default function Unified() {
     try {
       const scriptsToProcess = Array.from(selectedExistingScripts).map(index => existingScripts[index]);
       
+      // Convert selected background video IDs to Drive format
+      const selectedBgVideosDrive = selectedBackgroundVideosMulti
+        .map(driveId => availableBackgroundVideos.find(v => v.driveId === driveId))
+        .filter(v => v)
+        .map(v => ({ driveId: v!.driveId, name: v!.name }));
+      
       const response = await fetch('/api/scripts/process-to-videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -294,7 +301,7 @@ export default function Unified() {
           scripts: scriptsToProcess,
           voiceId: selectedVoice,
           language: selectedLanguage,
-          backgroundVideos: selectedBackgroundVideosMulti,
+          backgroundVideosDrive: selectedBgVideosDrive,
           sendToSlack: slackEnabled,
           slackNotificationDelay: slackEnabled ? 15 : 0, // 15 minute delay if Slack is enabled
           includeSubtitles: includeSubtitles
@@ -440,11 +447,15 @@ export default function Unified() {
         return;
       }
 
+      // Get the selected background video details for Drive download
+      const selectedBgVideo = availableBackgroundVideos.find(v => v.driveId === selectedBackgroundVideo);
+      
       const requestBody: any = {
         sourceScripts: scriptsToIterate,
         iterationsPerScript: iterationsCount,
         generateAudio: withAudio,
-        backgroundVideoPath: selectedBackgroundVideo,
+        backgroundVideoDriveId: selectedBgVideo?.driveId,
+        backgroundVideoName: selectedBgVideo?.name,
         voiceId: selectedVoice,
         language: selectedLanguage,
         experimentalPercentage: experimentalPercentage,
@@ -745,12 +756,16 @@ export default function Unified() {
     setIsGeneratingAudio(false);
 
     try {
+      // Get the selected background video details for Drive download
+      const selectedBgVideo = availableBackgroundVideos.find(v => v.driveId === selectedBackgroundVideo);
+      
       // Generate AI scripts using Guidance Primer
       const scriptRequestBody: any = {
         spreadsheetId: spreadsheetId.trim(),
         generateAudio: withAudio,
         scriptCount: scriptCount,
-        backgroundVideoPath: selectedBackgroundVideo,
+        backgroundVideoDriveId: selectedBgVideo?.driveId,
+        backgroundVideoName: selectedBgVideo?.name,
         voiceId: selectedVoice,
         language: selectedLanguage,
         experimentalPercentage: experimentalPercentage,
@@ -1019,14 +1034,14 @@ export default function Unified() {
               {/* Background Video Selection */}
               {iterationsScripts.length > 0 && availableBackgroundVideos.length > 0 && (
                 <div className="space-y-2">
-                  <Label htmlFor="iterations-video-selector">Background Video</Label>
+                  <Label htmlFor="iterations-video-selector">Background Video (from Google Drive)</Label>
                   <Select value={selectedBackgroundVideo} onValueChange={setSelectedBackgroundVideo}>
                     <SelectTrigger id="iterations-video-selector">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-60 overflow-y-auto">
                       {availableBackgroundVideos.map((video) => (
-                        <SelectItem key={video.path} value={video.path}>
+                        <SelectItem key={video.driveId} value={video.driveId}>
                           {video.name}
                         </SelectItem>
                       ))}
@@ -1647,16 +1662,16 @@ export default function Unified() {
               </div>
             ) : availableBackgroundVideos.length > 0 ? (
               <div className="bg-white p-3 rounded-md border space-y-3">
-                <div className="text-sm font-medium">Available Videos: {availableBackgroundVideos.length}</div>
+                <div className="text-sm font-medium">Base Films from Google Drive: {availableBackgroundVideos.length}</div>
                 <Select value={selectedBackgroundVideo} onValueChange={setSelectedBackgroundVideo}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose a background video">
-                      {selectedBackgroundVideo ? availableBackgroundVideos.find(v => v.path === selectedBackgroundVideo)?.name : 'Choose a background video'}
+                      {selectedBackgroundVideo ? availableBackgroundVideos.find(v => v.driveId === selectedBackgroundVideo)?.name : 'Choose a background video'}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {availableBackgroundVideos.map((video) => (
-                      <SelectItem key={video.path} value={video.path}>
+                      <SelectItem key={video.driveId} value={video.driveId}>
                         <div className="flex items-center gap-2">
                           <Video className="h-4 w-4 text-purple-600" />
                           <span className="truncate">{video.name}</span>
@@ -1673,20 +1688,17 @@ export default function Unified() {
                 >
                   <option value="">Select video...</option>
                   {availableBackgroundVideos.map((video) => (
-                    <option key={video.path} value={video.path}>
+                    <option key={video.driveId} value={video.driveId}>
                       {video.name}
                     </option>
                   ))}
                 </select>
                 {selectedBackgroundVideo && (
                   <div className="border rounded-md p-2 bg-gray-50">
-                    <div className="text-xs font-medium mb-1">Preview:</div>
-                    <video 
-                      src={availableBackgroundVideos.find(v => v.path === selectedBackgroundVideo)?.url} 
-                      className="w-full max-w-sm rounded border"
-                      controls
-                      muted
-                    />
+                    <div className="text-xs font-medium mb-1">Selected:</div>
+                    <p className="text-sm text-gray-600">
+                      {availableBackgroundVideos.find(v => v.driveId === selectedBackgroundVideo)?.name}
+                    </p>
                   </div>
                 )}
               </div>
@@ -2205,7 +2217,7 @@ export default function Unified() {
                       if (selectedBackgroundVideosMulti.length === availableBackgroundVideos.length) {
                         setSelectedBackgroundVideosMulti([]);
                       } else {
-                        setSelectedBackgroundVideosMulti(availableBackgroundVideos.map(v => v.path));
+                        setSelectedBackgroundVideosMulti(availableBackgroundVideos.map(v => v.driveId));
                       }
                     }}
                   >
@@ -2215,21 +2227,21 @@ export default function Unified() {
                 <Card className="p-4 max-h-48 overflow-y-auto">
                   <div className="space-y-3">
                     {availableBackgroundVideos.map((video) => (
-                      <div key={video.path} className="flex items-center space-x-2">
+                      <div key={video.driveId} className="flex items-center space-x-2">
                         <Checkbox
-                          id={`video-${video.path}`}
-                          checked={selectedBackgroundVideosMulti.includes(video.path)}
+                          id={`video-${video.driveId}`}
+                          checked={selectedBackgroundVideosMulti.includes(video.driveId)}
                           onCheckedChange={(checked) => {
                             if (checked) {
-                              setSelectedBackgroundVideosMulti([...selectedBackgroundVideosMulti, video.path]);
+                              setSelectedBackgroundVideosMulti([...selectedBackgroundVideosMulti, video.driveId]);
                             } else {
-                              setSelectedBackgroundVideosMulti(selectedBackgroundVideosMulti.filter(p => p !== video.path));
+                              setSelectedBackgroundVideosMulti(selectedBackgroundVideosMulti.filter(p => p !== video.driveId));
                             }
                           }}
                           data-testid={`checkbox-video-${video.name}`}
                         />
                         <Label
-                          htmlFor={`video-${video.path}`}
+                          htmlFor={`video-${video.driveId}`}
                           className="text-sm font-normal cursor-pointer flex items-center gap-2"
                         >
                           <Video className="h-4 w-4 text-purple-600" />
